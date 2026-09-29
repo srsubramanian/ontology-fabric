@@ -19,7 +19,7 @@ Ontology Fabric is the working name for a payments knowledge layer: an ontology-
 
 ## About the owner
 
-Subra leads 13 application development teams in a regulated fintech. He has deep payments knowledge (authorization lifecycle, Visa and Mastercard, chargebacks, routing) and works with AWS, LangGraph and Python. He learns visually, so prefer diagrams and animation over long text, and keep written explanations short.
+An engineering manager with a deep payments background. Prefers visual explanations: diagrams and animation over long text, and short written explanations.
 
 ## Always follow
 
