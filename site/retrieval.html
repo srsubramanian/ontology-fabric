@@ -1,0 +1,946 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>How retrieval works: graph, search and warehouse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+
+:root{
+  --paper:#EDF0F3; --raised:#F9FAFB; --ink:#16222E; --muted:#56636F; --line:#C2CBD4; --faint:#E1E6EB;
+  --onto:#6B3FA0; --graph:#1C5BA8; --search:#A5670A; --query:#16765E;
+  --code-bg:#17232F; --code-ink:#E2E8EE; --bad:#B8392A;
+  --flow:var(--query);
+  color-scheme:light; box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0F151C; --raised:#16202A; --ink:#E2E8EE; --muted:#97A3AF; --line:#34414E; --faint:#18222C;
+    --onto:#B38EE8; --graph:#72A8EF; --search:#E3AA4E; --query:#4EC3A3;
+    --code-bg:#0A0F14; --code-ink:#DCE3EA; --bad:#F07C66; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F151C; --raised:#16202A; --ink:#E2E8EE; --muted:#97A3AF; --line:#34414E; --faint:#18222C;
+  --onto:#B38EE8; --graph:#72A8EF; --search:#E3AA4E; --query:#4EC3A3;
+  --code-bg:#0A0F14; --code-ink:#DCE3EA; --bad:#F07C66; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none !important}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 72px)}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:"Schibsted Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size:17px; line-height:1.55; -webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px; margin:0 auto; padding:48px 28px 88px}
+body.inpage .wrap{padding-top:14px}
+h1{font-size:clamp(2.2rem,5vw,3.8rem); line-height:1.0; letter-spacing:-0.03em; font-weight:800; margin:0 0 18px; max-width:22ch}
+h2{font-size:clamp(1.8rem,3.4vw,2.6rem); line-height:1.05; letter-spacing:-0.02em; font-weight:800; margin:0 0 8px}
+h3{font-size:1.15rem; line-height:1.25; margin:0 0 8px; font-weight:700}
+p{margin:0 0 12px}
+.lede{font-size:1.15rem; color:var(--muted); max-width:62ch; margin-bottom:26px}
+.intro{color:var(--muted); max-width:66ch}
+code,.mono{font-family:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:.88em}
+button{font:inherit; color:inherit}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--ink); outline-offset:3px; border-radius:4px}
+.note{font-size:.86rem; color:var(--muted); margin:10px 0 0}
+.vcap{font-size:.8rem; font-weight:800; color:var(--muted); margin:0 0 8px}
+.vbtns{display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 0}
+.vbtn{border:1px solid var(--line); background:var(--raised); border-radius:8px; padding:7px 13px; cursor:pointer; font-weight:600; font-size:.88rem; text-decoration:none; color:var(--ink); display:inline-block}
+.vbtn.go{background:var(--query); color:var(--paper); border-color:transparent}
+/* nav */
+.toc{position:sticky; top:env(safe-area-inset-top,0px); z-index:20; background:var(--paper); display:flex; gap:4px; overflow-x:auto; padding:10px 0; margin:0 0 22px; border-bottom:1px solid var(--line); scrollbar-width:none}
+.toc::-webkit-scrollbar{display:none}
+.toc a{flex:none; color:var(--muted); text-decoration:none; font-weight:600; font-size:.88rem; padding:6px 11px; border-radius:999px}
+.toc a:hover{color:var(--ink); background:var(--faint)}
+.toc a.here{color:var(--paper); background:var(--ink)}
+/* pipeline map */
+.xwrap{overflow-x:auto}
+.pmap{display:block; width:100%; min-width:900px; height:auto}
+.pn{cursor:pointer; transform-box:fill-box; transform-origin:center}
+.pn .box{fill:var(--raised); stroke:var(--line); stroke-width:1.25}
+.pn .bar{fill:var(--c)}
+.pn.on .box{stroke:var(--flow); stroke-width:2.4}
+.pn:hover .box{fill:var(--paper)}
+.pn .t{font-size:13.5px; font-weight:700; fill:var(--ink)}
+.pn .s{font-size:11.5px; fill:var(--muted)}
+.pe{fill:none; stroke:var(--line); stroke-width:1.6}
+.pe.on{stroke:var(--flow); stroke-width:2.4}
+.legend{display:flex; flex-wrap:wrap; gap:8px 20px; font-size:.84rem; color:var(--muted); margin:8px 0 0}
+.legend span{display:inline-flex; align-items:center; gap:7px}
+.legend i{width:14px; height:4px; border-radius:2px; background:var(--c)}
+.qpick{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:8px; margin:22px 0 8px}
+.qbtn{text-align:left; border:1px solid var(--line); background:var(--raised); border-radius:12px; padding:10px 12px; cursor:pointer; font-size:.9rem; line-height:1.35}
+.qbtn b{display:block; font-size:.72rem; font-weight:800; color:var(--query); margin-bottom:4px}
+.qbtn[aria-pressed="true"]{border-color:var(--ink); box-shadow:inset 0 0 0 1px var(--ink)}
+.qwhy{min-height:1.5em; font-weight:600; margin:10px 0 0}
+.stages{list-style:none; padding:0; margin:34px 0 0; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px}
+.stages a{display:flex; flex-direction:column; gap:4px; min-height:104px; text-decoration:none; background:var(--raised); border:1px solid var(--line); border-radius:12px; padding:12px; box-shadow:inset 0 4px 0 var(--c)}
+.stages a:hover{background:var(--paper)}
+.stages .n{font-size:1.5rem; font-weight:800; color:var(--c); line-height:1}
+.stages b{font-size:.95rem}
+.stages span{font-size:.78rem; color:var(--muted)}
+/* pages */
+.phead{display:grid; grid-template-columns:auto minmax(0,1fr); gap:6px 24px; align-items:center; padding:18px 0 16px; border-top:3px solid var(--c)}
+.pnum{font-size:clamp(2.8rem,6vw,4.4rem); font-weight:800; line-height:.85; color:var(--c); letter-spacing:-0.05em}
+.idea{font-size:1.1rem; color:var(--muted); margin:0; max-width:62ch}
+.strip{display:flex; gap:4px; overflow-x:auto; padding:10px 0 14px; border-bottom:1px solid var(--line); margin-bottom:22px; scrollbar-width:none}
+.strip::-webkit-scrollbar{display:none}
+.strip a{flex:none; text-decoration:none; font-size:.78rem; font-weight:700; color:var(--muted); padding:4px 10px; border-radius:999px; border:1px solid var(--line)}
+.strip a.on{background:var(--c); color:var(--paper); border-color:transparent}
+.grid2{display:grid; grid-template-columns:260px minmax(0,1fr); gap:28px; align-items:start}
+@media (max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.keys ul{list-style:none; padding:0; margin:0}
+.keys li{padding:9px 0 9px 22px; position:relative; border-top:1px solid var(--line); font-weight:500; line-height:1.35}
+.keys li::before{content:""; position:absolute; left:2px; top:14px; width:10px; height:10px; border-radius:3px; background:var(--c)}
+.viz{background:var(--raised); border:1px solid var(--line); border-radius:14px; padding:18px}
+.svgv{display:block; width:100%; height:auto; min-width:560px}
+.code{background:var(--code-bg); color:var(--code-ink); border-radius:12px; overflow:auto}
+.code pre{margin:0; padding:14px 16px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12.5px; line-height:1.65}
+.code .token.keyword, .code .token.key{color:#8DB8F2}
+.code .token.class-name, .code .token.relationship{color:#C9A8F2}
+.code .token.variable, .code .token.number{color:#EDBB6A}
+.code .token.string, .code .token.property, .code .token.scalar{color:#86D6BC}
+.code .token.relationship.property{color:#C9A8F2}
+.code .token.function{color:#9FE1CB}
+.code .token.comment{color:#7F8D9A}
+.code .token.punctuation, .code .token.operator{color:#AEB9C4}
+.code .token.boolean{color:#EDBB6A}
+.pager{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:36px; padding-top:18px; border-top:1px solid var(--line)}
+.pager .go{margin-left:auto}
+footer{margin-top:60px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:.85rem; max-width:80ch}
+/* page 1 */
+.arrive{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.1fr); gap:16px; align-items:start}
+@media (max-width:760px){.arrive{grid-template-columns:minmax(0,1fr)}}
+.gates{display:grid; gap:8px}
+.gate{display:grid; grid-template-columns:28px minmax(0,1fr); gap:10px; align-items:center; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:.9rem}
+.gate i{width:24px; height:24px; border-radius:50%; background:var(--faint); display:grid; place-items:center; font-style:normal; font-weight:800; font-size:.75rem; color:var(--paper)}
+.gate.ok i{background:var(--query)}
+.gate b{display:block}
+.gate span{color:var(--muted); font-size:.82rem}
+.env{background:var(--paper); border:2px solid var(--ink); border-radius:12px; padding:12px 14px}
+.env h4{margin:0 0 8px; font-size:.95rem}
+.stamp{display:flex; justify-content:space-between; gap:10px; font-size:.84rem; padding:5px 0; border-top:1px dashed var(--line)}
+.stamp span:first-child{color:var(--muted); font-weight:700}
+.stamp code{font-size:.8rem}
+/* page 2 */
+.qline{font-size:1.25rem; font-weight:600; line-height:1.6; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:14px 16px}
+.hl{border-radius:6px; padding:1px 3px; transition:background .3s, box-shadow .3s}
+.hl.on{background:var(--hc); color:var(--paper); box-shadow:0 0 0 2px var(--hc)}
+.hlkey{display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 14px}
+.hlkey span{font-size:.78rem; font-weight:700; padding:3px 9px; border-radius:999px; background:var(--hc); color:var(--paper); opacity:.35; transition:opacity .3s}
+.hlkey span.on{opacity:1}
+.types{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:8px; margin-top:16px}
+.types div{background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:.84rem}
+.types b{display:block; font-size:.9rem}
+.types em{font-style:normal; color:var(--muted); display:block; margin:2px 0 6px}
+.types small{font-weight:700; color:var(--query)}
+/* page 3 */
+.cand{display:grid; gap:8px; position:relative}
+.crow{display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) 44px; gap:10px; align-items:center; font-size:.88rem; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:8px 10px}
+.crow small{display:block; color:var(--muted); font-size:.74rem}
+.crow code{font-size:.78rem}
+.track{height:12px; background:var(--faint); border-radius:6px; position:relative; overflow:visible}
+.track i{position:absolute; left:0; top:0; bottom:0; width:0; border-radius:6px; background:var(--search)}
+.track .thr{position:absolute; top:-5px; bottom:-5px; width:2px; background:var(--ink); left:60%}
+.crow .sc{font-family:"JetBrains Mono",monospace; font-weight:700; text-align:right; font-size:.8rem}
+.crow.pick{border-color:var(--query); box-shadow:inset 4px 0 0 var(--query)}
+.crow.maybe{border-style:dashed}
+.crow.out{opacity:.45}
+.ctxchip{display:inline-block; margin:10px 0 0; font-size:.82rem; font-weight:700; padding:5px 10px; border-radius:999px; background:var(--graph); color:var(--paper)}
+/* page 4 */
+.guards{display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 0}
+.guards span{font-size:.8rem; font-weight:700; padding:4px 10px; border-radius:999px; border:1.5px solid var(--graph); color:var(--graph)}
+.gn .box{fill:var(--raised); stroke:var(--graph); stroke-width:1.6}
+.gn.seed .box{stroke-width:3}
+.gn.far .box{stroke:var(--line); stroke-dasharray:5 4}
+.gn .t{font-size:12.5px; font-weight:700; fill:var(--ink); font-family:"JetBrains Mono",monospace}
+.gn .s{font-size:11px; fill:var(--muted)}
+.gn, .ge{transform-box:fill-box; transform-origin:center}
+.ge{fill:none; stroke:var(--graph); stroke-width:2}
+.ge.far{stroke:var(--line); stroke-dasharray:5 4}
+.gl{font-size:10px; font-weight:700; fill:var(--graph); font-family:"JetBrains Mono",monospace}
+.gl.far{fill:var(--muted)}
+.hopc{font-size:12px; font-weight:800; fill:var(--muted)}
+/* page 5 */
+.loopn .box{fill:var(--raised); stroke:var(--line); stroke-width:1.4}
+.loopn .t{font-size:13px; font-weight:700; fill:var(--ink)}
+.loopn .s{font-size:11px; fill:var(--muted)}
+.loopn.bad .box{stroke:var(--bad); stroke-width:2.6}
+.loopn.good .box{stroke:var(--query); stroke-width:2.6}
+.le{fill:none; stroke:var(--muted); stroke-width:1.6}
+.le.back{stroke:var(--bad); stroke-dasharray:6 5}
+.ll{font-size:10.5px; font-weight:700; fill:var(--muted)}
+.ll.bad{fill:var(--bad)}
+.tries{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:12px}
+@media (max-width:760px){.tries{grid-template-columns:minmax(0,1fr)}}
+.tries .vcap.bad{color:var(--bad)} .tries .vcap.good{color:var(--query)}
+.tmpl{margin-top:14px}
+/* page 6 */
+.steps6{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px}
+.steps6 span{font-size:.8rem; font-weight:700; padding:4px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted)}
+.steps6 span.on{background:var(--search); color:var(--paper); border-color:transparent}
+.chunks{display:grid; gap:8px}
+.ch{display:grid; grid-template-columns:minmax(0,1fr) 120px 44px; gap:10px; align-items:center; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:.86rem}
+.ch small{display:block; font-size:.72rem; color:var(--muted)}
+.ch .m code{font-size:.7rem; margin-right:4px; color:var(--graph)}
+.ch .sc{font-family:"JetBrains Mono",monospace; font-weight:700; text-align:right; font-size:.8rem}
+.ch .bar6{height:10px; background:var(--faint); border-radius:5px; overflow:hidden}
+.ch .bar6 i{display:block; height:100%; width:0; background:var(--search); border-radius:5px}
+.ch.cut{opacity:.35; text-decoration:line-through}
+.ch.keep{border-color:var(--search); box-shadow:inset 4px 0 0 var(--search)}
+.ch.lock{border-color:var(--bad)}
+/* page 7 */
+.trays{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px}
+@media (max-width:760px){.trays{grid-template-columns:minmax(0,1fr)}}
+.tray{background:var(--paper); border:1.5px solid var(--c); border-radius:12px; padding:10px; min-height:150px}
+.tray header b{display:block; font-size:.92rem}
+.tray header small{color:var(--muted); font-size:.76rem}
+.tray .items{display:flex; flex-direction:column; gap:6px; margin-top:8px}
+.item{font-size:.8rem; background:var(--raised); border:1px solid var(--line); border-radius:8px; padding:5px 8px}
+.item code{font-size:.72rem; color:var(--muted); display:block}
+.item.drop{opacity:.35; text-decoration:line-through}
+.budget{margin:14px 0 4px; display:grid; grid-template-columns:120px minmax(0,1fr) 110px; gap:10px; align-items:center; font-size:.84rem; font-weight:700}
+.btrack{height:14px; background:var(--faint); border-radius:7px; overflow:hidden; position:relative}
+.btrack i{display:block; height:100%; width:0; background:var(--query)}
+.btrack .lim{position:absolute; top:0; bottom:0; width:2px; right:0; background:var(--ink)}
+/* page 8 */
+.ans{display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:14px}
+@media (max-width:760px){.ans{grid-template-columns:minmax(0,1fr)}}
+.sent{padding:8px 10px; border-radius:8px; border:1px solid transparent; cursor:pointer; margin-bottom:6px; line-height:1.45}
+.sent.on{border-color:var(--query); background:var(--paper)}
+.sent sup{font-size:.7rem; color:var(--query); font-weight:800}
+.ev{font-size:.82rem; background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:6px 9px; margin-bottom:6px}
+.ev code{font-size:.74rem; font-weight:700}
+.ev.on{border-color:var(--query); box-shadow:inset 4px 0 0 var(--query)}
+.rules8{margin-top:14px}
+/* page 9 */
+.checks{display:grid; gap:8px}
+.chk{display:grid; grid-template-columns:28px minmax(0,1fr); gap:10px; align-items:center; background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:9px 12px; font-size:.9rem}
+.chk i{width:24px; height:24px; border-radius:50%; background:var(--faint); display:grid; place-items:center; font-style:normal; font-weight:800; font-size:.75rem; color:var(--paper)}
+.chk.ok i{background:var(--query)} .chk.fix i{background:var(--search)}
+.fixbox{margin-top:12px; background:var(--paper); border:1.5px dashed var(--search); border-radius:12px; padding:10px 12px; font-size:.92rem}
+.fixbox del{color:var(--bad)} .fixbox ins{text-decoration:none; color:var(--query); font-weight:700}
+/* page 10 */
+.wf{display:grid; gap:6px}
+.wrow{display:grid; grid-template-columns:130px minmax(0,1fr) 64px; gap:10px; align-items:center; font-size:.84rem; font-weight:600}
+.wtrack{height:14px; position:relative; background:var(--faint); border-radius:4px}
+.wtrack i{position:absolute; top:0; bottom:0; border-radius:4px; background:var(--c); width:0}
+.wrow .ms{font-family:"JetBrains Mono",monospace; font-size:.78rem; text-align:right; color:var(--muted)}
+.metrics{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:16px}
+@media (max-width:640px){.metrics{grid-template-columns:minmax(0,1fr)}}
+.metric{background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:10px 12px}
+.metric b{display:block; font-size:.92rem}
+.metric small{color:var(--muted); font-size:.78rem}
+.mt{height:10px; background:var(--faint); border-radius:5px; position:relative; margin-top:8px}
+.mt i{position:absolute; left:0; top:0; bottom:0; width:0; border-radius:5px; background:var(--query)}
+.mt .tg{position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--ink)}
+.loopback{margin-top:16px; background:var(--raised); border:1.5px solid var(--onto); border-radius:12px; padding:12px 14px; font-size:.92rem}
+
+:root{--wh:#0B7592}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--wh:#5CC6E6}}
+:root[data-theme="dark"]{--wh:#5CC6E6}
+.four{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:6px 0 0}
+@media (max-width:760px){.four{grid-template-columns:minmax(0,1fr)}}
+.four div{background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:10px 12px; box-shadow:inset 0 4px 0 var(--c); font-size:.86rem}
+.four b{display:block; font-size:.95rem}
+.four em{font-style:normal; color:var(--muted); display:block; margin:4px 0}
+.idmap{display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1.4fr); gap:14px; align-items:center; margin-top:14px; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:12px 14px}
+@media (max-width:640px){.idmap{grid-template-columns:minmax(0,1fr)}}
+.idmap .core{font-family:"JetBrains Mono",monospace; font-weight:700; font-size:1rem; background:var(--ink); color:var(--paper); border-radius:8px; padding:8px 12px; text-align:center}
+.idmap .core small{display:block; font-family:"Schibsted Grotesk",sans-serif; font-weight:600; font-size:.72rem; opacity:.8}
+.idmap .arrow{font-weight:800; color:var(--muted)}
+.idmap .outs{display:grid; gap:6px}
+.idmap .outs span{font-size:.84rem; border-radius:8px; padding:6px 10px; border:1.5px solid var(--c); background:var(--raised)}
+.idmap .outs code{font-size:.8rem; font-weight:700}
+.bars{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; align-items:end; height:220px; position:relative; padding:0 10px; border-bottom:1.5px solid var(--line); margin:10px 0 6px}
+.bars .col{display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:6px}
+.bars .bar{width:64%; max-width:120px; background:var(--wh); border-radius:8px 8px 0 0; height:0}
+.bars .bar.over{background:var(--bad)}
+.bars .val{font-family:"JetBrains Mono",monospace; font-weight:700; font-size:.9rem}
+.bars .thr{position:absolute; left:0; right:0; border-top:2px dashed var(--ink)}
+.bars .thr span{position:absolute; right:0; top:-22px; font-size:.76rem; font-weight:800; background:var(--raised); padding:0 4px}
+.months{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; padding:0 10px; text-align:center; font-size:.84rem; font-weight:700}
+.months small{display:block; font-weight:600; color:var(--muted); font-size:.74rem}
+.floor{display:inline-block; font-size:.72rem; font-weight:800; padding:2px 8px; border-radius:999px; margin-top:4px}
+.floor.no{background:var(--faint); color:var(--muted)}
+.floor.yes{background:var(--bad); color:var(--paper)}
+.guards.wh span{border-color:var(--wh); color:var(--wh)}
+.fresh{display:inline-block; margin-top:10px; font-size:.82rem; font-weight:700; padding:5px 10px; border-radius:999px; background:var(--wh); color:var(--paper)}
+.trays4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:980px){.trays4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.trays4{grid-template-columns:minmax(0,1fr)}}
+.gn.m .box{stroke:var(--ink); stroke-width:2.6}
+.gn.o .box{stroke:var(--graph)}
+.ge.bad{stroke:var(--bad)}
+.gl.bad{fill:var(--bad)}
+.eng{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:14px}
+@media (max-width:760px){.eng{grid-template-columns:minmax(0,1fr)}}
+.eng div{background:var(--paper); border:1.5px solid var(--c); border-radius:12px; padding:10px 12px; font-size:.85rem}
+.eng b{display:block; font-size:.95rem; color:var(--c)}
+.eng em{display:block; font-style:normal; color:var(--muted); margin-top:6px}
+.eng div.on{box-shadow:inset 0 0 0 2px var(--c)}
+.result{margin-top:12px; font-size:1rem; font-weight:700; background:var(--paper); border:1.5px solid var(--graph); border-radius:12px; padding:10px 14px}
+.result code{font-size:.85rem}
+.stack6 > div{margin-top:14px}
+.bars .thr span{left:0; right:auto}
+</style>
+</head>
+<body>
+<main class="wrap">
+<header id="hero">
+  <h1>How a question becomes an answer.</h1>
+  <p class="lede">The retrieval path of the payments knowledge layer, now with the warehouse in the loop: Neptune for how things connect, Snowflake for how much and how often, OpenSearch for what the text says. Pick a question to see its route, then open any stage.</p>
+  <p style="margin:-10px 0 24px"><a class="vbtn" href="platform.html" target="_blank" rel="noopener">Open the platform overview</a></p>
+</header>
+<nav class="toc" id="toc" aria-label="Stages">
+  <a href="#map">Map</a><a href="#s1">1 Arrive</a><a href="#s2">2 Understand</a><a href="#s3">3 Entry points</a><a href="#s4">4 Walk the graph</a><a href="#s5">5 Count in the graph</a><a href="#s6">6 Ask the warehouse</a><a href="#s7">7 Find the text</a><a href="#s8">8 Assemble</a><a href="#s9">9 Answer</a><a href="#s10">10 Check</a><a href="#s11">11 Watch and improve</a>
+</nav>
+
+<section class="view" id="map" aria-label="Retrieval map">
+  <div class="xwrap"><svg id="pmap" class="pmap" viewBox="0 0 1160 360" role="img" aria-label="Retrieval pipeline: question, gateway, understand, entry points, then four parallel lanes: walk the graph, count in the graph, ask the warehouse, find the text; then assemble, answer and check">
+    <g id="pedges"></g><g id="pnodes"></g><g id="ppk" aria-hidden="true"></g>
+  </svg></div>
+  <div class="legend"><span style="--c:var(--graph)"><i></i>Neptune: how things connect</span><span style="--c:var(--wh)"><i></i>Snowflake: how much, how often</span><span style="--c:var(--search)"><i></i>OpenSearch: what the text says</span><span style="--c:var(--query)"><i></i>Retrieval service and Claude</span><span style="--c:var(--onto)"><i></i>Gateway</span></div>
+  <div class="qpick" id="qpick" role="group" aria-label="Example questions"></div>
+  <p class="qwhy" id="qwhy" aria-live="polite"></p>
+  <ol class="stages" id="stagelist"></ol>
+</section>
+
+<section class="view page" id="s1" data-n="1" style="--c:var(--onto)" hidden>
+  <div class="phead"><div class="pnum">1</div><div><h2>Arrive</h2><p class="idea">Every question arrives as a tool call and is checked before anything is searched. The caller’s identity is also mapped to what each store will let them see.</p></div></div>
+  <div class="strip"></div>
+  <div class="grid2"><div class="keys"><ul><li>The gateway checks who is asking and whether they may call this tool</li><li>Clearance becomes an OpenSearch filter and a read-only Snowflake role</li><li>One ontology version is pinned for the whole answer</li></ul></div>
+  <div class="viz">
+    <div class="arrive">
+      <div class="gates" id="p1gates">
+        <div class="gate"><i>1</i><div><b>Token checked</b><span>AgentCore Gateway: the caller is risk-agent</span></div></div>
+        <div class="gate"><i>2</i><div><b>Policy allows the tool</b><span>AgentCore Policy: default deny, this call is permitted</span></div></div>
+        <div class="gate"><i>3</i><div><b>Access mapped per store</b><span>A filter for OpenSearch, a role for Snowflake</span></div></div>
+        <div class="gate"><i>4</i><div><b>Version pinned</b><span>Every stage reads ontology 1.6.0</span></div></div>
+      </div>
+      <div class="env" id="p1env"><h4>The request, as it travels</h4>
+        <div class="stamp"><span>tool</span><code>answer_question</code></div>
+        <div class="stamp"><span>caller</span><code>risk-agent</code></div>
+        <div class="stamp"><span>on behalf of</span><code>merchant risk analyst</code></div>
+        <div class="stamp"><span>search filter</span><code>classification: internal</code></div>
+        <div class="stamp"><span>Snowflake role</span><code>RISK_ANALYST_RO</code></div>
+        <div class="stamp"><span>trace</span><code>9b41-2e07</code></div>
+        <div class="stamp"><span>ontology</span><code>1.6.0</code></div>
+      </div>
+    </div>
+    <div class="vbtns"><button type="button" class="vbtn go" id="p1play">Send it again</button></div>
+    <p class="vcap" style="margin-top:14px">On the wire, under the 2026-07-28 MCP spec</p>
+    <div class="code"><pre id="p1code"></pre></div>
+  </div></div>
+</section>
+
+<section class="view page" id="s2" data-n="2" style="--c:var(--query)" hidden>
+  <div class="phead"><div class="pnum">2</div><div><h2>Understand</h2><p class="idea">A small Claude call reads the question with the ontology’s terms beside it, and splits it into sub-questions, one per store that can answer it.</p></div></div>
+  <div class="strip"></div>
+  <div class="grid2"><div class="keys"><ul><li>It spots names, business terms, time words and “why” questions</li><li>Each sub-question gets a route: warehouse, graph, text or code</li><li>Defaults, like the merchant’s region, are recorded so the answer can state them</li></ul></div>
+  <div class="viz">
+    <div class="qline" id="p2q">Was <span class="hl" style="--hc:var(--search)">Sunset Tickets</span> over Visa’s <span class="hl" style="--hc:var(--onto)">VAMP threshold</span> in <span class="hl" style="--hc:var(--wh)">August</span>, and <span class="hl" style="--hc:var(--graph)">what drove it</span>?</div>
+    <div class="hlkey" id="p2key"><span style="--hc:var(--search)">Name: needs search</span><span style="--hc:var(--onto)">Term: a metric the ontology defines</span><span style="--hc:var(--wh)">Time: one month in the warehouse</span><span style="--hc:var(--graph)">Why: a pattern in the graph</span></div>
+    <p class="vcap">The plan the router writes</p>
+    <div class="code"><pre id="p2code"></pre></div>
+    <div class="types">
+      <div><b>Definition</b><em>“What does 10.4 mean?”</em><small>text</small></div>
+      <div><b>Lineage</b><em>“History of auth:5521”</em><small>graph walk</small></div>
+      <div><b>Metric</b><em>“Approval rate last week?”</em><small>warehouse</small></div>
+      <div><b>Pattern</b><em>“Who shares fraud cards?”</em><small>graph count</small></div>
+      <div><b>Mixed</b><em>This question</em><small>all four, in parallel</small></div>
+    </div>
+    <div class="vbtns"><button type="button" class="vbtn go" id="p2play">Read it again</button></div>
+  </div></div>
+</section>
+
+<section class="view page" id="s3" data-n="3" style="--c:var(--search)" hidden>
+  <div class="phead"><div class="pnum">3</div><div><h2>Entry points</h2><p class="idea">Every thing the question names becomes one ID, and that one ID opens all three stores.</p></div></div>
+  <div class="strip"></div>
+  <div class="grid2"><div class="keys"><ul><li>Names go through hybrid search, with fuzzy matching and the ontology’s aliases</li><li>Business terms, like VAMP, resolve to ontology concepts</li><li>One ID rule, set in the ontology, links Neptune, Snowflake and OpenSearch</li></ul></div>
+  <div class="viz">
+    <p class="vcap">Resolving “Sunset Tickets” in the entities index</p>
+    <div class="cand" id="p3c">
+      <div class="crow" data-s="0.91"><div><code>m:10442</code> Sunset Tickets<small>online ticketing</small></div><div class="track"><i></i><span class="thr"></span></div><span class="sc">0.91</span></div>
+      <div class="crow" data-s="0.68"><div><code>m:10987</code> Sunset Tix Resale<small>online resale</small></div><div class="track"><i></i><span class="thr"></span></div><span class="sc">0.68</span></div>
+      <div class="crow" data-s="0.52"><div><code>m:22110</code> Sunset Travel Tours<small>travel agency</small></div><div class="track"><i></i><span class="thr"></span></div><span class="sc">0.52</span></div>
+    </div>
+    <p class="note">A clear winner by a wide margin, so there’s no need to ask which one. “VAMP” resolves separately, through the ontology index, to the metric <code>pay:VampRatio</code>.</p>
+    <div class="idmap" id="p3map">
+      <div class="core">m:10442<small>ID rule: m:{merchant_id}</small></div>
+      <div class="arrow">opens</div>
+      <div class="outs">
+        <span style="--c:var(--graph)">Neptune node <code>m:10442</code></span>
+        <span style="--c:var(--wh)">Snowflake <code>merchant_id = 10442</code></span>
+        <span style="--c:var(--search)">OpenSearch document <code>_id: m:10442</code></span>
+      </div>
+    </div>
+    <div class="vbtns"><button type="button" class="vbtn go" id="p3play">Resolve again</button></div>
+  </div></div>
+</section>
+
+<section class="view page" id="s4" data-n="4" style="--c:var(--graph)" hidden>
+  <div class="phead"><div class="pnum">4</div><div><h2>Walk the graph</h2><p class="idea">To answer “what drove it”, Neptune follows the cards behind August’s fraud reports to see where else they were used.</p></div></div>
+  <div class="strip"></div>
+  <div class="grid2"><div class="keys"><ul><li>The walk starts from the merchant’s ID, never from a scan</li><li>It follows only the relationships this pattern needs</li><li>Limits come from the template: 4 hops, 500 nodes, 3 seconds</li></ul></div>
+  <div class="viz">
+    <div class="xwrap"><svg id="p4g" class="svgv" viewBox="0 0 780 330" role="img" aria-label="Sunset Tickets' fraud-reported cards were also fraud-reported at three other merchants within hours">
+      <g id="p4e"></g><g id="p4n"></g>
+      <text class="hopc" id="p4hop" x="20" y="320"></text>
+    </svg></div>
+    <p class="note">Arrows fold in two hops each: card to authorization to merchant. Red means the authorization carries a fraud report. Four of 214 cards shown.</p>
+    <div class="vbtns"><button type="button" class="vbtn go" id="p4play">Walk again</button></div>
+  </div></div>
+</section>
+
+<section class="view page" id="s5" data-n="5" style="--c:var(--graph)" hidden>
+  <div class="phead"><div class="pnum">5</div><div><h2>Count in the graph</h2><p class="idea">Some counts follow relationships. Those belong in Neptune; sums over huge tables belong in the warehouse.</p></div></div>
+  <div class="strip"></div>
+  <div class="grid2"><div class="keys"><ul><li>If the count follows relationships, ask Neptune</li><li>If it sums or averages over huge tables or time, ask Snowflake</li><li>Common counts run reviewed templates; new ones get checked Cypher</li></ul></div>
+  <div class="viz">
+    <div class="eng" id="p5eng">
+      <div style="--c:var(--graph)"><b>Neptune</b>counts along relationships<em>“How many of these fraud reports are on cards also reported elsewhere?”</em></div>
+      <div style="--c:var(--wh)"><b>Snowflake</b>sums over big tables and time<em>“What share of August’s transactions were reported or disputed?”</em></div>
+      <div style="--c:var(--search)"><b>OpenSearch</b>finds and ranks text<em>“What does Visa say the threshold is?”</em></div>
+    </div>
+    <p class="vcap">The pattern template, run on Neptune</p>
+    <div class="code"><pre id="p5code"></pre></div>
+    <div class="result" id="p5res">790 of August’s 1,240 fraud reports are on <b>214 cards</b> also fraud-reported at other merchants within 48 hours. <code>[q-5c11]</code></div>
+    <div class="vbtns"><button type="button" class="vbtn go" id="p5play">Show it again</button></div>
+  </div></div>
+</section>
+
+<section class="view page" id="s6" data-n="6" style="--c:var(--wh)" hidden>
+  <div class="phead"><div class="pnum">6</div><div><h2>Ask the warehouse</h2><p class="idea">Snowflake holds every transaction. It answers “how much” and “how often”, using a metric the ontology defines once.</p></div></div>
+  <div class="strip"></div>
+  <div class="grid2"><div class="keys"><ul><li>The metric is defined once in the ontology and generated into Snowflake</li><li>The ratio is computed in SQL, never by the model</li><li>Snowflake’s own role and row policies decide what the caller sees</li></ul></div>
+  <div class="viz">
+    <p class="vcap">Sunset Tickets’ VAMP ratio by month, from Snowflake</p>
+    <div class="bars" id="p6bars">
+      <div class="thr" id="p6thr"><span>1.5% threshold</span></div>
+      <div class="col"><span class="val">0.79%</span><div class="bar" data-v="0.79"></div></div>
+      <div class="col"><span class="val">0.84%</span><div class="bar" data-v="0.84"></div></div>
+      <div class="col"><span class="val">1.65%</span><div class="bar over" data-v="1.65"></div></div>
+    </div>
+    <div class="months" id="p6m">
+      <div>June<small>945 events / 119,600</small><span class="floor no">under the 1,500 floor</span></div>
+      <div>July<small>1,020 events / 121,400</small><span class="floor no">under the 1,500 floor</span></div>
+      <div>August<small>1,952 events / 118,300</small><span class="floor yes">over the floor and threshold</span></div>
+    </div>
+    <span class="fresh">Data loaded through Sep 25, 02:00 UTC</span>
+    <div class="guards wh"><span>read-only role</span><span>row access policy</span><span>30-second timeout</span><span>result cache</span><span>query tagged with the trace ID</span></div>
+    <div class="vbtns"><button type="button" class="vbtn go" id="p6play">Run it again</button></div>
+    <div class="stack6">
+      <div><p class="vcap">The metric, defined once in the ontology</p><div class="code"><pre id="p6def"></pre></div></div>
+      <div><p class="vcap">The reviewed SQL template it runs</p><div class="code"><pre id="p6sql"></pre></div></div>
+    </div>
+    <p class="note">Illustrative figures. Events are Visa fraud reports plus disputes, so a fraud dispute can count twice, as the metric definition warns.</p>
+  </div></div>
+</section>
+
+<section class="view page" id="s7" data-n="7" style="--c:var(--search)" hidden>
+  <div class="phead"><div class="pnum">7</div><div><h2>Find the text</h2><p class="idea">The rules and runbooks say what the numbers mean. Four passes pick the few passages worth reading.</p></div></div>
+  <div class="strip"></div>
+  <div class="grid2"><div class="keys"><ul><li>Hybrid search over chunks, with the caller’s clearance as a filter</li><li>Chunks that mention the resolved entities or concepts get a boost</li><li>A reranking model keeps the best three, and drops the wrong network</li></ul></div>
+  <div class="viz">
+    <div class="steps6" id="p7steps"><span>1 Search</span><span>2 Clearance filter</span><span>3 Mention boost</span><span>4 Rerank, keep 3</span></div>
+    <div class="chunks" id="p7c"></div>
+    <div class="vbtns"><button type="button" class="vbtn go" id="p7play">Run the passes again</button></div>
+    <p class="note">Illustrative scores.</p>
+  </div></div>
+</section>
+
+<section class="view page" id="s8" data-n="8" style="--c:var(--query)" hidden>
+  <div class="phead"><div class="pnum">8</div><div><h2>Assemble</h2><p class="idea">Results from all three stores, plus the ontology’s definitions, are packed into one context. Everything carries the ID Claude will cite.</p></div></div>
+  <div class="strip"></div>
+  <div class="grid2"><div class="keys"><ul><li>Each store’s results arrive tagged with query or document IDs</li><li>Data freshness travels with the warehouse numbers</li><li>A token budget keeps it focused; the lowest-ranked items go first</li></ul></div>
+  <div class="viz">
+    <div class="trays trays4" id="p8t">
+      <div class="tray" style="--c:var(--wh)"><header><b>Metrics</b><small>from Snowflake</small></header><div class="items"><div class="item">VAMP ratio: Jun 0.79%, Jul 0.84%, Aug 1.65%<code>sf-q-21b8</code></div><div class="item">August: 1,952 events, 118,300 transactions<code>sf-q-21b8</code></div><div class="item">Loaded through Sep 25, 02:00 UTC<code>freshness</code></div></div></div>
+      <div class="tray" style="--c:var(--graph)"><header><b>Facts</b><small>from Neptune</small></header><div class="items"><div class="item">Sunset Tickets, online ticketing, US<code>m:10442</code></div><div class="item">790 of 1,240 reports on 214 shared cards<code>q-5c11</code></div></div></div>
+      <div class="tray" style="--c:var(--search)"><header><b>Passages</b><small>from OpenSearch</small></header><div class="items"><div class="item">Visa VAMP: thresholds and fees<code>visa-vamp-2026#c04</code></div><div class="item">Runbook: stolen-card fraud response<code>fraud-runbook#c07</code></div><div class="item" data-drop="1">Glossary: TC40 and TC15<code>glossary#c15</code></div></div></div>
+      <div class="tray" style="--c:var(--onto)"><header><b>Definitions</b><small>from the ontology</small></header><div class="items"><div class="item">VAMP ratio<code>pay:VampRatio</code></div><div class="item">Fraud report<code>pay:FraudReport</code></div></div></div>
+    </div>
+    <div class="budget"><span>Token budget</span><div class="btrack"><i id="p8bar"></i><span class="lim"></span></div><span id="p8tok">0 of 6,000</span></div>
+    <p class="note">Illustrative budget. The glossary passage is dropped: the ontology’s definitions already cover it.</p>
+    <div class="vbtns"><button type="button" class="vbtn go" id="p8play">Pack it again</button></div>
+    <p class="vcap" style="margin-top:14px">The context package</p>
+    <div class="code"><pre id="p8code"></pre></div>
+  </div></div>
+</section>
+
+<section class="view page" id="s9" data-n="9" style="--c:var(--query)" hidden>
+  <div class="phead"><div class="pnum">9</div><div><h2>Answer</h2><p class="idea">Claude writes only from the context, and every sentence cites the store and ID it rests on.</p></div></div>
+  <div class="strip"></div>
+  <div class="grid2"><div class="keys"><ul><li>Numbers come from the warehouse, reasons from the graph, rules from the text</li><li>Every sentence carries the IDs it rests on</li><li>Freshness and defaults are stated, not assumed</li></ul></div>
+  <div class="viz">
+    <div class="ans">
+      <div><p class="vcap">The answer, sentence by sentence</p><div id="p9s"></div></div>
+      <div><p class="vcap">What each sentence rests on</p><div id="p9e"></div></div>
+    </div>
+    <div class="rules8"><p class="vcap">The instructions, in short</p><div class="code"><pre id="p9code"></pre></div></div>
+  </div></div>
+</section>
+
+<section class="view page" id="s10" data-n="10" style="--c:var(--query)" hidden>
+  <div class="phead"><div class="pnum">10</div><div><h2>Check</h2><p class="idea">Before the answer leaves, code checks it against every store’s results. Claude isn’t trusted to check itself.</p></div></div>
+  <div class="strip"></div>
+  <div class="grid2"><div class="keys"><ul><li>Every number must match a query result from Snowflake or Neptune</li><li>The threshold must match the rules passage for the merchant’s region</li><li>Freshness must be stated, and the caller must be allowed to see every source</li></ul></div>
+  <div class="viz">
+    <div class="checks" id="p10c">
+      <div class="chk"><i></i><span>Every cited ID is in the context package</span></div>
+      <div class="chk" data-fix="1"><i></i><span>Every number matches a query result</span></div>
+      <div class="chk"><i></i><span>The threshold matches the rules for a US merchant</span></div>
+      <div class="chk"><i></i><span>Data freshness is stated</span></div>
+      <div class="chk"><i></i><span>The caller may see every cited source</span></div>
+    </div>
+    <div class="fixbox" id="p10fix">Number check caught a slip: “August had <del>1,592</del> <ins>1,952</ins> fraud reports and disputes.” The digits were transposed; the sentence is regenerated from the Snowflake result.</div>
+    <div class="vbtns"><button type="button" class="vbtn go" id="p10play">Check again</button></div>
+    <p class="vcap" style="margin-top:14px">What gets logged for audit</p>
+    <div class="code"><pre id="p10code"></pre></div>
+  </div></div>
+</section>
+
+<section class="view page" id="s11" data-n="11" style="--c:var(--onto)" hidden>
+  <div class="phead"><div class="pnum">11</div><div><h2>Watch and improve</h2><p class="idea">Every answer leaves a trace. Time, cost and quality are measured per stage, and failures become tests.</p></div></div>
+  <div class="strip"></div>
+  <div class="grid2"><div class="keys"><ul><li>The four lanes run in parallel, so the slowest one sets the pace</li><li>Snowflake is the slowest lane; cached results and monthly aggregates help</li><li>Every failure becomes a new competency question</li></ul></div>
+  <div class="viz">
+    <p class="vcap">Where the time goes for the mixed question (illustrative)</p>
+    <div class="wf" id="p11w"></div>
+    <p class="note">From Snowflake’s result cache, the same warehouse query takes about 120 ms, bringing the total near 3.5 s.</p>
+    <p class="vcap" style="margin-top:18px">Quality, against targets (illustrative)</p>
+    <div class="metrics" id="p11m"></div>
+    <div class="loopback"><b>Closing the loop.</b> A wrong match, a rejected query, a number that doesn’t reconcile, or an unanswered question is saved with its trace, added to the competency questions, and, if the ontology lacked a term, turned into a proposal for the ontology’s change loop.</div>
+    <div class="vbtns"><button type="button" class="vbtn go" id="p11play">Replay</button></div>
+  </div></div>
+</section>
+
+<div class="pager" id="pager" hidden></div>
+<footer>A learning sketch of the retrieval path in a payments knowledge layer, built from public documentation as of September 2026. VAMP thresholds reflect Visa’s April 2026 rules; merchant names, IDs, counts, scores and timings are illustrative. Part of the <a href="platform.html" target="_blank" rel="noopener">payments knowledge layer overview</a>.</footer>
+</main>
+<script>window.Prism = window.Prism || {}; window.Prism.manual = true;</script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-core.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-json.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-cypher.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-yaml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-sql.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/motion@13.4.4/dist/motion.js"></script>
+<script>
+(function(){
+  const NS = 'http://www.w3.org/2000/svg';
+  const M = window.Motion, P = window.Prism;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function anim(t, k, o){
+    if (typeof HTMLCollection !== 'undefined' && t instanceof HTMLCollection) t = Array.from(t);
+    if (!M){ const els = t instanceof Element ? [t] : Array.from(t); els.forEach(e => { for (const p in k){ if (['x','y','scale'].includes(p)) continue; const v = Array.isArray(k[p]) ? k[p][k[p].length-1] : k[p]; e.style[p] = v; } }); return Promise.resolve(); }
+    if (reduce) o = Object.assign({}, o, { duration:0, delay:0 });
+    return Promise.resolve(M.animate(t, k, o || {}));
+  }
+  function tween(o){ if (!M || reduce){ o.onUpdate && o.onUpdate(1); return Promise.resolve(); } return Promise.resolve(M.animate(0, 1, o)); }
+  const wait = ms => new Promise(r => setTimeout(r, reduce ? 0 : ms));
+  const $ = id => document.getElementById(id);
+  function el(tag, attrs, parent){ const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+  function rounded(pts, r){
+    r = r || 9; let d = 'M' + pts[0][0] + ',' + pts[0][1];
+    for (let i = 1; i < pts.length - 1; i++){
+      const [x0,y0] = pts[i-1], [x1,y1] = pts[i], [x2,y2] = pts[i+1];
+      const l1 = Math.hypot(x1-x0, y1-y0), l2 = Math.hypot(x2-x1, y2-y1); if (!l1 || !l2) continue;
+      const rr = Math.min(r, l1/2, l2/2);
+      d += ' L' + (x1-(x1-x0)/l1*rr) + ',' + (y1-(y1-y0)/l1*rr) + ' Q' + x1 + ',' + y1 + ' ' + (x1+(x2-x1)/l2*rr) + ',' + (y1+(y2-y1)/l2*rr);
+    }
+    const l = pts[pts.length-1]; return d + ' L' + l[0] + ',' + l[1];
+  }
+  if (P && P.languages){
+    P.languages.mcphttp = P.languages.extend('json', {});
+    P.languages.insertBefore('mcphttp', 'property', {
+      'request-line': { pattern: /^(?:POST|GET)\s+\S+\s+HTTP\/[\d.]+$/m, inside: { 'keyword': /^\w+/ } },
+      'header': { pattern: /^[A-Za-z][\w-]*:[^\n{]*$/m, inside: { 'keyword': /^[\w-]+(?=:)/, 'punctuation': /:/ } }
+    });
+  }
+  function render(pre, code, lang){
+    if (!pre) return;
+    if (P && P.languages[lang]) pre.innerHTML = P.highlight(code, P.languages[lang], lang);
+    else pre.textContent = code;
+  }
+  const J = a => a.join('\n');
+
+  /* ================= Map ================= */
+  const NODES = {
+    q:{x:20,y:150,w:140,t:'Question',s:'agent or analyst',c:'var(--muted)',page:1},
+    g:{x:180,y:150,w:140,t:'Gateway',s:'identity, policy',c:'var(--onto)',page:1},
+    u:{x:340,y:150,w:140,t:'Understand',s:'route and plan',c:'var(--query)',page:2},
+    ep:{x:500,y:150,w:140,t:'Entry points',s:'names become IDs',c:'var(--search)',page:3},
+    wg:{x:660,y:20,w:150,t:'Walk the graph',s:'Neptune',c:'var(--graph)',page:4},
+    cg:{x:660,y:110,w:150,t:'Count in graph',s:'Neptune',c:'var(--graph)',page:5},
+    sf:{x:660,y:200,w:150,t:'Ask warehouse',s:'Snowflake',c:'var(--wh)',page:6},
+    ft:{x:660,y:290,w:150,t:'Find the text',s:'OpenSearch',c:'var(--search)',page:7},
+    as:{x:840,y:150,w:140,t:'Assemble',s:'one cited context',c:'var(--query)',page:8},
+    an:{x:1000,y:150,w:140,t:'Answer',s:'cited by ID',c:'var(--query)',page:9},
+    ck:{x:1000,y:262,w:140,t:'Check',s:'before it leaves',c:'var(--query)',page:10}
+  };
+  const H = 58;
+  const EDGES = {
+    qg:{f:'q',t:'g',p:[[160,179],[179,179]]}, gu:{f:'g',t:'u',p:[[320,179],[339,179]]}, uep:{f:'u',t:'ep',p:[[480,179],[499,179]]},
+    epwg:{f:'ep',t:'wg',p:[[640,164],[650,164],[650,49],[659,49]]}, epcg:{f:'ep',t:'cg',p:[[640,174],[650,174],[650,139],[659,139]]},
+    epsf:{f:'ep',t:'sf',p:[[640,184],[650,184],[650,229],[659,229]]}, epft:{f:'ep',t:'ft',p:[[640,194],[650,194],[650,319],[659,319]]},
+    wgas:{f:'wg',t:'as',p:[[810,49],[825,49],[825,164],[839,164]]}, cgas:{f:'cg',t:'as',p:[[810,139],[825,139],[825,174],[839,174]]},
+    sfas:{f:'sf',t:'as',p:[[810,229],[825,229],[825,184],[839,184]]}, ftas:{f:'ft',t:'as',p:[[810,319],[825,319],[825,194],[839,194]]},
+    asan:{f:'as',t:'an',p:[[980,179],[999,179]]}, anck:{f:'an',t:'ck',p:[[1070,208],[1070,261]]}
+  };
+  const gE = $('pedges'), gN = $('pnodes'), gP = $('ppk');
+  const eEl = {}, nEl = {};
+  Object.keys(EDGES).forEach(k => { eEl[k] = el('path', { d: rounded(EDGES[k].p), class:'pe' }, gE); });
+  Object.keys(NODES).forEach(k => {
+    const n = NODES[k];
+    const g = el('g', { class:'pn', tabindex:'0', role:'link', 'aria-label': n.t + ', stage ' + n.page }, gN); g.style.setProperty('--c', n.c);
+    el('rect', { class:'box', x:n.x, y:n.y, width:n.w, height:H, rx:9 }, g);
+    el('rect', { class:'bar', x:n.x + 8, y:n.y + 12, width:3, height:H - 24, rx:1.5 }, g);
+    el('text', { class:'t', x:n.x + 20, y:n.y + 25 }, g).textContent = n.t;
+    el('text', { class:'s', x:n.x + 20, y:n.y + 43 }, g).textContent = n.s;
+    const go = () => { location.hash = '#s' + n.page; };
+    g.addEventListener('click', go);
+    g.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); go(); } });
+    nEl[k] = g;
+  });
+  const QS = [
+    { type:'Definition', q:'What does Visa reason code 10.4 mean?', waves:[['qg'],['gu'],['uep'],['epft'],['ftas'],['asan'],['anck']],
+      why:'Resolve “10.4” to its ReasonCode node, then read the passages that mention it.' },
+    { type:'Lineage', q:'Show the full history of authorization auth:5521.', waves:[['qg'],['gu'],['uep'],['epwg'],['wgas'],['asan'],['anck']],
+      why:'The ID is already known, so the walk starts from it and follows the lifecycle relationships.' },
+    { type:'Metric', q:'What was Sunset Tickets’ approval rate last week?', waves:[['qg'],['gu'],['uep'],['epsf'],['sfas'],['asan'],['anck']],
+      why:'Resolve the merchant, then ask Snowflake. A rate over every transaction is a warehouse job.' },
+    { type:'Pattern', q:'Which merchants share the most fraud-reported cards with Sunset Tickets?', waves:[['qg'],['gu'],['uep'],['epcg'],['cgas'],['asan'],['anck']],
+      why:'Resolve the merchant, then count along card relationships in Neptune.' },
+    { type:'Mixed', q:'Was Sunset Tickets over Visa’s VAMP threshold in August, and what drove it?', waves:[['qg'],['gu'],['uep'],['epwg','epcg','epsf','epft'],['wgas','cgas','sfas','ftas'],['asan'],['anck']],
+      why:'All four lanes run in parallel: the warehouse for the ratio, the graph for the pattern and its size, the text for the rules. The stage pages follow this question.' }
+  ];
+  const qpick = $('qpick'), qwhy = $('qwhy');
+  qpick.innerHTML = QS.map((q, i) => '<button type="button" class="qbtn" aria-pressed="false" data-i="' + i + '"><b>' + q.type + '</b>' + q.q + '</button>').join('');
+  let mapRun = 0;
+  function light(edges){
+    const nodes = new Set(['q']); edges.forEach(k => { nodes.add(EDGES[k].f); nodes.add(EDGES[k].t); });
+    Object.keys(eEl).forEach(k => eEl[k].classList.toggle('on', edges.includes(k)));
+    Object.keys(nEl).forEach(k => { nEl[k].classList.toggle('on', nodes.has(k)); anim(nEl[k], { opacity: nodes.has(k) ? 1 : 0.3 }, { duration:0.3 }); });
+  }
+  function packet(path, color){
+    if (reduce || !M) return Promise.resolve();
+    const len = path.getTotalLength();
+    const g = el('g', {}, gP); const h = el('circle', { r:9, opacity:0.22 }, g); h.style.fill = color;
+    const c = el('circle', { r:4.5 }, g); c.style.fill = color; c.style.stroke = 'var(--raised)'; c.style.strokeWidth = '1.5';
+    const put = v => { const pt = path.getPointAtLength(v * len); g.setAttribute('transform', 'translate(' + pt.x + ',' + pt.y + ')'); };
+    put(0);
+    return tween({ duration: Math.min(1.1, 0.35 + len / 420), ease:[0.45,0,0.2,1], onUpdate: put }).then(() => g.remove());
+  }
+  const LANE = { epwg:'var(--graph)', epcg:'var(--graph)', epsf:'var(--wh)', epft:'var(--search)', wgas:'var(--graph)', cgas:'var(--graph)', sfas:'var(--wh)', ftas:'var(--search)' };
+  async function pick(i){
+    const my = ++mapRun, Q = QS[i];
+    Array.from(qpick.children).forEach((b, j) => b.setAttribute('aria-pressed', j === i));
+    light(Q.waves.flat());
+    qwhy.textContent = Q.why; anim(qwhy, { opacity:[0,1] }, { duration:0.3 });
+    gP.replaceChildren();
+    for (const wave of Q.waves){
+      if (my !== mapRun) return;
+      await Promise.all(wave.map(k => packet(eEl[k], LANE[k] || 'var(--query)')));
+    }
+  }
+  Array.from(qpick.children).forEach((b, i) => b.addEventListener('click', () => pick(i)));
+  const STAGES = [
+    ['Arrive','Checked at the gateway','var(--onto)'],['Understand','One question, four routes','var(--query)'],['Entry points','One ID opens three stores','var(--search)'],
+    ['Walk the graph','Follow the cards','var(--graph)'],['Count in the graph','Counts along relationships','var(--graph)'],['Ask the warehouse','How much, how often','var(--wh)'],
+    ['Find the text','What the rules say','var(--search)'],['Assemble','One context, all cited','var(--query)'],['Answer','Written from the context','var(--query)'],
+    ['Check','Verified before it leaves','var(--query)'],['Watch and improve','Time, cost, quality','var(--onto)']
+  ];
+  $('stagelist').innerHTML = STAGES.map((s, i) => '<li><a href="#s' + (i + 1) + '" style="--c:' + s[2] + '"><span class="n">' + (i + 1) + '</span><b>' + s[0] + '</b><span>' + s[1] + '</span></a></li>').join('');
+
+  /* ================= Pages ================= */
+  const hero = $('hero'), pager = $('pager');
+  const views = Array.from(document.querySelectorAll('.view'));
+  const LAST = STAGES.length;
+  document.querySelectorAll('.page .strip').forEach(strip => {
+    const n = Number(strip.closest('.page').dataset.n);
+    strip.innerHTML = STAGES.map((s, i) => '<a href="#s' + (i + 1) + '"' + (i + 1 === n ? ' class="on"' : '') + '>' + (i + 1) + ' ' + s[0] + '</a>').join('');
+  });
+  let cur = null;
+  function route(){
+    const h = (location.hash || '#map').slice(1);
+    const t = document.getElementById(h);
+    const v = t && t.classList.contains('view') ? t : $('map');
+    if (v === cur) return;
+    const prev = cur; cur = v;
+    views.forEach(x => { x.hidden = x !== v; });
+    const isMap = v.id === 'map';
+    hero.hidden = !isMap; document.body.classList.toggle('inpage', !isMap);
+    document.querySelectorAll('#toc a').forEach(a => a.classList.toggle('here', a.getAttribute('href') === '#' + v.id));
+    const here = document.querySelector('#toc a.here'), toc = $('toc');
+    if (here && toc.scrollWidth > toc.clientWidth) toc.scrollTo({ left: here.offsetLeft - toc.clientWidth / 2 + here.clientWidth / 2, behavior: reduce ? 'auto' : 'smooth' });
+    if (isMap){ pager.hidden = true; }
+    else {
+      const n = Number(v.dataset.n);
+      pager.hidden = false;
+      pager.innerHTML = (n > 1 ? '<a class="vbtn" href="#s' + (n - 1) + '">Previous: ' + STAGES[n - 2][0] + '</a>' : '<a class="vbtn" href="#map">Back to the map</a>') +
+                        (n < LAST ? '<a class="vbtn go" href="#s' + (n + 1) + '">Next: ' + STAGES[n][0] + '</a>' : '<a class="vbtn go" href="#map">Back to the map</a>');
+    }
+    window.scrollTo(0, 0);
+    if (prev) anim(v, { opacity:[0,1], y:[14,0] }, { duration:0.35, ease:[0.22,1,0.36,1] });
+    const run = RUN[v.id]; if (run) requestAnimationFrame(run);
+  }
+  document.addEventListener('keydown', e => {
+    if (!cur || cur.id === 'map' || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (/INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || '')) return;
+    const n = Number(cur.dataset.n);
+    if (e.key === 'ArrowRight' && n < LAST){ location.hash = '#s' + (n + 1); e.preventDefault(); }
+    if (e.key === 'ArrowLeft' && n > 1){ location.hash = '#s' + (n - 1); e.preventDefault(); }
+  });
+
+  /* ---------- 1 Arrive ---------- */
+  render($('p1code'), J(['POST /mcp HTTP/1.1','MCP-Protocol-Version: 2026-07-28','Mcp-Method: tools/call','Mcp-Name: answer_question','Authorization: Bearer <token>','','{ "jsonrpc": "2.0", "id": 31, "method": "tools/call",','  "params": { "name": "answer_question",','    "arguments": { "question": "Was Sunset Tickets over Visa\u2019s VAMP threshold in August, and what drove it?" },','    "_meta": { "io.modelcontextprotocol/clientInfo":','               { "name": "risk-agent", "version": "2.0" } } } }']), 'mcphttp');
+  let r1 = 0;
+  async function p1(){
+    const my = ++r1, gates = Array.from(document.querySelectorAll('#p1gates .gate')), st = Array.from(document.querySelectorAll('#p1env .stamp'));
+    gates.forEach((g, i) => { g.classList.remove('ok'); g.querySelector('i').textContent = i + 1; });
+    anim(st.slice(2), { opacity:0 }, { duration:0 });
+    const reveal = [[2],[],[3,4,5],[6]];
+    for (let i = 0; i < gates.length; i++){
+      await wait(500); if (my !== r1) return;
+      gates[i].classList.add('ok'); gates[i].querySelector('i').textContent = '\u2713';
+      anim(gates[i], { x:[-6,0] }, { duration:0.3 });
+      reveal[i].forEach((k, j) => anim(st[k], { opacity:[0,1], x:[10,0] }, { duration:0.35, delay:j * 0.12 }));
+    }
+  }
+  $('p1play').addEventListener('click', p1);
+
+  /* ---------- 2 Understand ---------- */
+  render($('p2code'), J(['{','  "intent": "check_threshold_and_explain",','  "entities": [ { "text": "Sunset Tickets", "kind": "name", "label": "Merchant" } ],','  "concepts": [ { "text": "VAMP threshold", "concept": "pay:VampRatio" } ],','  "window": { "month": "2026-08" },','  "sub_questions": [','    { "id": "q1", "route": "warehouse", "ask": "VAMP ratio by month, June to August" },','    { "id": "q2", "route": "documents", "ask": "VAMP merchant threshold and floor" },','    { "id": "q3", "route": "graph_count", "ask": "August fraud reports on cards reported elsewhere" },','    { "id": "q4", "route": "graph_walk", "ask": "a few example cards, for the explanation" }','  ],','  "defaults": { "region": "US, from the merchant record" }','}']), 'json');
+  let r2 = 0;
+  async function p2(){
+    const my = ++r2, hls = Array.from(document.querySelectorAll('#p2q .hl')), keys = Array.from(document.querySelectorAll('#p2key span'));
+    hls.forEach(h => h.classList.remove('on')); keys.forEach(k => k.classList.remove('on'));
+    anim($('p2code'), { opacity:0.2 }, { duration:0 });
+    for (let i = 0; i < hls.length; i++){
+      await wait(650); if (my !== r2) return;
+      hls[i].classList.add('on'); keys[i].classList.add('on');
+      anim(keys[i], { scale:[0.85,1] }, { duration:0.3 });
+    }
+    await wait(300); if (my !== r2) return;
+    anim($('p2code'), { opacity:[0.2,1], y:[8,0] }, { duration:0.35 });
+  }
+  $('p2play').addEventListener('click', p2);
+
+  /* ---------- 3 Entry points ---------- */
+  let r3 = 0;
+  async function p3(){
+    const my = ++r3, rows = Array.from(document.querySelectorAll('#p3c .crow')), map = $('p3map');
+    rows.forEach(r => { r.classList.remove('pick','out'); anim(r.querySelector('.track i'), { width:'0%' }, { duration:0 }); });
+    const outs = Array.from(map.querySelectorAll('.outs span'));
+    anim(map.querySelector('.core'), { opacity:0 }, { duration:0 }); anim(outs, { opacity:0 }, { duration:0 });
+    rows.forEach((r, i) => anim(r.querySelector('.track i'), { width:['0%', (Number(r.dataset.s) * 100) + '%'] }, { duration:0.6, delay:0.15 + i * 0.12, ease:[0.22,1,0.36,1] }));
+    await wait(1200); if (my !== r3) return;
+    rows[0].classList.add('pick'); rows[2].classList.add('out'); rows[1].classList.add('out');
+    anim(rows[0], { scale:[1,1.02,1] }, { duration:0.45 });
+    await wait(600); if (my !== r3) return;
+    anim(map.querySelector('.core'), { opacity:[0,1], scale:[0.85,1] }, { duration:0.35 });
+    outs.forEach((o, i) => anim(o, { opacity:[0,1], x:[-10,0] }, { duration:0.35, delay:0.4 + i * 0.2 }));
+  }
+  $('p3play').addEventListener('click', p3);
+
+  /* ---------- 4 Walk the graph ---------- */
+  const p4e = $('p4e'), p4n = $('p4n');
+  const MN = { x:20, y:141, w:150, t:'m:10442', s:'Sunset Tickets' };
+  const CARDS = [ { id:'c1', t:'card tk_1a3', y:18, d:'Aug 12' }, { id:'c2', t:'card tk_7c9', y:96, d:'Aug 14' }, { id:'c3', t:'card tk_9f2', y:174, d:'Aug 19' }, { id:'c4', t:'card tk_c41', y:252, d:'Aug 22' } ];
+  const OTHERS = [ { id:'o1', t:'m:31007', s:'Gamer Hub', y:30 }, { id:'o2', t:'m:44120', s:'Gift Card Hub', y:141 }, { id:'o3', t:'m:52301', s:'Stream Plus', y:252 } ];
+  const LINKS = [ ['c1','o1','+2h'], ['c1','o2','+6h'], ['c2','o1','+30h'], ['c3','o2','+1h'], ['c3','o3','+20h'], ['c4','o3','+3h'] ];
+  function node(parent, x, y, w, t, s, cls){
+    const g = el('g', { class:'gn ' + (cls || '') }, parent);
+    el('rect', { class:'box', x, y, width:w, height:44, rx:9 }, g);
+    el('text', { class:'t', x:x + 12, y:y + 19 }, g).textContent = t;
+    el('text', { class:'s', x:x + 12, y:y + 35 }, g).textContent = s;
+    return g;
+  }
+  const leftE = [], rightE = [];
+  CARDS.forEach(c => {
+    const cy = c.y + 22, p = el('path', { class:'ge bad', d:'M310,' + cy + ' L171,' + (MN.y + 22) }, p4e);
+    const lx = 310 - 0.28 * 139, ly = cy + 0.28 * (MN.y + 22 - cy) - 6;
+    const t = el('text', { class:'gl bad', x:lx, y:ly, 'text-anchor':'middle' }, p4e); t.textContent = c.d;
+    leftE.push([p, t]);
+  });
+  LINKS.forEach(l => {
+    const c = CARDS.find(x => x.id === l[0]), o = OTHERS.find(x => x.id === l[1]);
+    const y1 = c.y + 22, y2 = o.y + 22;
+    const p = el('path', { class:'ge bad', d:'M450,' + y1 + ' L609,' + y2 }, p4e);
+    const t = el('text', { class:'gl bad', x:450 + 0.72 * 159, y:y1 + 0.72 * (y2 - y1) - 6, 'text-anchor':'middle' }, p4e); t.textContent = l[2];
+    rightE.push([p, t]);
+  });
+  const mG = node(p4n, MN.x, MN.y, MN.w, MN.t, MN.s, 'm');
+  const cG = CARDS.map(c => node(p4n, 310, c.y, 140, c.t, 'fraud-reported here', ''));
+  const oG = OTHERS.map(o => node(p4n, 610, o.y, 160, o.t, o.s, 'o'));
+  let r4 = 0;
+  async function p4(){
+    const my = ++r4, hop = $('p4hop');
+    anim(cG.concat(oG), { opacity:0 }, { duration:0 });
+    leftE.concat(rightE).forEach(([p, t]) => { anim(p, { opacity:0 }, { duration:0 }); anim(t, { opacity:0 }, { duration:0 }); });
+    hop.textContent = 'start: the merchant';
+    anim(mG, { scale:[0.85,1] }, { duration:0.4 });
+    await wait(700); if (my !== r4) return;
+    hop.textContent = 'hops 1–2: August’s fraud reports, and the cards behind them';
+    leftE.forEach(([p, t], i) => { anim(p, { opacity:[0,1] }, { duration:0.4, delay:i * 0.12 }); anim(t, { opacity:[0,1] }, { duration:0.3, delay:0.2 + i * 0.12 }); });
+    cG.forEach((g, i) => anim(g, { opacity:[0,1], scale:[0.8,1] }, { duration:0.4, delay:0.1 + i * 0.12 }));
+    await wait(1600); if (my !== r4) return;
+    hop.textContent = 'hops 3–4: the same cards, fraud-reported at other merchants within 48 hours';
+    rightE.forEach(([p, t], i) => { anim(p, { opacity:[0,1] }, { duration:0.4, delay:i * 0.1 }); anim(t, { opacity:[0,1] }, { duration:0.3, delay:0.2 + i * 0.1 }); });
+    oG.forEach((g, i) => anim(g, { opacity:[0,1], scale:[0.8,1] }, { duration:0.4, delay:0.3 + i * 0.15 }));
+  }
+  $('p4play').addEventListener('click', p4);
+
+  /* ---------- 5 Count in the graph ---------- */
+  render($('p5code'), J(['MATCH (m:Merchant {id: $merchant})<-[:AT_MERCHANT]-(a:Authorization)','      <-[:REPORTS]-(f:FraudReport)','WHERE f.reported_on >= $from AND f.reported_on < $to','MATCH (a)-[:WITH_CARD]->(c:Card)<-[:WITH_CARD]-(a2:Authorization)','      -[:AT_MERCHANT]->(m2:Merchant)','MATCH (a2)<-[:REPORTS]-(:FraudReport)','WHERE m2 <> m AND abs(a2.authorized_ms - a.authorized_ms) <= 172800000','RETURN count(DISTINCT f) AS shared_card_reports,','       count(DISTINCT c) AS cards']), 'cypher');
+  let r5 = 0;
+  async function p5(){
+    const my = ++r5, eng = Array.from(document.querySelectorAll('#p5eng div')), res = $('p5res');
+    eng.forEach(e => e.classList.remove('on')); anim(res, { opacity:0 }, { duration:0 });
+    for (let i = 0; i < eng.length; i++){ await wait(450); if (my !== r5) return; anim(eng[i], { opacity:[0.4,1], y:[6,0] }, { duration:0.3 }); }
+    await wait(400); if (my !== r5) return;
+    eng[0].classList.add('on');
+    await wait(700); if (my !== r5) return;
+    anim(res, { opacity:[0,1], y:[8,0] }, { duration:0.4 });
+  }
+  $('p5play').addEventListener('click', p5);
+
+  /* ---------- 6 Ask the warehouse ---------- */
+  render($('p6def'), J(['metrics:','  vamp_ratio:','    label: VAMP ratio','    definition: >-','      (Visa fraud reports + Visa disputes) divided by','      settled Visa card-not-present transactions, per month','    numerator: [FraudReport, Dispute]   # a fraud dispute can count twice','    denominator: SettledTransaction where channel = CNP','    grain: month','    snowflake: generated into a semantic view','    owner: merchant-risk']), 'yaml');
+  render($('p6sql'), J(['WITH settled AS (','  SELECT DATE_TRUNC(\'month\', settled_at) AS month, COUNT(*) AS n','  FROM fct_settled_txn','  WHERE merchant_id = :merchant AND network = \'VISA\'','    AND channel = \'CNP\' AND settled_at >= :from','  GROUP BY 1',
+    '), events AS (','  SELECT DATE_TRUNC(\'month\', event_at) AS month, COUNT(*) AS n','  FROM (','    SELECT reported_at AS event_at FROM fct_fraud_report','      WHERE merchant_id = :merchant AND network = \'VISA\'','    UNION ALL','    SELECT opened_at FROM fct_dispute','      WHERE merchant_id = :merchant AND network = \'VISA\'','  ) e','  WHERE event_at >= :from','  GROUP BY 1',')','SELECT s.month, e.n AS vamp_events, s.n AS settled_cnp,','       ROUND(e.n / s.n, 4) AS vamp_ratio','FROM settled s JOIN events e USING (month)','ORDER BY s.month;']), 'sql');
+  const bars = Array.from(document.querySelectorAll('#p6bars .bar')), thr = $('p6thr');
+  const SCALE = 190 / 2.0;
+  thr.style.bottom = (1.5 * SCALE) + 'px';
+  let r6 = 0;
+  async function p6(){
+    const my = ++r6, floors = Array.from(document.querySelectorAll('#p6m .floor'));
+    bars.forEach(b => anim(b, { height:'0px' }, { duration:0 }));
+    anim(thr, { opacity:0 }, { duration:0 }); anim(floors, { opacity:0 }, { duration:0 });
+    bars.forEach((b, i) => { anim(b, { height:['0px', (Number(b.dataset.v) * SCALE) + 'px'] }, { duration:0.7, delay:0.2 + i * 0.3, ease:[0.22,1,0.36,1] }); if (!M || reduce) b.style.height = (Number(b.dataset.v) * SCALE) + 'px'; });
+    await wait(1500); if (my !== r6) return;
+    anim(thr, { opacity:[0,1] }, { duration:0.4 });
+    await wait(500); if (my !== r6) return;
+    floors.forEach((f, i) => anim(f, { opacity:[0,1], scale:[0.8,1] }, { duration:0.3, delay:i * 0.2 }));
+  }
+  $('p6play').addEventListener('click', p6);
+
+  /* ---------- 7 Find the text ---------- */
+  const CH = [
+    { id:'c15', t:'Glossary: TC40 and TC15', m:[], s:[0.72,0.72,0.72,0.71] },
+    { id:'c04', t:'Visa VAMP: merchant thresholds and fees', m:['pay:VampRatio'], s:[0.70,0.70,0.85,0.95] },
+    { id:'c22', t:'Memo: Sunset Tickets risk review', m:['m:10442'], lock:true, s:[0.68,0,0,0] },
+    { id:'c07', t:'Runbook: stolen-card fraud response', m:['pay:FraudReport'], s:[0.64,0.64,0.79,0.86] },
+    { id:'c33', t:'Mastercard excessive chargeback program', m:[], s:[0.63,0.63,0.63,0.22] },
+    { id:'c90', t:'FAQ: settlement timing', m:[], s:[0.41,0.41,0.41,0.10] }
+  ];
+  const p7c = $('p7c');
+  p7c.innerHTML = CH.map(c => '<div class="ch" data-id="' + c.id + '"><div>' + c.t + '<small class="m">' + (c.m.length ? c.m.map(x => '<code>' + x + '</code>').join('') : 'mentions nothing resolved') + (c.lock ? ' <b style="color:var(--bad)">restricted</b>' : '') + '</small></div><div class="bar6"><i></i></div><span class="sc">0.00</span></div>').join('');
+  let r7 = 0;
+  function paint7(stage){
+    const rows = Array.from(p7c.children);
+    const first = new Map(rows.map(r => [r, r.getBoundingClientRect().top]));
+    const order = CH.map(c => ({ c, v: c.s[stage] })).sort((a, b) => b.v - a.v);
+    order.forEach((o, idx) => {
+      const r = p7c.querySelector('[data-id="' + o.c.id + '"]');
+      r.classList.toggle('cut', (o.c.lock && stage >= 1) || (stage === 3 && idx >= 3));
+      r.classList.toggle('lock', !!o.c.lock && stage >= 1);
+      r.classList.toggle('keep', stage === 3 && idx < 3);
+      r.querySelector('.sc').textContent = o.v.toFixed(2);
+      anim(r.querySelector('.bar6 i'), { width: (o.v * 100) + '%' }, { duration:0.45 });
+      p7c.appendChild(r);
+    });
+    rows.forEach(r => { const d = first.get(r) - r.getBoundingClientRect().top; if (d) anim(r, { y:[d, 0] }, { duration:0.45, ease:[0.22,1,0.36,1] }); });
+  }
+  async function p7(){
+    const my = ++r7, steps = Array.from(document.querySelectorAll('#p7steps span'));
+    Array.from(p7c.children).forEach(r => { r.classList.remove('cut','lock','keep'); anim(r.querySelector('.bar6 i'), { width:'0%' }, { duration:0 }); });
+    for (let s = 0; s < 4; s++){
+      steps.forEach((x, j) => x.classList.toggle('on', j === s));
+      paint7(s);
+      await wait(1700); if (my !== r7) return;
+    }
+  }
+  $('p7play').addEventListener('click', p7);
+
+  /* ---------- 8 Assemble ---------- */
+  render($('p8code'), J(['{','  "question": "Was Sunset Tickets over Visa\u2019s VAMP threshold in August, and what drove it?",','  "ontology_version": "1.6.0",','  "defaults": { "region": "US" },','  "metrics": [','    { "id": "sf-q-21b8", "source": "snowflake", "fresh_through": "2026-09-25T02:00Z",','      "rows": [ { "month": "2026-06", "vamp_ratio": 0.0079 },','                { "month": "2026-07", "vamp_ratio": 0.0084 },','                { "month": "2026-08", "vamp_ratio": 0.0165, "vamp_events": 1952, "settled_cnp": 118300 } ] }','  ],','  "facts": [','    { "id": "m:10442", "type": "Merchant", "name": "Sunset Tickets", "region": "US" },','    { "id": "q-5c11", "source": "neptune", "shared_card_reports": 790, "of": 1240, "cards": 214 }','  ],','  "passages": [ { "id": "visa-vamp-2026#c04", "text": "\u2026" }, { "id": "fraud-runbook#c07", "text": "\u2026" } ],','  "definitions": [ { "concept": "pay:VampRatio", "definition": "(Visa fraud reports + disputes) / settled CNP transactions\u2026" } ]','}']), 'json');
+  let r8 = 0;
+  async function p8(){
+    const my = ++r8, items = Array.from(document.querySelectorAll('#p8t .item')), bar = $('p8bar'), tok = $('p8tok');
+    items.forEach(it => { it.classList.remove('drop'); anim(it, { opacity:0 }, { duration:0 }); });
+    anim(bar, { width:'0%' }, { duration:0 }); tok.textContent = '0 of 6,000';
+    let total = 0; const cost = [520, 140, 60, 180, 260, 1900, 1700, 900, 240, 200];
+    for (let i = 0; i < items.length; i++){
+      await wait(240); if (my !== r8) return;
+      const drop = items[i].dataset.drop === '1';
+      anim(items[i], { opacity:[0, drop ? 0.35 : 1], x:[-8,0] }, { duration:0.3 });
+      if (drop){ items[i].classList.add('drop'); continue; }
+      total += cost[i];
+      anim(bar, { width: Math.min(100, total / 60) + '%' }, { duration:0.3 });
+      tok.textContent = total.toLocaleString() + ' of 6,000';
+    }
+  }
+  $('p8play').addEventListener('click', p8);
+
+  /* ---------- 9 Answer ---------- */
+  const SENT = [
+    ['Yes. Sunset Tickets’ VAMP ratio for August was 1.65%, above the 1.5% merchant threshold, with 1,952 fraud reports and disputes, over the 1,500 monitoring floor.', ['sf-q-21b8','visa-vamp-2026#c04']],
+    ['That is a sharp jump from 0.84% in July and 0.79% in June.', ['sf-q-21b8']],
+    ['The pattern points to stolen cards used across merchants: 790 of August’s 1,240 fraud reports are on 214 cards also fraud-reported at other merchants within 48 hours.', ['q-5c11']],
+    ['At the Excessive level Visa assesses $8 per fraudulent or disputed transaction; the fraud runbook covers the response.', ['visa-vamp-2026#c04','fraud-runbook#c07']],
+    ['Figures use warehouse data loaded through September 25, and US thresholds for this merchant.', ['sf-q-21b8','m:10442']]
+  ];
+  const EVID = [['sf-q-21b8','Snowflake: VAMP ratio by month','var(--wh)'],['visa-vamp-2026#c04','OpenSearch: VAMP thresholds and fees','var(--search)'],['q-5c11','Neptune: shared-card count','var(--graph)'],['fraud-runbook#c07','OpenSearch: runbook passage','var(--search)'],['m:10442','Neptune: merchant record, region US','var(--graph)']];
+  $('p9s').innerHTML = SENT.map((s, i) => '<div class="sent" data-i="' + i + '">' + s[0] + ' <sup>[' + s[1].length + ']</sup></div>').join('');
+  $('p9e').innerHTML = EVID.map(e => '<div class="ev" data-id="' + e[0] + '" style="box-shadow:inset 3px 0 0 ' + e[2] + '"><code>' + e[0] + '</code><br>' + e[1] + '</div>').join('');
+  render($('p9code'), J(['Answer only from the metrics, facts, passages and definitions provided.','Take every number from a query result; never calculate one yourself.','Cite the ID behind every claim, in square brackets.','State data freshness and any defaults, such as the merchant\u2019s region.','If the context doesn\u2019t answer part of the question, say so plainly.']), 'none');
+  let r9 = 0;
+  function show9(i){
+    Array.from($('p9s').children).forEach((s, j) => s.classList.toggle('on', j === i));
+    const ids = SENT[i][1];
+    Array.from($('p9e').children).forEach(e => e.classList.toggle('on', ids.includes(e.dataset.id)));
+  }
+  async function p9(){ const my = ++r9; for (let i = 0; i < SENT.length; i++){ if (my !== r9) return; show9(i); await wait(2000); } }
+  Array.from($('p9s').children).forEach((s, i) => s.addEventListener('click', () => { r9++; show9(i); }));
+
+  /* ---------- 10 Check ---------- */
+  render($('p10code'), J(['{','  "trace": "9b41-2e07",','  "caller": "risk-agent",','  "ontology_version": "1.6.0",','  "entities": ["m:10442"],','  "neptune_queries": ["q-5c11"],','  "snowflake": { "query_id": "sf-q-21b8", "role": "RISK_ANALYST_RO",','                 "warehouse": "RISK_XS", "fresh_through": "2026-09-25T02:00Z" },','  "passages": ["visa-vamp-2026#c04", "fraud-runbook#c07"],','  "checks": { "citations": "pass", "numbers": "fixed", "threshold": "pass",','              "freshness": "pass", "access": "pass" }','}']), 'json');
+  let r10 = 0;
+  async function p10(){
+    const my = ++r10, rows = Array.from(document.querySelectorAll('#p10c .chk')), fix = $('p10fix');
+    rows.forEach(r => { r.classList.remove('ok','fix'); r.querySelector('i').textContent = ''; });
+    anim(fix, { opacity:0 }, { duration:0 });
+    for (const r of rows){
+      await wait(450); if (my !== r10) return;
+      if (r.dataset.fix === '1'){ r.classList.add('fix'); r.querySelector('i').textContent = '!'; anim(fix, { opacity:[0,1], y:[8,0] }, { duration:0.35 }); await wait(1300); if (my !== r10) return; r.classList.remove('fix'); }
+      r.classList.add('ok'); r.querySelector('i').textContent = '\u2713'; anim(r.querySelector('i'), { scale:[0.4,1] }, { duration:0.25 });
+    }
+  }
+  $('p10play').addEventListener('click', p10);
+
+  /* ---------- 11 Watch and improve ---------- */
+  const WF = [['Gateway',0,20,'var(--onto)'],['Understand',20,650,'var(--query)'],['Entry points',670,150,'var(--search)'],['Walk the graph',820,220,'var(--graph)'],['Count in graph',820,380,'var(--graph)'],['Ask warehouse',820,1400,'var(--wh)'],['Find the text',820,330,'var(--search)'],['Assemble',2220,40,'var(--query)'],['Answer',2260,2300,'var(--query)'],['Check',4560,180,'var(--query)']];
+  const TOTAL = 4800;
+  $('p11w').innerHTML = WF.map(w => '<div class="wrow" style="--c:' + w[3] + '"><span>' + w[0] + '</span><div class="wtrack"><i data-l="' + (w[1] / TOTAL * 100) + '" data-w="' + (w[2] / TOTAL * 100) + '"></i></div><span class="ms">' + w[2].toLocaleString() + ' ms</span></div>').join('') + '<div class="wrow" style="--c:var(--ink)"><span><b>Total</b></span><div></div><span class="ms"><b>≈4.7 s</b></span></div>';
+  const MET = [['Entity resolution accuracy','Right ID for the name asked about',96,95],['Queries valid on first try','Generated Cypher and SQL pass their checks',88,90],['Warehouse numbers reconcile','Match the acquirer’s monthly VAMP report',99,100],['Answer faithfulness','Claims supported by the context',97,95],['Citation precision','Citations that support their claim',93,95]];
+  $('p11m').innerHTML = MET.map(m => '<div class="metric"><b>' + m[0] + '</b><small>' + m[1] + ': ' + m[2] + '%, target ' + m[3] + '%</small><div class="mt"><i data-w="' + m[2] + '"' + (m[2] < m[3] ? ' style="background:var(--search)"' : '') + '></i><span class="tg" style="left:' + m[3] + '%"></span></div></div>').join('');
+  function p11(){
+    document.querySelectorAll('#p11w .wtrack i').forEach((b, i) => { b.style.left = b.dataset.l + '%'; anim(b, { width:['0%', b.dataset.w + '%'] }, { duration:0.5, delay:0.1 + i * 0.12, ease:[0.22,1,0.36,1] }); if (!M || reduce) b.style.width = b.dataset.w + '%'; });
+    document.querySelectorAll('#p11m .mt i').forEach((b, i) => { anim(b, { width:['0%', b.dataset.w + '%'] }, { duration:0.7, delay:1.2 + i * 0.12, ease:[0.22,1,0.36,1] }); if (!M || reduce) b.style.width = b.dataset.w + '%'; });
+  }
+  $('p11play').addEventListener('click', p11);
+
+  const RUN = { map: () => {}, s1:p1, s2:p2, s3:p3, s4:p4, s5:p5, s6:p6, s7:p7, s8:p8, s9:p9, s10:p10, s11:p11 };
+  window.addEventListener('hashchange', route);
+  route();
+  if (cur && cur.id === 'map') setTimeout(() => pick(4), reduce ? 0 : 500);
+})();
+
+</script>
+</body>
+</html>
