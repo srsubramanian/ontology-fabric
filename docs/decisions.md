@@ -30,7 +30,7 @@ Settled unless a later entry says otherwise. Newest changes are at the bottom of
    - A card reaches its issuer through its BIN range (`Card IN_BIN_RANGE BinRange ASSIGNED_TO Issuer`), never a direct link, so a portfolio moving to another issuer is one edge change.
    - A chunk `MENTIONS` any entity it names, such as a merchant, a reason code or a dispute. In LinkML its range is `linkml:Any`. Who may see the chunk is still decided by its classification in OpenSearch.
 8. **SHACL 1.0 core gates every load.** Missing required links reject the record. SHACL 1.2 is still a Working Draft and RDF 1.2 a Candidate Recommendation; wait until both are W3C Recommendations.
-9. **Bootstrap from industry standards, then hand ownership to teams.** This direction is agreed; updating the platform page to show it is still open.
+9. **Bootstrap from industry standards, then hand ownership to teams.** Chapter 1 of the platform page shows it.
    - Sources: ISO 20022 card and payment messages, FIBO for parties and agreements, and ISO code lists.
    - Align with them through `skos:closeMatch`. Never use `owl:imports`, and pin the FIBO release you mapped against.
    - Measure coverage rather than assume it, in two ways: how many competency questions the draft answers, and how many mined code terms map to a standard concept.
@@ -69,5 +69,5 @@ Settled unless a later entry says otherwise. Newest changes are at the bottom of
 
 ## The pages
 
-21. **The learning pages move to React, one page at a time** (Vite, React 19, TypeScript, `motion/react`). Each page still builds into one self-contained HTML file in `site/`, so publishing and the smoke test don't change. Shared parts live in `web/src/kit/`. The retrieval page moved first, with every view pixel-identical to the hand-written version. The platform page follows chapter by chapter; the class explorer and question tracer are built in React from the start.
+21. **The learning pages move to React, one page at a time** (Vite, React 19, TypeScript, `motion/react`). Each page still builds into one self-contained HTML file in `site/`, so publishing and the smoke test don't change. Shared parts live in `web/src/kit/`. The retrieval page moved first, with every view pixel-identical to the hand-written version. The platform page follows chapter by chapter: it already builds from `web/`, its original markup and scripts moved there unchanged (every view identical), and each chapter moves to React in turn. Chapter 1 has moved, again with every view identical. The class explorer and question tracer are built in React from the start.
 22. **Pages read the ontology from its LinkML source, never from a hand-copied list.** The class explorer imports `ontology/payments.yaml` at build time and derives label chains, inherited slots and relationships the way LinkML's SchemaView does. Until prototype step 1 delivers the real core, that file is an illustrative draft written down from the pages themselves.
