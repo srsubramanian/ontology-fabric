@@ -53,6 +53,8 @@ export type ClassInfo = {
   name: string; curie: string; abstract: boolean; description: string; aliases: string[];
   parent?: string; chain: string[]; children: string[]; slots: Slot[];
   owner: string; livesIn: LivesIn; idRule?: string; example?: string;
+  /** A warehouse class that never loads into Neptune, such as reconciliation (decision 2). */
+  neverInGraph: boolean;
   /** skos:closeMatch mappings, each with the standard it points into. */
   mappings: { curie: string; iri?: string; standard?: string }[];
   /** Why a concrete class maps to no standard concept. */
@@ -139,6 +141,7 @@ export function buildModel(schema: RawSchema, questions: RawQuestions): Model {
       abstract: !!raw.abstract, description: (raw.description ?? '').trim(), aliases: raw.aliases ?? [],
       parent: raw.is_a, chain, children: [], slots: inducedSlots(schema, chain),
       owner: a.owner, livesIn: a.lives_in as LivesIn, idRule: a.id_rule, example: a.example,
+      neverInGraph: a.graph_load === 'never',
       mappings: (raw.close_mappings ?? []).map((curie) => ({ curie, iri: expand(schema, curie), standard: standardOf(curie) })),
       noStandard: a.no_standard,
       codeList: list && {

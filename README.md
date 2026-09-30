@@ -36,7 +36,8 @@ The check fails if:
 - a competency question walks a relationship the schema doesn't have, or neither walks one nor names its gap;
 - a query breaks decision 13's rules (unknown labels, a relationship against its direction, a write, no LIMIT);
 - a concrete class neither maps to a standard nor says why none fits;
-- the class explorer reads a class differently from LinkML (that part needs Node and `npm install` in `web/`).
+- the class explorer reads a class differently from LinkML (that part needs Node and `npm install` in `web/`);
+- the class map draws a line through a box or across another line, or a label on a box (the same).
 
 The generator rewrites `generated/`: OWL, SHACL, the extraction JSON Schema, Pydantic models, Neptune load headers and OpenSearch index mappings. Commit it with the change; CI runs `python tools/generate.py --check` and fails when it's stale. Rebuild the page afterwards, so the class explorer shows the change.
 

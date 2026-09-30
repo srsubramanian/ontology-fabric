@@ -1,6 +1,6 @@
 # Generated from the ontology
 
-Everything here is generated from `ontology/payments.yaml` (version 1.10.0) by
+Everything here is generated from `ontology/payments.yaml` (version 1.11.0) by
 `tools/generate.py`. Don't edit these files: change the ontology, then run
 
 ```bash
@@ -22,12 +22,14 @@ Files:
 - `jsonschema/payments.schema.json`
 - `neptune/edges/ACQUIRED_BY.csv`
 - `neptune/edges/ACTS_AS.csv`
+- `neptune/edges/ADJUSTS.csv`
 - `neptune/edges/ASSIGNED_TO.csv`
 - `neptune/edges/AT_MERCHANT.csv`
 - `neptune/edges/AUTHENTICATED_BY.csv`
 - `neptune/edges/CAPTURES.csv`
 - `neptune/edges/DISPUTES.csv`
 - `neptune/edges/FROM_DEVICE.csv`
+- `neptune/edges/FUNDS.csv`
 - `neptune/edges/HAS_EVIDENCE.csv`
 - `neptune/edges/HAS_REASON.csv`
 - `neptune/edges/HAS_RESPONSE.csv`
@@ -36,6 +38,7 @@ Files:
 - `neptune/edges/IN_BIN_RANGE.csv`
 - `neptune/edges/MENTIONS.csv`
 - `neptune/edges/PART_OF.csv`
+- `neptune/edges/QUALIFIES_FOR.csv`
 - `neptune/edges/REFUNDS.csv`
 - `neptune/edges/REPORTS.csv`
 - `neptune/edges/RESPONDS_TO.csv`
@@ -44,6 +47,7 @@ Files:
 - `neptune/edges/SETTLES.csv`
 - `neptune/edges/WITH_CARD.csv`
 - `neptune/nodes/Acquirer.csv`
+- `neptune/nodes/Adjustment.csv`
 - `neptune/nodes/Arbitration.csv`
 - `neptune/nodes/Authentication.csv`
 - `neptune/nodes/Authorization.csv`
@@ -56,10 +60,12 @@ Files:
 - `neptune/nodes/Device.csv`
 - `neptune/nodes/DisputeOutcome.csv`
 - `neptune/nodes/Document.csv`
+- `neptune/nodes/FeeProgram.csv`
 - `neptune/nodes/FraudReport.csv`
 - `neptune/nodes/Issuer.csv`
 - `neptune/nodes/Merchant.csv`
 - `neptune/nodes/Organization.csv`
+- `neptune/nodes/Payout.csv`
 - `neptune/nodes/Person.csv`
 - `neptune/nodes/PreArbitration.csv`
 - `neptune/nodes/ReasonCode.csv`

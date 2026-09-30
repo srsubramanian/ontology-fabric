@@ -13,6 +13,9 @@
 - The class explorer (web/src/explorer/model.ts) reads every class the way LinkML's
   SchemaView does: the same label chain and the same inherited slots. Needs Node 22.6
   or later and `npm install` in web/; skipped, with a note, without them.
+- The class map's layout (web/src/explorer/layout.ts) places every class, and draws every
+  relationship without passing through a box or crossing another line
+  (web/scripts/check-layout.ts). Same requirements as the explorer check.
 - Each question has a unique ID and a domain owned by a team.
 - Coverage, the two numbers from decision 9: questions the schema answers, by domain,
   and classes mapped to a standard concept, by standard.
@@ -165,6 +168,15 @@ def check_explorer(sv, classes, problems):
             problems.append(f"explorer: reads {name} differently from LinkML")
     print(f"class explorer reads classes the way LinkML does: {agree} of {len(classes)}")
 
+    # The class map's layout: every class placed, no line through a box, no two lines crossing.
+    run = subprocess.run(
+        ["node", "--experimental-strip-types", "--no-warnings", str(ROOT / "web" / "scripts" / "check-layout.ts")],
+        capture_output=True, text=True)
+    lines = (run.stdout.strip() or run.stderr.strip() or "check-layout.ts failed").splitlines()
+    if run.returncode:
+        problems.extend("class map: " + line for line in lines[:-1] or lines)
+    print(lines[-1])
+
 
 def main():
     sv = SchemaView(str(ROOT / "ontology" / "payments.yaml"))
@@ -176,6 +188,10 @@ def main():
         for key, allowed in (("owner", OWNERS), ("lives_in", LIVES_IN)):
             if annotation(cls, key) not in allowed:
                 problems.append(f"{name}: {key} must be one of {sorted(allowed)}")
+        if annotation(cls, "graph_load") not in (None, "never"):
+            problems.append(f"{name}: graph_load can only be never")
+        if annotation(cls, "graph_load") and annotation(cls, "lives_in") != "warehouse":
+            problems.append(f"{name}: only a warehouse class can never load into Neptune")
         if not cls.abstract and not annotation(cls, "id_rule"):
             problems.append(f"{name}: concrete class needs an id_rule")
         if not cls.abstract and not cls.close_mappings and not annotation(cls, "no_standard"):

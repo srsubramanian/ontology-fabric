@@ -15,6 +15,49 @@
             "title": "Acquirer",
             "type": "object"
         },
+        "Adjustment": {
+            "additionalProperties": false,
+            "description": "A correction to a capture after it cleared, such as a changed amount, made under the network's rules.",
+            "properties": {
+                "adjusted_at": {
+                    "description": "When the adjustment was made.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "adjusts": {
+                    "description": "The capture an adjustment corrects.",
+                    "type": "string"
+                },
+                "amount": {
+                    "description": "The amount, in the transaction currency.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "currency": {
+                    "description": "The transaction currency, as an ISO 4217 alphabetic code such as USD.",
+                    "pattern": "^[A-Z]{3}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "adjusts",
+                "id"
+            ],
+            "title": "Adjustment",
+            "type": "object"
+        },
         "Any": {
             "additionalProperties": true,
             "description": "Any entity with an ID. A relationship whose range is Any can point at a node of any class, as a chunk's MENTIONS does. Not a node itself.",
@@ -330,6 +373,13 @@
                     "description": "The authorization a capture claims funds for.",
                     "type": "string"
                 },
+                "conversion_rate": {
+                    "description": "The rate that converted a capture's amount into its settlement's currency, when the two differ.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
                 "currency": {
                     "description": "The transaction currency, as an ISO 4217 alphabetic code such as USD.",
                     "pattern": "^[A-Z]{3}$",
@@ -341,6 +391,27 @@
                 "id": {
                     "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
                     "type": "string"
+                },
+                "in_batch": {
+                    "description": "The batch that carried a capture to the network.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "interchange_fee": {
+                    "description": "The interchange the capture paid, in its settlement's currency. The amount stays in Snowflake; the program it qualified for is a node.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "qualifies_for": {
+                    "description": "The interchange program a capture qualified for.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
                 }
             },
             "required": [
@@ -506,6 +577,29 @@
                 "id"
             ],
             "title": "Chunk",
+            "type": "object"
+        },
+        "ClearingBatch": {
+            "additionalProperties": false,
+            "description": "A batch of captures sent for clearing and settlement in one exchange, such as an acquirer's clearing file.",
+            "properties": {
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "sent_at": {
+                    "description": "When the batch was sent.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "ClearingBatch",
             "type": "object"
         },
         "Credential": {
@@ -755,6 +849,102 @@
             "title": "DocumentKind",
             "type": "string"
         },
+        "FeeCollection": {
+            "additionalProperties": false,
+            "description": "The network collecting fees from a member, an issuer or an acquirer, such as its monthly assessments.",
+            "properties": {
+                "amount": {
+                    "description": "The amount, in the transaction currency.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "collected_at": {
+                    "description": "When the network collected the fees.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "collected_from": {
+                    "description": "The member the fees were collected from, an issuer or an acquirer.",
+                    "type": "string"
+                },
+                "currency": {
+                    "description": "The transaction currency, as an ISO 4217 alphabetic code such as USD.",
+                    "pattern": "^[A-Z]{3}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "under": {
+                    "description": "The fee program a collection charges.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id",
+                "collected_from"
+            ],
+            "title": "FeeCollection",
+            "type": "object"
+        },
+        "FeeProgram": {
+            "additionalProperties": false,
+            "description": "A fee a network publishes, such as an interchange category a capture qualifies for. A node, so captures and the fees charged meet at one place; the amounts stay in Snowflake (decision 2).",
+            "properties": {
+                "code": {
+                    "description": "The code as the network or issuer writes it.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "fee_type": {
+                    "$ref": "#/$defs/FeeType",
+                    "description": "What kind of fee a program sets."
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "What people call it.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "network": {
+                    "$ref": "#/$defs/CardNetwork",
+                    "description": "The card network whose rules apply."
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "FeeProgram",
+            "type": "object"
+        },
+        "FeeType": {
+            "description": "What kind of fee a program sets.",
+            "enum": [
+                "interchange",
+                "network_fee"
+            ],
+            "title": "FeeType",
+            "type": "string"
+        },
         "FraudReport": {
             "additionalProperties": false,
             "description": "An issuer reporting an authorization as fraud to the network.",
@@ -956,6 +1146,59 @@
             "title": "PaymentEvent",
             "type": "object"
         },
+        "Payout": {
+            "additionalProperties": false,
+            "description": "The acquirer paying a merchant for its settled captures, less fees and any amount held back in reserve.",
+            "properties": {
+                "amount": {
+                    "description": "The amount, in the transaction currency.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "currency": {
+                    "description": "The transaction currency, as an ISO 4217 alphabetic code such as USD.",
+                    "pattern": "^[A-Z]{3}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "funds": {
+                    "description": "The captures a payout pays the merchant for.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "paid_at": {
+                    "description": "When the acquirer paid the merchant.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "reserve_amount": {
+                    "description": "The amount held back from a payout into the merchant's reserve; negative when the acquirer releases reserve.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "funds",
+                "id"
+            ],
+            "title": "Payout",
+            "type": "object"
+        },
         "Person": {
             "additionalProperties": false,
             "description": "An individual, such as a cardholder.",
@@ -1080,6 +1323,54 @@
                 "id"
             ],
             "title": "ReasonCode",
+            "type": "object"
+        },
+        "Reconciliation": {
+            "additionalProperties": false,
+            "description": "A member checking its totals for a settlement against the network's, and recording any difference.",
+            "properties": {
+                "currency": {
+                    "description": "The transaction currency, as an ISO 4217 alphabetic code such as USD.",
+                    "pattern": "^[A-Z]{3}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "difference": {
+                    "description": "The amount by which the totals differed.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "matched": {
+                    "description": "Whether the member's totals matched the network's.",
+                    "type": "boolean"
+                },
+                "reconciled_at": {
+                    "description": "When the totals were checked.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "reconciles": {
+                    "description": "The settlement whose totals were checked.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id",
+                "matched",
+                "reconciles"
+            ],
+            "title": "Reconciliation",
             "type": "object"
         },
         "Refund": {
@@ -1340,6 +1631,21 @@
             "additionalProperties": false,
             "description": "Funds moving between the banks for a batch of captures.",
             "properties": {
+                "amount": {
+                    "description": "The amount, in the transaction currency.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "currency": {
+                    "description": "The transaction currency, as an ISO 4217 alphabetic code such as USD.",
+                    "pattern": "^[A-Z]{3}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
                 "id": {
                     "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
                     "type": "string"
@@ -1393,5 +1699,5 @@
     "metamodel_version": "1.11.0",
     "title": "payments",
     "type": "object",
-    "version": "1.10.0"
+    "version": "1.11.0"
 }

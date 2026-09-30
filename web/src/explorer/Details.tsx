@@ -12,6 +12,7 @@ const LIVES_TEXT = {
   warehouse: 'Stays in the lake or Snowflake, linked by ID. A record joins Neptune when a question walks through it, such as a disputed authorization.',
   search: 'Text and embeddings live in OpenSearch; Neptune keeps a small stub with the ID.',
 };
+const NEVER_IN_GRAPH = 'Stays in Snowflake and never loads into Neptune (decision 2). Questions reach it through the warehouse, joined by ID.';
 
 const ANSWERED: Record<Store, { name: string; color: string; why: string }> = {
   neptune: { name: 'Neptune', color: 'var(--graph)', why: 'It walks or counts along relationships, so the graph answers it.' },
@@ -120,7 +121,7 @@ function ClassDetails({ model, c, onPick, onQuestion, onHome }: { model: Model; 
       )}
 
       <Section title="Where it lives">
-        <p><span className="store" style={vars({ '--c': STORE[c.livesIn].color })}>{STORE[c.livesIn].label}</span> {LIVES_TEXT[c.livesIn]}</p>
+        <p><span className="store" style={vars({ '--c': STORE[c.livesIn].color })}>{STORE[c.livesIn].label}</span> {c.neverInGraph ? NEVER_IN_GRAPH : LIVES_TEXT[c.livesIn]}</p>
       </Section>
 
       <Section title="Owner">

@@ -36,6 +36,9 @@
       "currency": {
         "type": "keyword"
       },
+      "fee_type": {
+        "type": "keyword"
+      },
       "funding_source": {
         "type": "keyword"
       },
