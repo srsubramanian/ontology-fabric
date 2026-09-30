@@ -5,9 +5,14 @@ import 'prismjs/components/prism-cypher';
 import 'prismjs/components/prism-yaml';
 import 'prismjs/components/prism-sql';
 
-// Custom grammars (docs/style-guide.md). Those only the platform page's unported chapters use
-// (opensearch, cedar) still live in web/src/platform/legacy/ and move here as their
-// chapters are ported.
+// Custom grammars (docs/style-guide.md). The one only an unported platform chapter uses,
+// cedar, still lives in web/src/platform/legacy/ and moves here when its chapter is ported.
+
+/** An OpenSearch request: the method and path, then a JSON body. */
+Prism.languages.opensearch = Prism.languages.extend('json', {});
+Prism.languages.insertBefore('opensearch', 'property', {
+  request: { pattern: /^(?:GET|POST|PUT|DELETE)\s+\S+/m, inside: { keyword: /^\w+/, url: /\S+/ } },
+});
 
 /** An HTTP request line and headers, then a JSON body: an MCP call on the wire. */
 Prism.languages.mcphttp = Prism.languages.extend('json', {});

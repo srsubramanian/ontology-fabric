@@ -17,20 +17,6 @@
     });
   }
 
-  // ---------- Chapter 4: build or reuse ----------
-  const rmap = document.getElementById('rmap');
-  if (rmap){
-    let seen = false;
-    onView(rmap, () => {
-      if (seen) return; seen = true;
-      const boxes = rmap.querySelectorAll('.rb'); Array.from(boxes).forEach(b => b.style.opacity = 0);
-      anim(boxes, { opacity:[0,1], y:[8,0] }, { duration:0.35, delay: dl(0, 0.07) });
-      drawIn(rmap.querySelectorAll('.rline'), 0.7);
-      const chips = document.querySelectorAll('#reuse .rchips span');
-      anim(chips, { opacity:[0,1], scale:[0.85,1] }, { duration:0.3, delay: dl(1.3, 0.05) });
-    }, 0.3);
-  }
-
   // ---------- Chapter 7: watch list ----------
   const wtl = document.getElementById('wtl');
   if (wtl){
