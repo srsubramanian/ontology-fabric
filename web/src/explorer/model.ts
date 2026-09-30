@@ -22,7 +22,7 @@ export type RawSchema = {
   classes: Record<string, RawClass>; slots: Record<string, RawSlot>; enums?: Record<string, RawEnum>;
 };
 export type RawQuestions = {
-  questions: { id: string; domain: string; question: string; walks: string[]; answered_in: Store }[];
+  questions: { id: string; domain: string; question: string; walks: string[]; answered_in: Store; query: string }[];
 };
 
 export type LivesIn = 'graph' | 'warehouse' | 'search';
@@ -49,7 +49,10 @@ export type ClassInfo = {
 
 export type Question = {
   id: string; domain: string; question: string; answeredIn: Store;
-  steps: { named: string; relationship: Relationship }[];
+  /** The illustrative query, openCypher for Neptune and SQL for Snowflake. */
+  query: string; language: 'cypher' | 'sql';
+  /** Each step, and the query lines (from 0) that walk it. */
+  steps: { named: string; relationship: Relationship; lines: number[] }[];
   classes: string[];
 };
 
@@ -136,15 +139,25 @@ export function buildModel(schema: RawSchema, questions: RawQuestions): Model {
   }
 
   const qs: Question[] = questions.questions.map((q) => {
+    const query = (q.query ?? '').replace(/\n+$/, '');
+    const language = q.answered_in === 'snowflake' ? 'sql' : 'cypher';
+    const queryLines = query.split('\n');
     const steps = q.walks.map((walk) => {
       const [named, slot] = walk.split('.');
       const chain = classes[named]?.chain;
       const relationship = chain && relationships.find((r) => r.slot === slot && chain.includes(r.from));
       if (!relationship) throw new Error(`${q.id}: ${walk} is not a relationship in the schema`);
-      return { named, relationship };
+      // Cypher names the relationship type; SQL marks the line with a comment naming the step.
+      const mark = language === 'sql' ? `-- ${walk}` : `[:${relationship.type}]`;
+      const lines = queryLines.flatMap((line, i) => (line.includes(mark) ? [i] : []));
+      if (!lines.length) throw new Error(`${q.id}: no line of the query walks ${walk}`);
+      return { named, relationship, lines };
     });
     const touched = new Set(steps.flatMap((s) => [s.named, s.relationship.to]));
-    return { id: q.id, domain: q.domain, question: q.question, answeredIn: q.answered_in, steps, classes: [...touched] };
+    return {
+      id: q.id, domain: q.domain, question: q.question, answeredIn: q.answered_in,
+      query, language, steps, classes: [...touched],
+    };
   });
 
   return { title: schema.title ?? schema.name, version: schema.version ?? '', classes, relationships, questions: qs };

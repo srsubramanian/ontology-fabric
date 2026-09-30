@@ -28,10 +28,9 @@ Follow the build order in Chapter 7 of `site/platform.html`, with the changes re
 ## Backlog for the pages
 
 - Generate the pages in CI from the LinkML source, so they stay in step with each ontology release.
-- Add a question tracer: pick a competency question and animate its Cypher or SQL, step by step, across the class graph. The explorer already highlights each question's walk from `ontology/competency-questions.yaml`; the tracer adds the query text and results.
+- Show results in the question tracer. It already steps each competency question's query line by line alongside its walk on the map; once step 2 of the build order loads a sample month, run the queries and show the rows they return, each cited by ID.
 - Candidate separate pages, each linked from its chapter like `retrieval.html`: ontology authoring, the ingestion pipeline, releases and governance.
 - Port `platform.html` to `web/`, a chapter at a time (decision 21). Move its custom Prism grammars and shared diagram code into `web/src/kit/` as they're needed, and fold in the Snowflake gap and the standards-first update (question 1) as each chapter is ported.
-- Add CI that runs `npm run check` and the smoke test, and fails if a built page in `site/` is stale against `web/`.
 
 ## Housekeeping
 

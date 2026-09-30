@@ -6,7 +6,7 @@ Ontology Fabric is the working name for a payments knowledge layer: an ontology-
 
 - `site/platform.html`: the platform overview. A map of the whole system plus seven chapters, each split into sub-pages. One self-contained HTML file.
 - `site/retrieval.html`: the retrieval walkthrough, in 11 stages, covering Neptune, Snowflake and OpenSearch. Also self-contained, but built from `web/`: don't edit it by hand.
-- `site/ontology.html`: the class explorer. It reads the ontology from `ontology/` at build time. Built from `web/`: don't edit it by hand.
+- `site/ontology.html`: the class explorer, with a question tracer. It reads the ontology from `ontology/` at build time. Built from `web/`: don't edit it by hand.
 - `web/`: the React source for the built pages (retrieval and the class explorer). `web/src/kit/` holds what pages share: colour tokens, page styles, Motion helpers, Prism grammars and the code block.
 - `ontology/`: an illustrative draft of the ontology in LinkML (`payments.yaml`) and the competency questions it must answer. It writes down what the pages already show; the real core replaces it in prototype step 1.
 - `docs/`: decisions, style guide, 2026 research notes, open questions, and how the project got here.
