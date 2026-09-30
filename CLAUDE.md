@@ -11,7 +11,7 @@ Ontology Fabric is the working name for a payments knowledge layer: an ontology-
 - `ontology/`: an illustrative draft of the ontology in LinkML (`payments.yaml`) and the competency questions it must answer. It writes down what the pages already show; the real core replaces it in prototype step 1.
 - `docs/`: decisions, style guide, 2026 research notes, open questions, and how the project got here.
 - `tools/smoke_test.py`: loads every view of every page headlessly, fails on JavaScript errors and saves screenshots.
-- `tools/check_ontology.py`: checks that every competency question walks real relationships, every class has the annotations the explorer reads, and the explorer reads each class the way LinkML does. It prints the two coverage numbers.
+- `tools/check_ontology.py`: checks that every competency question walks real relationships and has a query that passes decision 13's checks, that every class has the annotations the explorer reads, and that the explorer reads each class the way LinkML does. It prints the two coverage numbers.
 
 ## Working rules
 

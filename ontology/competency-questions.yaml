@@ -6,6 +6,14 @@
 #   answered_in  the store that answers it, by the shape of the count
 #                (decision 14): neptune for walks and counts along
 #                relationships, snowflake for counts over big tables and time
+#   query        an illustrative query, written against the draft schema:
+#                openCypher for Neptune, SQL for Snowflake. Warehouse table
+#                names are illustrative too. In SQL, a trailing comment such as
+#                "-- Authorization.with_card" marks the line that walks a step.
+#
+# tools/check_ontology.py checks every query the way decision 13 checks
+# generated ones: labels and relationships the ontology has, in their one
+# direction, read-only, and with a LIMIT.
 
 questions:
 
@@ -14,33 +22,93 @@ questions:
     question: Which merchants had the most 10.4 chargebacks last month?
     walks: [Chargeback.has_reason, Chargeback.disputes, Capture.captures, Authorization.at_merchant]
     answered_in: neptune
+    query: |
+      MATCH (cb:Chargeback)-[:HAS_REASON]->(:ReasonCode {id: $reason})
+      MATCH (cb)-[:DISPUTES]->(:Capture)-[:CAPTURES]->(a:Authorization)
+      MATCH (a)-[:AT_MERCHANT]->(m:Merchant)
+      WHERE cb.opened_at >= $month_start AND cb.opened_at < $month_end
+      RETURN m.id AS merchant, m.name AS name, count(DISTINCT cb) AS chargebacks
+      ORDER BY chargebacks DESC
+      LIMIT 10
 
   - id: CQ-02
     domain: disputes
     question: What evidence did we send for this chargeback, and when?
     walks: [Representment.responds_to, Representment.has_evidence]
     answered_in: neptune
+    query: |
+      MATCH (cb:Chargeback {id: $chargeback})<-[:RESPONDS_TO]-(rep:Representment)
+      OPTIONAL MATCH (rep)-[:HAS_EVIDENCE]->(doc:Document)
+      RETURN rep.id AS response, rep.opened_at AS sent_at, collect(doc.id) AS evidence
+      ORDER BY sent_at
+      LIMIT 20
 
   - id: CQ-03
     domain: authorization
     question: Show the full lifecycle of this authorization.
     walks: [Capture.captures, Settlement.settles, Refund.refunds, Chargeback.disputes]
     answered_in: neptune
+    query: |
+      MATCH (a:Authorization {id: $authorization})
+      OPTIONAL MATCH (cap:Capture)-[:CAPTURES]->(a)
+      OPTIONAL MATCH (s:Settlement)-[:SETTLES]->(cap)
+      OPTIONAL MATCH (r:Refund)-[:REFUNDS]->(cap)
+      OPTIONAL MATCH (cb:Chargeback)-[:DISPUTES]->(cap)
+      RETURN a.id AS authorization, cap.id AS capture, collect(DISTINCT s.id) AS settlements,
+             collect(DISTINCT r.id) AS refunds, collect(DISTINCT cb.id) AS chargebacks
+      LIMIT 1
 
   - id: CQ-04
     domain: authorization
     question: Which response codes spiked for this BIN range today?
     walks: [Authorization.with_card, Card.in_bin_range, Authorization.has_response]
     answered_in: snowflake
+    query: |
+      WITH daily AS (
+        SELECT a.response_code, DATE_TRUNC('day', a.authorized_at) AS auth_day, COUNT(*) AS n
+        FROM fct_authorization a
+        JOIN dim_card c ON c.card_id = a.card_id          -- Authorization.with_card
+        JOIN dim_bin_range b ON b.bin_id = c.bin_id       -- Card.in_bin_range
+        WHERE b.prefix = :bin_prefix
+          AND a.authorized_at >= DATEADD('day', -7, CURRENT_DATE)
+        GROUP BY 1, 2
+      )
+      SELECT response_code,                               -- Authorization.has_response
+             SUM(IFF(auth_day = CURRENT_DATE, n, 0)) AS today,
+             AVG(IFF(auth_day < CURRENT_DATE, n, NULL)) AS daily_average
+      FROM daily
+      GROUP BY response_code
+      ORDER BY today / NULLIF(daily_average, 0) DESC NULLS LAST
+      LIMIT 20;
 
   - id: CQ-05
     domain: settlement
     question: Which captures haven't settled after 3 days?
     walks: [Settlement.settles]
     answered_in: snowflake
+    query: |
+      SELECT c.capture_id, c.authorization_id, c.captured_at
+      FROM fct_capture c
+      LEFT JOIN fct_settlement_item s ON s.capture_id = c.capture_id   -- Settlement.settles
+      WHERE s.capture_id IS NULL
+        AND c.captured_at < DATEADD('day', -3, CURRENT_TIMESTAMP)
+      ORDER BY c.captured_at
+      LIMIT 100;
 
   - id: CQ-06
     domain: risk
     question: Which merchants share devices or acquirers with a flagged one?
     walks: [FraudReport.reports, Authorization.at_merchant, Authorization.from_device, Merchant.acquired_by]
     answered_in: neptune
+    query: |
+      MATCH (:FraudReport)-[:REPORTS]->(:Authorization)-[:AT_MERCHANT]->(flagged:Merchant {id: $merchant})
+      MATCH (flagged)<-[:AT_MERCHANT]-(:Authorization)-[:FROM_DEVICE]->(d:Device)
+      MATCH (d)<-[:FROM_DEVICE]-(:Authorization)-[:AT_MERCHANT]->(other:Merchant)
+      WHERE other <> flagged
+      RETURN DISTINCT other.id AS merchant, 'shared device' AS link
+      LIMIT 50
+      UNION
+      MATCH (flagged:Merchant {id: $merchant})-[:ACQUIRED_BY]->(:Acquirer)<-[:ACQUIRED_BY]-(other:Merchant)
+      WHERE other <> flagged
+      RETURN DISTINCT other.id AS merchant, 'shared acquirer' AS link
+      LIMIT 50

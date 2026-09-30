@@ -31,7 +31,7 @@ linkml-lint --config ontology/.linkmllint.yaml ontology/payments.yaml
 python tools/check_ontology.py
 ```
 
-The check fails if a competency question walks a relationship the schema doesn't have, or if the class explorer reads a class differently from LinkML (that part needs Node and `npm install` in `web/`). Rebuild the pages afterwards, so the class explorer shows the change.
+The check fails if a competency question walks a relationship the schema doesn't have, if its query breaks decision 13's rules (unknown labels, a relationship against its direction, a write, no LIMIT), or if the class explorer reads a class differently from LinkML (that part needs Node and `npm install` in `web/`). Rebuild the pages afterwards, so the class explorer shows the change.
 
 ## Check the pages after a change
 
