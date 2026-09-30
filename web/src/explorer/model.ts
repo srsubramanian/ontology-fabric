@@ -22,7 +22,12 @@ export type RawSchema = {
   classes: Record<string, RawClass>; slots: Record<string, RawSlot>; enums?: Record<string, RawEnum>;
 };
 export type RawQuestions = {
-  questions: { id: string; domain: string; question: string; walks: string[]; answered_in: Store; query: string }[];
+  questions: {
+    id: string; domain: string; question: string; answered_in: Store;
+    walks?: string[]; query?: string;
+    /** What the schema lacks, for a question it can't answer yet. Such a question has no walks or query. */
+    gap?: string;
+  }[];
 };
 
 export type LivesIn = 'graph' | 'warehouse' | 'search';
@@ -57,6 +62,8 @@ export type ClassInfo = {
 
 export type Question = {
   id: string; domain: string; question: string; answeredIn: Store;
+  /** What the schema lacks, when it can't answer the question yet. */
+  gap?: string;
   /** The illustrative query, openCypher for Neptune and SQL for Snowflake. */
   query: string; language: 'cypher' | 'sql';
   /** Each step, and the query lines (from 0) that walk it. */
@@ -158,7 +165,7 @@ export function buildModel(schema: RawSchema, questions: RawQuestions): Model {
     const query = (q.query ?? '').replace(/\n+$/, '');
     const language = q.answered_in === 'snowflake' ? 'sql' : 'cypher';
     const queryLines = query.split('\n');
-    const steps = q.walks.map((walk) => {
+    const steps = (q.walks ?? []).map((walk) => {
       const [named, slot] = walk.split('.');
       const chain = classes[named]?.chain;
       const relationship = chain && relationships.find((r) => r.slot === slot && chain.includes(r.from));
@@ -173,7 +180,7 @@ export function buildModel(schema: RawSchema, questions: RawQuestions): Model {
     });
     const touched = new Set(steps.flatMap((s) => [s.named, s.relationship.to]));
     return {
-      id: q.id, domain: q.domain, question: q.question, answeredIn: q.answered_in,
+      id: q.id, domain: q.domain, question: q.question, answeredIn: q.answered_in, gap: q.gap?.trim(),
       query, language, steps, classes: [...touched],
     };
   });

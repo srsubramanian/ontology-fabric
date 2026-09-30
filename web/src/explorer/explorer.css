@@ -101,6 +101,7 @@ h1{max-width:30ch; font-size:clamp(1.9rem,3.4vw,2.7rem); margin-bottom:10px}
 .qitem:hover{border-color:var(--ink)}
 .qmeta{display:flex; align-items:center; gap:8px; font-size:.72rem; font-weight:800; color:var(--muted); margin-bottom:3px}
 .qmeta i{font-style:normal; color:var(--paper); background:var(--c); border-radius:999px; padding:1px 7px}
+.qmeta i.gapbadge{color:var(--muted); background:transparent; border:1px dashed var(--muted)}
 
 /* the question tracer */
 .tracer{display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; margin:0 0 8px}

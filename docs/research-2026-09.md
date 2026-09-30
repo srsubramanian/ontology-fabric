@@ -124,6 +124,14 @@ The schema pins FIBO 2026 Q2 and OMG Commons 20250801 in its annotations. Each I
   - ISO 20022 messages use the XML namespace `urn:iso:std:iso:20022:tech:xsd:<message id>`. The schema uses it as the mapping IRI, since ISO 20022 publishes no IRIs for business concepts. https://developer.huntington.com/enterprisepayments/docs/xml.md
 - **ISO code lists:** a new `currency` slot holds the ISO 4217 alphabetic code next to each amount. The `mcc` slot notes ISO 18245 (sources under ISO code lists above).
 
+### Prototype step 1: standards the question gaps point to (checked 2026-09-30)
+
+Some gaps in `ontology/competency-questions.yaml` name the standard concept that could close them. Each was checked.
+
+- **ISO 20022 card messages**, read from the message definitions page: `cain.005.001.05` ReversalInitiationV05 (authorization reversals), `cain.021.001.04` RetrievalInitiationV04 (retrieval requests), `caad.005.001.05` ReconciliationInitiationV05 (reconciliation) and `cafc.001.001.04` FeeCollectionInitiationV04 (network fees). https://www.iso20022.org/iso-20022-message-definitions
+- **FIBO 2026 Q2 card products:** the card module defines `CreditCard` and `DebitCard`, plus `CardProduct`, but no prepaid card. A card product type could map to them. https://spec.edmcouncil.org/fibo/ontology/master/2026Q2/LOAN/LoansSpecific/CardAccounts.rdf
+- **Fraud type:** issuers report one with each fraud report. Visa's is the TC40. Mastercard's SAFE is now formally the Fraud and Loss Database, whose confirmed-fraud types added type 57, first-party misuse, from 27 October 2024. https://developer.mastercard.com/fld-fraud-submission/documentation/parameters/annexure-1/ and https://chargebacks911.com/mastercard-safe/
+
 ## Claude Code
 
 - **Project memory**: `./CLAUDE.md` loads at every session start, and `@path` imports pull in other files. Keep it concise. https://docs.claude.com/en/docs/claude-code/memory

@@ -65,7 +65,7 @@ export function App() {
   const focus = useMemo(() => {
     if (query.trim()) return { key: 'q:' + query, lit: new Set(matches.map((m) => m.c.name)), edges: [] as string[] };
     if (selected) return { key: 'c:' + selected.name, ...neighbourhood(selected.name) };
-    if (question) {
+    if (question?.steps.length) {
       const walked = question.steps.slice(0, step === null ? question.steps.length : step + 1);
       const lit = new Set(walked.flatMap((s) => [s.named, s.relationship.from, s.relationship.to]));
       if (!walked.length) lit.add(question.steps[0].named);

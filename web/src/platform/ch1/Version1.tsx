@@ -91,7 +91,7 @@ const rnd = (seed: number) => () => { seed = (seed * 16807) % 2147483647; return
 // Steps 2 and 3: the two coverage numbers. The story's are illustrative; the draft's are read
 // from its LinkML source at build time.
 const concrete = Object.values(model.classes).filter((c) => !c.abstract);
-const DRAFT = { questions: model.questions.length, classes: concrete.length, mapped: concrete.filter((c) => c.mappings.length).length };
+const DRAFT = { questions: model.questions.length, answered: model.questions.filter((q) => !q.gap).length, classes: concrete.length, mapped: concrete.filter((c) => c.mappings.length).length };
 
 // Step 5: the class in Turtle.
 const TTL = `pay:Chargeback a owl:Class ;
@@ -450,7 +450,7 @@ export function Version1() {
             <div className="outs"><span>General ledger postings</span><span>Merchant onboarding paperwork</span><span>Card manufacturing</span><span>Marketing segments</span></div>
             <Meter label="Coverage 1: questions the standards draft answers" n={17} of={42} notes={[
               'Illustrative. Modeling, then proving it with data, takes it to 42 of 42.',
-              `This repo's draft, read from its LinkML source: ${DRAFT.questions} of ${DRAFT.questions} questions walk real relationships.`,
+              `This repo's draft, read from its LinkML source: ${DRAFT.answered} of ${DRAFT.questions} questions walk real relationships.`,
             ]} />
           </>)}
 
