@@ -30,4 +30,4 @@ Follow the build order in Chapter 7 of `site/platform.html`, with the changes re
 
 ## Housekeeping
 
-- If the repository becomes public: the earlier "About the owner" text is still in git history, and "13 teams" appears in `site/platform.html` and `docs/handoff.md`.
+- The repository is being made private (owner's decision, 30 September 2026). Its first two commits still hold the earlier "About the owner" text, so keep it private, or rewrite that history first, before making it public again.

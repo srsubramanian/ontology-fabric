@@ -1306,14 +1306,14 @@ pay:ChargebackShape a sh:NodeShape ;
     <div class="tc">
       <h3>Who builds it</h3>
       <div class="people">
-        <svg viewBox="0 0 300 300" id="peoplesvg" role="img" aria-label="A modeling group of five writes; thirteen teams review">
+        <svg viewBox="0 0 300 300" id="peoplesvg" role="img" aria-label="A modeling group of five writes; every team reviews">
           <circle class="ring" cx="150" cy="150" r="124"/>
           <g id="revs"></g>
           <circle class="inner" cx="150" cy="150" r="64"/>
           <g id="pdots"></g>
           <text class="ptext" x="150" y="192">writes</text>
           <g id="tdots"></g>
-          <text class="otext" x="150" y="296">13 teams review pull requests</text>
+          <text class="otext" x="150" y="296">Every team reviews pull requests</text>
         </svg>
         <ul class="roles">
           <li>Ontology lead</li><li>Authorization expert</li><li>Disputes expert</li><li>Settlement expert</li><li>Release gate: you</li><li class="out">Everyone else reviews</li>
@@ -1347,7 +1347,7 @@ pay:ChargebackShape a sh:NodeShape ;
   <p class="reading" id="cmpNote" aria-live="polite"></p>
   <div class="cmpverdict" id="cmpVerdict" hidden>
     <div class="vlegend"><span><i class="t"></i>Turtle in Git</span><span><i class="l"></i>LinkML</span><span class="vcap" style="margin:0">our read, not a benchmark</span></div>
-    <div class="vrow"><span>Easy for 13 teams to read and review</span><div class="vbars"><div class="vbar t"><i data-w="40"></i></div><div class="vbar l"><i data-w="80"></i></div></div></div>
+    <div class="vrow"><span>Easy for every team to read and review</span><div class="vbars"><div class="vbar t"><i data-w="40"></i></div><div class="vbar l"><i data-w="80"></i></div></div></div>
     <div class="vrow"><span>Full OWL expressiveness</span><div class="vbars"><div class="vbar t"><i data-w="100"></i></div><div class="vbar l"><i data-w="60"></i></div></div></div>
     <div class="vrow"><span>Code and docs generated for free</span><div class="vbars"><div class="vbar t"><i data-w="20"></i></div><div class="vbar l"><i data-w="80"></i></div></div></div>
     <div class="vrow"><span>Semantic-web tools: Protégé, ROBOT, reasoners</span><div class="vbars"><div class="vbar t"><i data-w="100"></i></div><div class="vbar l"><i data-w="60"></i></div></div></div>
@@ -2880,8 +2880,8 @@ pay:ChargebackShape a sh:NodeShape ;
   // ================= People ring =================
   const tdots = document.getElementById('tdots'), revs = document.getElementById('revs'), pd = document.getElementById('pdots');
   const outer = [], ticks = [], inner = [];
-  for (let i = 0; i < 13; i++){
-    const a = -Math.PI / 2 + i * (2 * Math.PI / 13);
+  for (let i = 0; i < 12; i++){
+    const a = -Math.PI / 2 + i * (2 * Math.PI / 12);
     outer.push(el('circle', { class:'tdot', cx:(150 + 124 * Math.cos(a)).toFixed(1), cy:(150 + 124 * Math.sin(a)).toFixed(1), r:9 }, tdots));
     ticks.push(el('line', { class:'rv', x1:(150 + 110 * Math.cos(a)).toFixed(1), y1:(150 + 110 * Math.sin(a)).toFixed(1), x2:(150 + 74 * Math.cos(a)).toFixed(1), y2:(150 + 74 * Math.sin(a)).toFixed(1), 'marker-end':'url(#mg-mut)' }, revs));
   }
