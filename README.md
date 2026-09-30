@@ -42,7 +42,7 @@ python -m playwright install chromium
 python tools/smoke_test.py
 ```
 
-The test visits every view, fails on JavaScript errors or sideways scrolling on a phone, and saves screenshots to `screenshots/`.
+The test loads every view three times: on a desktop in light and in dark, and on a 390 px phone. It fails on JavaScript errors or on any view that scrolls sideways, and saves screenshots of every view to `screenshots/`, with the dark ones in `dark/`.
 
 ## Where things are written down
 
