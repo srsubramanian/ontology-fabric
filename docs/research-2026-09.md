@@ -88,8 +88,33 @@ What changed around this build, and what the pages rely on. Every finding below 
 - **FIBO's party concepts now live in the OMG Commons Ontology Library.** FIBO's Parties ontology was changed to reuse Commons v1.1 and v1.2 (FND-380, FND-389). Source: https://spec.edmcouncil.org/fibo/ontology/FND/Parties/Parties/
 - **Commons Parties and Situations, release 20250801:** `cmns-pts:Party` ("person or organization") and `cmns-pts:PartyRole` ("role played by an organization or individual that may be time bound"). Source: https://www.omg.org/spec/Commons/PartiesAndSituations/
 - **Commons Organizations, release 20250801:** `cmns-org:Organization`. Source: https://www.omg.org/spec/Commons/Organizations/
-- **FIBO People:** `fibo-fnd-aap-ppl:Person` ("individual human being, with consciousness of self"), read from FIBO master. Pin a quarterly release when the real core is mapped (decision 9). Source: https://spec.edmcouncil.org/fibo/ontology/FND/AgentsAndPeople/People/
-- **LinkML 1.11.1:** `linkml-lint`, `gen-owl` and `gen-shacl` all run cleanly on `ontology/payments.yaml`. `close_mappings` come out as `skos:closeMatch`, and the OWL has no `owl:imports`.
+- **FIBO People:** `fibo-fnd-aap-ppl:Person` ("individual human being, with consciousness of self"). Source: https://spec.edmcouncil.org/fibo/ontology/FND/AgentsAndPeople/People/
+- **LinkML 1.11.1:** `linkml-lint`, `gen-owl` and `gen-shacl` all run cleanly on `ontology/payments.yaml`. `close_mappings` come out as `skos:closeMatch`, and the OWL has no `owl:imports`. By default `gen-owl` renders enum values as classes; pass `--default-permissible-value-type http://www.w3.org/2002/07/owl#NamedIndividual` so values that point at FIBO individuals, such as `VisaNetwork`, keep FIBO's typing.
+
+### Prototype step 1: the draft mapped to pinned releases (checked 2026-09-30)
+
+The schema pins FIBO 2026 Q2 and OMG Commons 20250801 in its annotations. Each ISO 20022 mapping names a message version. `tools/check_ontology.py` reports 13 of 21 concrete classes mapped: FIBO 7, ISO 20022 4, OMG Commons 2. The other eight say why no standard concept fits.
+
+- **FIBO 2026 Q2 has a card module**, LOAN "Card Accounts" (`fibo-loan-spc-crd`). It was read from the release's own modules: 155 files, each with a `versionIRI` under `master/2026Q2`. https://spec.edmcouncil.org/fibo/ontology/LOAN/LoansSpecific/CardAccounts/
+  - `PaymentCard`: "legal document issued by a financial services provider that enables the cardholder to access the funds…" (a `cmns-doc:LegalDocument`). Card maps to it.
+  - `Cardholder`: "account holder to whom a payment card is issued". Cardholder maps to it.
+  - `IssuingFinancialInstitution`: "issuer and financial services provider that issues payment cards or performs, facilitates, or supports issuing services". Issuer maps to it. FIBO's plain `Issuer` means an issuer of financial instruments, so it isn't used.
+  - `CreditCardNetwork`, with named individuals such as `VisaNetwork` and `MastercardNetwork`. The CardNetwork enum and its values map to them.
+- **Elsewhere in FIBO 2026 Q2:**
+  - BE Functional Entities: `Merchant` ("party engaged in the purchase and sales of goods produced by others for profit") and `MerchantCategoryCode`. Merchant and the `mcc` slot map to them. https://spec.edmcouncil.org/fibo/ontology/BE/FunctionalEntities/FunctionalEntities/
+  - `IssuerIdentificationNumber` ("a numbering system that allows a credit, debit, or other card to be identified as having been issued by a particular financial institution"), in FBC North American Entities. BinRange maps to it.
+  - `SettlementEvent` ("specific event involving the finalization a transaction or portion thereof"), in FBC Settlement. Settlement maps to it.
+  - FIBO has no acquirer, device, refund or dispute concepts.
+- **OMG Commons Documents, release 20250801:** `cmns-doc:Document` ("unitary expression of some realization of an intellectual or artistic work"). Document maps to it. https://www.omg.org/spec/Commons/Documents/
+- **ISO 20022 card messages.** The current versions were read from the ISO 20022 message definitions page. It lists the acquirer-to-issuer set (`cain.001` to `cain.028`), plus `caad`, `cafc` (fee collection), `cafm` (file action) and `cafr` (fraud reporting and disposition). https://www.iso20022.org/iso-20022-message-definitions
+  - `cain.001.001.05` AuthorisationInitiationV05: "sent by an acquirer or an agent to an issuer to request approval of a card transaction". Authorization maps to it.
+  - `cain.003.001.05` FinancialInitiationV05: "allows the approved transaction amount to be billed or posted on the cardholder's account … and requests the clearing of the transaction". Capture maps to it.
+  - `cain.027.001.04` ChargeBackInitiationV04: "sent by an issuer or agent to an acquirer to fully or partially nullify a previous financial transaction; namely when the issuer determines that a customer dispute exists or that an error or violation of rules has been committed". Chargeback maps to it.
+  - `cafr.001.001.04` FraudReportingInitiationV04: "sent by a financial institution acting as an acquirer or as an issuer to an agent … to inform about a confirmed fraudulent transaction". FraudReport maps to it.
+  - `cain.028.001.04` ChargeBackResponseV04 is "sent by an acquirer or an agent to an issuer in response to an ChargeBackInitiation message". Whether it carries the merchant's representment evidence couldn't be confirmed, so Representment isn't mapped yet.
+  - iso20022.org refuses automated downloads of the schemas (HTTP 403). The scope texts above were read from the message pages on mx-message.com, such as https://www.mx-message.com/m/cain-027-001-04.
+  - ISO 20022 messages use the XML namespace `urn:iso:std:iso:20022:tech:xsd:<message id>`. The schema uses it as the mapping IRI, since ISO 20022 publishes no IRIs for business concepts. https://developer.huntington.com/enterprisepayments/docs/xml.md
+- **ISO code lists:** a new `currency` slot holds the ISO 4217 alphabetic code next to each amount. The `mcc` slot notes ISO 18245 (sources under ISO code lists above).
 
 ## Claude Code
 

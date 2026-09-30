@@ -5,11 +5,14 @@
   queries: labels and relationship types the ontology has, each relationship in its one
   direction, read-only, and a LIMIT. In SQL, each walked step is marked on its line.
 - Every concrete class has the annotations the class explorer reads.
+- Every concrete class maps to a standard concept, or says why none fits (no_standard).
+  Every mapping uses a declared standard prefix, and the schema records the FIBO and
+  OMG Commons releases the mappings were checked against (decision 9).
 - The class explorer (web/src/explorer/model.ts) reads every class the way LinkML's
   SchemaView does: the same label chain and the same inherited slots. Needs Node 22.6
   or later and `npm install` in web/; skipped, with a note, without them.
 - Coverage, the two numbers from decision 9: questions the schema answers,
-  and classes mapped to a standard concept.
+  and classes mapped to a standard concept, by standard.
 
 Usage:
     pip install -r tools/requirements-ontology.txt
@@ -30,6 +33,15 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 OWNERS = {"core", "authorization", "settlement", "disputes", "risk"}
 LIVES_IN = {"graph", "warehouse", "search"}
 STORES = {"neptune", "snowflake"}
+# The standards the ontology aligns with, by the start of their prefix, and the
+# schema annotation that pins the release checked against (None: pinned in the name).
+STANDARDS = {"fibo-": ("FIBO", "fibo_release"), "cmns-": ("OMG Commons", "commons_release"),
+             "iso20022": ("ISO 20022", None)}
+
+
+def standard(curie):
+    prefix = curie.partition(":")[0]
+    return next((name for start, (name, _) in STANDARDS.items() if prefix.startswith(start)), None)
 
 
 def annotation(cls, key):
@@ -159,6 +171,25 @@ def main():
                 problems.append(f"{name}: {key} must be one of {sorted(allowed)}")
         if not cls.abstract and not annotation(cls, "id_rule"):
             problems.append(f"{name}: concrete class needs an id_rule")
+        if not cls.abstract and not cls.close_mappings and not annotation(cls, "no_standard"):
+            problems.append(f"{name}: map it to a standard, or say why none fits in no_standard")
+        if cls.close_mappings and annotation(cls, "no_standard"):
+            problems.append(f"{name}: has close_mappings, so drop no_standard")
+
+    schema = sv.schema
+    pins = {k: v.value for k, v in (schema.annotations or {}).items()}
+    for kind, elements in (("class", sv.all_classes()), ("slot", sv.all_slots()), ("enum", sv.all_enums())):
+        for name, el in elements.items():
+            for curie in el.close_mappings or []:
+                prefix = curie.partition(":")[0]
+                if prefix not in schema.prefixes:
+                    problems.append(f"{kind} {name}: {curie} uses an undeclared prefix")
+                elif not standard(curie):
+                    problems.append(f"{kind} {name}: {curie} isn't one of the standards (FIBO, OMG Commons, ISO 20022)")
+                else:
+                    pin = next(p for start, (_, p) in STANDARDS.items() if prefix.startswith(start))
+                    if pin and not pins.get(pin):
+                        problems.append(f"{kind} {name}: {curie} needs the release it was checked against, in the schema's {pin} annotation")
 
     questions = yaml.safe_load((ROOT / "ontology" / "competency-questions.yaml").read_text())["questions"]
     failing = set()
@@ -182,10 +213,17 @@ def main():
     check_explorer(sv, classes, problems)
     check_queries(sv, questions, problems)
     concrete = [c for c in classes.values() if not c.abstract]
-    mapped = [c for c in concrete if c.close_mappings]
+    # Only mappings to one of the standards count.
+    mapped = [c for c in concrete if any(standard(m) for m in c.close_mappings or [])]
+    by_standard = {}
+    for c in mapped:
+        for curie in c.close_mappings:
+            if standard(curie):
+                by_standard.setdefault(standard(curie), set()).add(c.name)
     print(f"{len(classes)} classes, {len(concrete)} concrete")
     print(f"competency questions the schema can walk: {len(questions) - len(failing)} of {len(questions)}")
-    print(f"concrete classes mapped to a standard: {len(mapped)} of {len(concrete)}")
+    print(f"concrete classes mapped to a standard: {len(mapped)} of {len(concrete)}"
+          f" ({', '.join(f'{k} {len(v)}' for k, v in sorted(by_standard.items()))})")
     for p in problems:
         print("  problem:", p)
     sys.exit(1 if problems else 0)

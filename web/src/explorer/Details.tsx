@@ -162,9 +162,12 @@ function ClassDetails({ model, c, onPick, onQuestion, onHome }: { model: Model; 
       <Section title="Standards">
         {c.mappings.length
           ? c.mappings.map((m) => (
-            <p key={m.curie}><code>skos:closeMatch</code> {m.iri ? <a href={m.iri} target="_blank" rel="noopener">{m.curie}</a> : m.curie}</p>
+            <p key={m.curie}>
+              <code>skos:closeMatch</code> {m.iri?.startsWith('http') ? <a href={m.iri} target="_blank" rel="noopener">{m.curie}</a> : m.curie}
+              {m.standard && <span className="muted"> · {m.standard === 'ISO 20022' ? 'ISO 20022 message, named by its XML namespace' : m.standard}</span>}
+            </p>
           ))
-          : <p className="muted">Not mapped to a standard yet.</p>}
+          : <p className="muted">{c.noStandard ? 'No standard concept fits. ' + c.noStandard : 'Not mapped to a standard yet.'}</p>}
       </Section>
 
       <Section title="Competency questions">

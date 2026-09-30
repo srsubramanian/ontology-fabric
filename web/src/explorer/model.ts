@@ -48,7 +48,10 @@ export type ClassInfo = {
   name: string; curie: string; abstract: boolean; description: string; aliases: string[];
   parent?: string; chain: string[]; children: string[]; slots: Slot[];
   owner: string; livesIn: LivesIn; idRule?: string; example?: string;
-  mappings: { curie: string; iri?: string }[];
+  /** skos:closeMatch mappings, each with the standard it points into. */
+  mappings: { curie: string; iri?: string; standard?: string }[];
+  /** Why a concrete class maps to no standard concept. */
+  noStandard?: string;
   codeList?: { name: string; values: { code: string; description?: string }[] };
 };
 
@@ -104,6 +107,12 @@ function inducedSlots(schema: RawSchema, chain: string[]): Slot[] {
   return slots;
 }
 
+/** The standard a mapping points into, by its prefix, named as tools/check_ontology.py names them. */
+function standardOf(curie: string): string | undefined {
+  const prefix = curie.split(':')[0];
+  return prefix.startsWith('fibo-') ? 'FIBO' : prefix.startsWith('cmns-') ? 'OMG Commons' : prefix === 'iso20022' ? 'ISO 20022' : undefined;
+}
+
 function expand(schema: RawSchema, curie: string): string | undefined {
   const [prefix, local] = curie.split(':');
   const base = schema.prefixes?.[prefix];
@@ -123,7 +132,8 @@ export function buildModel(schema: RawSchema, questions: RawQuestions): Model {
       abstract: !!raw.abstract, description: (raw.description ?? '').trim(), aliases: raw.aliases ?? [],
       parent: raw.is_a, chain, children: [], slots: inducedSlots(schema, chain),
       owner: a.owner, livesIn: a.lives_in as LivesIn, idRule: a.id_rule, example: a.example,
-      mappings: (raw.close_mappings ?? []).map((curie) => ({ curie, iri: expand(schema, curie) })),
+      mappings: (raw.close_mappings ?? []).map((curie) => ({ curie, iri: expand(schema, curie), standard: standardOf(curie) })),
+      noStandard: a.no_standard,
       codeList: list && {
         name: a.code_list,
         values: Object.entries(list.permissible_values ?? {}).map(([code, v]) => ({ code, description: v?.description })),
