@@ -32,13 +32,15 @@ type Props = {
   selected?: string;
   /** Changes whenever the highlight changes, which replays its animation. */
   focusKey: string;
+  /** Draw highlighted relationships one after another; off when a tracer adds them step by step. */
+  stagger?: boolean;
   /** Bumped by the replay button, which replays the whole reveal. */
   run: number;
   onPick: (name: string) => void;
   onClear: () => void;
 };
 
-export function ClassMap({ model, lens, lit, litEdges, selected, focusKey, run, onPick, onClear }: Props) {
+export function ClassMap({ model, lens, lit, litEdges, selected, focusKey, stagger = true, run, onPick, onClear }: Props) {
   const children = useMemo(
     () => Object.fromEntries(Object.values(model.classes).map((c) => [c.name, c.children])),
     [model],
@@ -96,7 +98,7 @@ export function ClassMap({ model, lens, lit, litEdges, selected, focusKey, run, 
           {litEdges.map((id, i) => {
             const e = edges.find((x) => x.r.id === id);
             if (!e) return null;
-            const t = { duration: 0.45, delay: 0.1 + i * 0.22, ease: EASE_OUT };
+            const t = { duration: 0.45, delay: stagger ? 0.1 + i * 0.22 : 0.05, ease: EASE_OUT };
             const after = tr({ duration: 0.2, delay: t.delay + t.duration - 0.1 });
             return (
               <g key={id} className="cr hl">

@@ -31,7 +31,7 @@ linkml-lint --config ontology/.linkmllint.yaml ontology/payments.yaml
 python tools/check_ontology.py
 ```
 
-The check fails if a competency question walks a relationship the schema doesn't have. Rebuild the pages afterwards, so the class explorer shows the change.
+The check fails if a competency question walks a relationship the schema doesn't have, if its query breaks decision 13's rules (unknown labels, a relationship against its direction, a write, no LIMIT), or if the class explorer reads a class differently from LinkML (that part needs Node and `npm install` in `web/`). Rebuild the pages afterwards, so the class explorer shows the change.
 
 ## Check the pages after a change
 
@@ -42,7 +42,7 @@ python -m playwright install chromium
 python tools/smoke_test.py
 ```
 
-The test visits every view, fails on JavaScript errors or sideways scrolling on a phone, and saves screenshots to `screenshots/`.
+The test loads every view three times: on a desktop in light and in dark, and on a 390 px phone. It fails on JavaScript errors or on any view that scrolls sideways, and saves screenshots of every view to `screenshots/`, with the dark ones in `dark/`.
 
 ## Where things are written down
 

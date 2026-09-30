@@ -1,8 +1,9 @@
 import { motion } from 'motion/react';
-import type { ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { CodeBlock } from '../kit/CodeBlock';
 import { vars } from '../kit/css';
-import { tr } from '../kit/motion';
+import { reduce, tr } from '../kit/motion';
+import { highlight } from '../kit/prism';
 import { STORE } from './ClassMap';
 import type { ClassInfo, Model, Question, Slot, Store } from './model';
 
@@ -179,8 +180,42 @@ function ClassDetails({ model, c, onPick, onQuestion, onHome }: { model: Model; 
   );
 }
 
-function QuestionDetails({ q, onPick, onHome }: { q: Question } & Nav) {
+/**
+ * A query with the lines of the current step lit. Lines wrap rather than scroll sideways, and the
+ * alignment before a trailing comment is collapsed so the narrow panel wraps less.
+ */
+function TracedQuery({ query, lang, lit }: { query: string; lang: string; lit: Set<number> }) {
+  const lines = useMemo(
+    () => query.split('\n').map((line) => highlight(line.replace(/(\S) {2,}(-- )/, '$1  $2'), lang)),
+    [query, lang],
+  );
+  const ref = useRef<HTMLDivElement>(null);
+  const first = Math.min(...lit);
+  // When the side panel scrolls on its own, bring the lit line into it; never scroll the page.
+  useEffect(() => {
+    const line = ref.current?.querySelectorAll('.ln')[first];
+    const panel = ref.current?.closest('.panel');
+    if (!line || !panel || panel.scrollHeight <= panel.clientHeight) return;
+    const top = line.getBoundingClientRect().top - panel.getBoundingClientRect().top;
+    if (top < 40 || top > panel.clientHeight - 60) panel.scrollBy({ top: top - panel.clientHeight / 3, behavior: reduce ? 'auto' : 'smooth' });
+  }, [first]);
+  return (
+    <div className="code traced" ref={ref}>
+      <pre>{lines.map((html, i) => (
+        <span key={i} className={'ln' + (lit.has(i) ? ' on' : '')} dangerouslySetInnerHTML={{ __html: html || ' ' }} />
+      ))}</pre>
+    </div>
+  );
+}
+
+type Trace = { step: number | null; playing: boolean; onStep: (step: number | null) => void; onPlay: () => void };
+
+function QuestionDetails({ q, onPick, onHome, trace }: { q: Question; trace: Trace } & Nav) {
   const store = ANSWERED[q.answeredIn];
+  const { step, playing, onStep, onPlay } = trace;
+  const last = q.steps.length - 1;
+  const current = step !== null && step >= 0 ? q.steps[step] : undefined;
+  const lit = new Set(current?.lines ?? []);
   return (
     <>
       <button type="button" className="back" onClick={onHome}>All questions</button>
@@ -190,29 +225,39 @@ function QuestionDetails({ q, onPick, onHome }: { q: Question } & Nav) {
         <p><span className="store" style={vars({ '--c': store.color })}>{store.name}</span> {store.why}</p>
       </Section>
       <Section title="The walk">
+        <div className="tracer">
+          <button type="button" className="vbtn go" onClick={onPlay} disabled={playing}>{playing ? 'Walking…' : 'Play the walk'}</button>
+          <button type="button" className="vbtn" onClick={() => onStep(Math.max(0, (step ?? last + 1) - 1))} disabled={playing || step === 0}>Previous</button>
+          <button type="button" className="vbtn" onClick={() => onStep(step === null ? 0 : Math.min(last, step + 1))} disabled={playing || step === last}>Next</button>
+          <span className="muted">{current ? `Step ${step! + 1} of ${q.steps.length}` : `${q.steps.length} steps`}</span>
+        </div>
         <ol className="walk">
-          {q.steps.map(({ named, relationship: r }) => (
-            <li key={named + r.id}>
-              <ClassLink name={named} onPick={onPick} /> <code>{r.type}</code> → <ClassLink name={r.to} onPick={onPick} />
-              {r.from !== named && <span className="muted"> (from {r.from})</span>}
+          {q.steps.map(({ named, relationship: r }, i) => (
+            <li key={named + r.id} className={step === null ? undefined : i === step ? 'now' : i > step ? 'later' : undefined}>
+              <button type="button" className="stepno" aria-label={`Show step ${i + 1}`} onClick={() => onStep(i)}>{i + 1}</button>
+              <span><ClassLink name={named} onPick={onPick} /> <code>{r.type}</code> → <ClassLink name={r.to} onPick={onPick} />
+                {r.from !== named && <span className="muted"> (from {r.from})</span>}</span>
             </li>
           ))}
         </ol>
-        <p className="muted">Each question becomes a test: <code>tools/check_ontology.py</code> fails if the schema can't walk it.</p>
+      </Section>
+      <Section title={q.language === 'sql' ? 'The query: SQL, run on Snowflake' : 'The query: openCypher, run on Neptune'}>
+        <TracedQuery query={q.query} lang={q.language} lit={lit} />
+        <p className="muted">Illustrative, written against the draft schema. <code>tools/check_ontology.py</code> checks it the way decision 13 checks generated queries: labels and directions the ontology has, read-only, and a LIMIT.</p>
       </Section>
     </>
   );
 }
 
-type PanelProps = Nav & { model: Model; selected?: ClassInfo; question?: Question };
+type PanelProps = Nav & { model: Model; selected?: ClassInfo; question?: Question; trace: Trace };
 
 /** The side panel: where to start, one class, or one question. */
-export function Panel({ model, selected, question, ...nav }: PanelProps) {
+export function Panel({ model, selected, question, trace, ...nav }: PanelProps) {
   const key = selected ? 'c:' + selected.name : question ? 'q:' + question.id : 'start';
   return (
     <motion.div key={key} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={tr({ duration: 0.3 })}>
       {selected ? <ClassDetails model={model} c={selected} {...nav} />
-        : question ? <QuestionDetails q={question} {...nav} />
+        : question ? <QuestionDetails q={question} trace={trace} {...nav} />
         : <Start model={model} {...nav} />}
     </motion.div>
   );

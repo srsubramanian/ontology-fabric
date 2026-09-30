@@ -44,6 +44,10 @@ export function App() {
   const [query, setQuery] = useState('');
   const [run, replay] = useReplay();
   const matches = useMemo(() => search(query), [query]);
+  // The question tracer: null shows the whole walk; a number shows the walk up to that step.
+  const [trace, setTrace] = useState<{ id: string; step: number } | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const step = question && trace?.id === question.id ? trace.step : null;
   const mapWrap = useRef<HTMLDivElement>(null);
   const target = selected?.name ?? question?.steps[0]?.named;
 
@@ -61,14 +65,27 @@ export function App() {
     if (query.trim()) return { key: 'q:' + query, lit: new Set(matches.map((m) => m.c.name)), edges: [] as string[] };
     if (selected) return { key: 'c:' + selected.name, ...neighbourhood(selected.name) };
     if (question) {
-      const lit = new Set([...question.classes, ...question.steps.map((s) => s.relationship.from)]);
-      return { key: 'w:' + question.id, lit, edges: question.steps.map((s) => s.relationship.id) };
+      const walked = question.steps.slice(0, step === null ? question.steps.length : step + 1);
+      const lit = new Set(walked.flatMap((s) => [s.named, s.relationship.from, s.relationship.to]));
+      if (!walked.length) lit.add(question.steps[0].named);
+      return { key: 'w:' + question.id, lit, edges: [...new Set(walked.map((s) => s.relationship.id))] };
     }
     if (lens === 'owner' && owner) {
       return { key: 'o:' + owner, lit: new Set(Object.values(model.classes).filter((c) => c.owner === owner).map((c) => c.name)), edges: [] };
     }
     return { key: 'none', lit: null, edges: [] };
-  }, [query, matches, selected, question, lens, owner]);
+  }, [query, matches, selected, question, step, lens, owner]);
+
+  // Playing the walk adds one step at a time, then stops on the last.
+  useEffect(() => {
+    if (!playing || !question) return;
+    const at = trace?.id === question.id ? trace.step : -1;
+    if (at >= question.steps.length - 1) { setPlaying(false); return; }
+    const timer = window.setTimeout(() => setTrace({ id: question.id, step: at + 1 }), at < 0 ? 600 : 1300);
+    return () => clearTimeout(timer);
+  }, [playing, question, trace]);
+  // A new question starts from its whole walk.
+  useEffect(() => { setPlaying(false); setTrace(null); }, [question?.id]);
 
   // Escape clears the search and the selection.
   useEffect(() => {
@@ -124,7 +141,7 @@ export function App() {
         <div className="mapcol">
           <div className="xwrap" ref={mapWrap}>
             <ClassMap model={model} lens={lens} lit={focus.lit} litEdges={focus.edges} selected={selected?.name}
-              focusKey={focus.key} run={run} onPick={pick} onClear={() => go('map')} />
+              focusKey={focus.key} stagger={step === null} run={run} onPick={pick} onClear={() => go('map')} />
           </div>
           <div className="legend">
             {lens === 'relationships' && (
@@ -146,7 +163,12 @@ export function App() {
         </div>
         <aside className="panel" aria-live="polite">
           <Panel model={model} selected={selected} question={question}
-            onPick={pick} onQuestion={(id) => { setQuery(''); go(id); }} onHome={() => go('map')} />
+            onPick={pick} onQuestion={(id) => { setQuery(''); go(id); }} onHome={() => go('map')}
+            trace={{
+              step, playing,
+              onStep: (n) => { setPlaying(false); setTrace(question && n !== null ? { id: question.id, step: n } : null); },
+              onPlay: () => { if (question) { setTrace({ id: question.id, step: -1 }); setPlaying(true); } },
+            }} />
         </aside>
       </div>
 
