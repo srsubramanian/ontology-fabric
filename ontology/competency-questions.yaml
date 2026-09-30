@@ -98,13 +98,12 @@ questions:
   - id: CQ-06
     domain: risk
     question: Which merchants share devices or acquirers with a flagged one?
-    walks: [FraudReport.reports, Authorization.at_merchant, Authorization.from_device, Merchant.acquired_by]
+    walks: [FraudReport.reports, Authorization.at_merchant, Device.seen_at, Merchant.acquired_by]
     answered_in: neptune
     query: |
       MATCH (:FraudReport)-[:REPORTS]->(:Authorization)-[:AT_MERCHANT]->(flagged:Merchant {id: $merchant})
-      MATCH (flagged)<-[:AT_MERCHANT]-(:Authorization)-[:FROM_DEVICE]->(d:Device)
-      MATCH (d)<-[:FROM_DEVICE]-(:Authorization)-[:AT_MERCHANT]->(other:Merchant)
-      WHERE other <> flagged
+      MATCH (flagged)<-[:SEEN_AT]-(d:Device)-[s:SEEN_AT]->(other:Merchant)
+      WHERE other <> flagged AND s.last_seen >= $since
       RETURN DISTINCT other.id AS merchant, 'shared device' AS link
       LIMIT 50
       UNION

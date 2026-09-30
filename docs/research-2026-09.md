@@ -40,6 +40,7 @@ What changed around this build, and what the pages rely on. Every finding below 
 - **S3 Vectors has been generally available since 2 December 2025**, with up to 2 billion vectors per index. https://aws.amazon.com/about-aws/whats-new/2025/12/amazon-s3-vectors-generally-available/
 - **Snowflake**:
   - The Snowflake-managed MCP server has been GA since 4 November 2025. It exposes Cortex Analyst (over semantic views), Cortex Search and SQL execution as tools, each call running under a specific Snowflake role. Preview notes: https://docs.snowflake.com/release-notes/2025/other/2025-10-02-mcp-server
+  - On the managed MCP server, a Cortex Analyst tool generates SQL and returns the statement to the client rather than running it. A separate SQL execution tool runs statements, and its `read_only` setting (default `true`) allows only SELECT. Each call runs under the connecting user's default role, and each tool needs its own grant. Checked 30 September 2026: https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-mcp
   - Cortex Agents and MCP servers inside Snowflake Native Apps went GA on 7 August 2026: https://docs.snowflake.com/en/release-notes/2026/other/2026-08-07-native-apps-agents-mcp-ga
   - Semantic views can be queried with standard SQL (GA 2 March 2026), but they only see Snowflake data: https://atlan.com/know/snowflake/snowflake-semantic-views/
 - **Embeddings:**
@@ -50,7 +51,10 @@ What changed around this build, and what the pages rely on. Every finding below 
 
 - **AWS Labs' BYOKG-RAG** answers questions over a graph you bring. It combines four retrieval strategies (agentic, scoring-based, path-based, query-based), supports Neptune Database and Analytics with OpenSearch or S3 Vectors, and is Apache 2.0 licensed. https://github.com/awslabs/graphrag-toolkit
 - **Bedrock Knowledge Bases GraphRAG** still builds its own graph, in Neptune Analytics, from the documents you upload to S3, so it doesn't fit an ontology we own. https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-build-graphs-build.html
-- **Durable execution**: Temporal's LangGraph plugin for Python entered public preview on 16 July 2026. https://temporal.io/blog/temporal-langgraph-plugin-durable-execution
+- **Durable execution** (checked 30 September 2026):
+  - Lambda durable functions run for up to one year. Steps are checkpointed and retried; after an interruption the code replays from the start and skips finished steps. Waits and callbacks suspend without compute charges, which suits human review. SDKs for Python, JavaScript, TypeScript and Java. https://docs.aws.amazon.com/lambda/latest/dg/durable-functions.html
+  - Temporal's LangGraph plugin for Python is still in public preview (announced 16 July 2026), and experimental in the Temporal Python SDK. https://temporal.io/blog/temporal-langgraph-plugin-durable-execution and https://docs.temporal.io/develop/python/integrations/langgraph
+  - LangGraph's `interrupt()` pauses a run on its checkpointer, and a `Command(resume=...)` on the same thread ID continues it. Nothing re-drives a run a crash left mid-step. https://docs.langchain.com/oss/python/langgraph/interrupts
 
 ## Standards and payments
 
@@ -63,7 +67,7 @@ What changed around this build, and what the pages rely on. Every finding below 
   - The acquirer-to-issuer card messages (ATICA) span the `cain`, `caad` and `cafm` message families: authorisation, financial presentment, reversal, reconciliation, retrieval, inquiry, verification, card management, chargeback and file actions. Public listings show at least 23 message definitions. The exact current count couldn't be confirmed, because iso20022.org refuses automated requests. https://www.iotafinance.com/en/SWIFT-ISO20022-Business-area-cain-Acquirer-to-Issuer-Card-Transactions.html
   - From 14 November 2026, CBPR+ rejects fully unstructured postal addresses. Messages need at least a structured town and country; hybrid addresses are allowed. https://www.bny.com/content/dam/bnymellon/documents/pdf/iso-20022/hybrid-postal-address-industry-requirement.pdf
 - **SHACL 1.2 Core is still a W3C Working Draft**; the latest is dated 18 September 2026. https://www.w3.org/standards/history/shacl12-core/
-- **RDF 1.2 has moved further:** RDF 1.2 Concepts has been a Candidate Recommendation since 7 April 2026, but it isn't a Recommendation yet. Decision 8 calls both specifications drafts; waiting still holds. https://www.w3.org/standards/history/rdf12-concepts/
+- **RDF 1.2 has moved further:** RDF 1.2 Concepts has been a Candidate Recommendation since 7 April 2026, but it isn't a Recommendation yet. Decision 8 now says so; waiting still holds. https://www.w3.org/standards/history/rdf12-concepts/
 - **Visa VAMP**:
   - The merchant Excessive threshold dropped from 2.2% to 1.5% on 1 April 2026 (the CEMEA region stays at 2.2%).
   - The ratio counts fraud reports (TC40) plus disputes (TC15).

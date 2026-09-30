@@ -79,7 +79,8 @@ function Start({ model, onQuestion }: { model: Model } & Nav) {
 function ClassDetails({ model, c, onPick, onQuestion, onHome }: { model: Model; c: ClassInfo } & Nav) {
   const attributes = c.slots.filter((s) => !s.relationship);
   const outgoing = c.slots.filter((s) => s.relationship);
-  const incoming = model.relationships.filter((r) => c.chain.includes(r.to));
+  // A relationship open to any class arrives at every concrete class, except the one it starts from.
+  const incoming = model.relationships.filter((r) => c.chain.includes(r.to) || (r.open && !c.abstract && r.from !== c.name));
   const questions = model.questions.filter((q) => q.classes.includes(c.name) || q.steps.some((s) => s.relationship.from === c.name));
   return (
     <>
@@ -136,13 +137,13 @@ function ClassDetails({ model, c, onPick, onQuestion, onHome }: { model: Model; 
           <ul className="rels">
             {outgoing.map((s) => (
               <li key={'o' + s.name}>
-                <code>{s.name.toUpperCase()}</code> → <ClassLink name={s.range} onPick={onPick} />
+                <code>{s.name.toUpperCase()}</code> → {model.classes[s.range] ? <ClassLink name={s.range} onPick={onPick} /> : 'any entity'}
                 <span className="muted"> · {howMany(s)}{s.declaredOn !== c.name && <>, from {s.declaredOn}</>}</span>
               </li>
             ))}
             {incoming.map((r) => (
               <li key={'i' + r.id}>
-                <ClassLink name={r.from} onPick={onPick} /> <code>{r.type}</code> → {r.to === c.name ? 'this' : r.to}
+                <ClassLink name={r.from} onPick={onPick} /> <code>{r.type}</code> → {r.open ? 'any entity, this one included' : r.to === c.name ? 'this' : r.to}
               </li>
             ))}
           </ul>

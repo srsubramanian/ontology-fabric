@@ -26,7 +26,8 @@ function search(query: string) {
 function neighbourhood(name: string) {
   const c = model.classes[name];
   const edges = model.relationships.filter((r) => c.chain.includes(r.from) || c.chain.includes(r.to));
-  const ends = new Set(edges.flatMap((r) => [r.from, r.to]));
+  // A relationship open to any class has no box at its far end.
+  const ends = new Set(edges.flatMap((r) => (r.open ? [r.from] : [r.from, r.to])));
   const lit = new Set<string>([...c.chain, ...ends]);
   const addKids = (n: string) => model.classes[n].children.forEach((k) => { lit.add(k); addKids(k); });
   // An abstract class at the far end stands for all its subclasses; the class's own parents don't.

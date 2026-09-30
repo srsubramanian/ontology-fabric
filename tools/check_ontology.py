@@ -38,8 +38,13 @@ def annotation(cls, key):
 
 
 NODE = re.compile(r"(?<![\w.])\((\w*)(?::(\w+))?\s*(?:\{[^}]*\})?\)")
-REL = re.compile(r"(<)?-\[:(\w+)\]-(>)?")
+REL = re.compile(r"(<)?-\[\w*:(\w+)\]-(>)?")
 WRITES = re.compile(r"\b(CREATE|MERGE|DELETE|DETACH|SET|REMOVE|CALL|LOAD\s+CSV|INSERT|UPDATE|DROP|ALTER|TRUNCATE|COPY|GRANT)\b", re.I)
+
+
+def open_classes(sv):
+    """Classes that stand for any class (class_uri linkml:Any): never nodes, and never checked as classes."""
+    return {n for n, c in sv.all_classes().items() if c.class_uri == "linkml:Any"}
 
 
 def relationships(sv):
@@ -56,6 +61,7 @@ def relationships(sv):
 def check_cypher(sv, rels, qid, query, problems):
     """Labels, types and directions against the schema; one pass per UNION part."""
     classes = sv.all_classes()
+    anything = open_classes(sv)
     types = {t for t, _, _ in rels}
     for part in re.split(r"^\s*UNION(?:\s+ALL)?\s*$", query, flags=re.M | re.I):
         if not re.search(r"\bLIMIT\s+\d+", part, re.I):
@@ -87,7 +93,7 @@ def check_cypher(sv, rels, qid, query, problems):
                 continue
             src, dst = (label(c[1]), label(a[1])) if back else (label(a[1]), label(c[1]))
             ok = any(t == rtype and (src is None or f in sv.class_ancestors(src))
-                     and (dst is None or to in sv.class_ancestors(dst)) for t, f, to in rels)
+                     and (dst is None or to in anything or to in sv.class_ancestors(dst)) for t, f, to in rels)
             if not ok:
                 problems.append(f"{qid}: ({src})-[:{rtype}]->({dst}) runs against the schema's direction or classes")
 
@@ -143,7 +149,8 @@ def check_explorer(sv, classes, problems):
 
 def main():
     sv = SchemaView(str(ROOT / "ontology" / "payments.yaml"))
-    classes = sv.all_classes()
+    anything = open_classes(sv)
+    classes = {n: c for n, c in sv.all_classes().items() if n not in anything}
     problems = []
 
     for name, cls in classes.items():
@@ -167,7 +174,7 @@ def main():
             slots = {s.name: s for s in sv.class_induced_slots(cls_name)}
             if slot_name not in slots:
                 problems.append(f"{q['id']}: {cls_name} has no slot {slot_name}")
-            elif slots[slot_name].range not in classes:
+            elif slots[slot_name].range not in classes and slots[slot_name].range not in anything:
                 problems.append(f"{q['id']}: {step} is an attribute, not a relationship")
         if len(problems) > before:
             failing.add(q["id"])

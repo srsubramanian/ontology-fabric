@@ -218,3 +218,14 @@ body.inpage .wrap{padding-top:14px}
 .stack6 > div{margin-top:14px}
 .bars .thr span{left:0; right:auto}
 .ch .rst{color:var(--bad)}
+/* page 6: how a question reaches Snowflake */
+.rn{transform-box:fill-box; transform-origin:center}
+.rn .box{fill:var(--raised); stroke:var(--c); stroke-width:1.6}
+.rn.strong .box{stroke-width:2.6}
+.rn .t{font-size:12.5px; font-weight:700; fill:var(--ink)}
+.rn .s{font-size:11px; fill:var(--muted)}
+.re{fill:none; stroke:var(--c); stroke-width:2}
+.re.dash{stroke-dasharray:5 4}
+.rh{fill:var(--c)}
+.rl{font-size:10.5px; font-weight:700; fill:var(--c)}
+.rcap{margin:6px 0 0; font-size:.86rem; font-weight:600; color:var(--muted); min-height:1.4em}
