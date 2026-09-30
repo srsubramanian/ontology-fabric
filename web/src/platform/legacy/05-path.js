@@ -34,7 +34,7 @@
 
   const QS = {
     1:[ { q:'Who writes the ontology?', o:['The extraction pipeline','People, through reviewed pull requests','Neptune, from the data it holds'], a:1, why:'Machines propose; people decide what things mean.' },
-        { q:'What should version 1 start from?', o:['Importing all of FIBO','One system\u2019s database schema','Real questions the teams need answered'], a:2, why:'Competency questions set the scope and become the tests.' },
+        { q:'What should version 1 start from?', o:['Importing all of FIBO','One system\u2019s database schema','Standards, measured against the teams\u2019 questions'], a:2, why:'Map to ISO 20022 and FIBO, then count how many questions the draft answers.' },
         { q:'A chargeback arrives with no capture link. What stops it?', o:['OWL, because it defines Chargeback','SHACL, because the shape requires one Capture','Git, because the change wasn\u2019t reviewed'], a:1, why:'OWL would call the capture unknown; SHACL calls it missing and rejects the record.' } ],
     2:[ { q:'What is the extraction pipeline\u2019s main job?', o:['Fill Neptune and OpenSearch with validated data','Write the ontology','Answer agents\u2019 questions'], a:0, why:'It follows the ontology; it never writes it.' },
         { q:'Code shows a dispute state the ontology lacks. What happens?', o:['It goes straight into the graph','The pipeline opens a pull request for review','It is dropped silently'], a:1, why:'Gaps become proposals that a person accepts or rejects.' } ],

@@ -4,23 +4,26 @@ import { flushSync } from 'react-dom';
 import { reduce } from '../../kit/motion';
 import { rounded } from '../../kit/svg';
 import { anim, dl, packet, wait } from './anim';
+import { model } from '../../explorer/data';
 import { linesHtml } from './lines';
+import { Ownership } from './Ownership';
 import { Keys, Stepper } from './Stepper';
 
-// How version 1 gets made: the overview map, one panel per step, then who builds it and how it's authored.
+// How version 1 gets made, standards first (decision 9): the overview map, one panel per step,
+// then who owns it and how it's authored.
 
 type NodeDef = { x: number; y: number; w: number; h: number; t: string; s: string; s2?: string; step: number; badge?: boolean };
 const V1N: Record<string, NodeDef> = {
-  n1: { x: 40, y: 62, w: 200, h: 64, t: 'Competency questions', s: 'What must it answer?', step: 1, badge: true },
-  n3: { x: 290, y: 62, w: 200, h: 64, t: 'Top level + standards', s: 'FIBO and ISO 20022 as guides', step: 3, badge: true },
-  n2a: { x: 40, y: 224, w: 200, h: 64, t: 'Code, schemas, specs', s: 'Repos, ISO 8583, reason codes', step: 2, badge: true },
-  n2b: { x: 290, y: 224, w: 200, h: 64, t: 'Term inventory', s: 'Names, sources, synonyms', step: 2 },
+  n1: { x: 40, y: 62, w: 200, h: 64, t: 'Standards first', s: 'ISO 20022, FIBO, ISO codes', step: 1, badge: true },
+  n2: { x: 290, y: 62, w: 200, h: 64, t: 'Competency questions', s: 'Coverage: questions answered', step: 2, badge: true },
+  n3a: { x: 40, y: 224, w: 200, h: 64, t: 'Code, schemas, specs', s: 'Repos, ISO 8583, reason codes', step: 3, badge: true },
+  n3b: { x: 290, y: 224, w: 200, h: 64, t: 'Term inventory', s: 'Coverage: terms mapped', step: 3 },
   n4: { x: 575, y: 142, w: 190, h: 52, t: 'Modeling patterns', s: 'Rules before names', step: 4, badge: true },
   n5: { x: 575, y: 208, w: 190, h: 52, t: 'Definitions + shapes', s: 'Meaning and constraints', step: 5, badge: true },
   n6: { x: 840, y: 138, w: 150, h: 82, t: 'Prove with data', s: 'Run every question', s2: 'as Cypher', step: 6, badge: true },
 };
 const V1E: Record<string, { p: [number, number][]; dash?: boolean }> = {
-  tests: { p: [[215, 62], [215, 29], [915, 29], [915, 138]], dash: true },
+  tests: { p: [[465, 62], [465, 29], [915, 29], [915, 138]], dash: true },
   e1: { p: [[240, 94], [290, 94]] },
   e2: { p: [[240, 256], [290, 256]] },
   e3: { p: [[490, 94], [525, 94], [525, 150], [560, 150]] },
@@ -30,9 +33,9 @@ const V1E: Record<string, { p: [number, number][]; dash?: boolean }> = {
   loop: { p: [[915, 220], [915, 300], [670, 300], [670, 274]], dash: true },
 };
 const V1STEP: Record<number, { n: string[]; e: string[]; title: string; keys: string[] }> = {
-  1: { n: ['n1'], e: ['tests'], title: 'Write competency questions', keys: ['30 to 50 real questions from the teams', 'No question needs it? It stays out of v1', 'Each question becomes a test'] },
-  2: { n: ['n2a', 'n2b'], e: ['e2', 'e4'], title: 'Mine the evidence', keys: ['One extraction run over repos and specs', 'Output: a term inventory, not Turtle', 'Claude clusters names; a person decides'] },
-  3: { n: ['n3'], e: ['e1', 'e3'], title: 'Sketch the top level', keys: ['About six top categories', 'Align to FIBO and ISO 20022 with mappings', 'Don’t import them wholesale'] },
+  1: { n: ['n1'], e: ['e1'], title: 'Start from standards', keys: ['Draft the core from ISO 20022, FIBO and ISO code lists', 'Link with skos:closeMatch, never owl:imports', 'Pin the FIBO release you mapped against'] },
+  2: { n: ['n2'], e: ['tests', 'e3'], title: 'Write competency questions', keys: ['30 to 50 real questions from the teams', 'Count how many the draft already answers', 'Each question becomes a test'] },
+  3: { n: ['n3a', 'n3b'], e: ['e2', 'e4'], title: 'Mine the evidence', keys: ['One extraction run over repos and specs', 'Claude clusters names; a person decides', 'Count how many terms map to a standard'] },
   4: { n: ['n4'], e: [], title: 'Settle the patterns', keys: ['Decide the rules before naming classes', 'Five rules cover most choices', 'Pick a rule to compare'] },
   5: { n: ['n5'], e: [], title: 'Define and constrain', keys: ['Label, definition, example, owner, status', 'SHACL says what valid data looks like', 'People and Claude both read definitions'] },
   6: { n: ['n6', 'v10'], e: ['e6', 'e7', 'loop', 'tests'], title: 'Prove it with data', keys: ['Load a sample week, run every question', 'Can’t write it? Something is missing', 'Five-hop workaround? A pattern is wrong'] },
@@ -57,26 +60,37 @@ const CLUSTERS: { spot: Exclude<Spot, 'pool'>; head: string; who: string }[] = [
   { spot: 'other', head: 'Looked similar, isn\'t ', who: 'new candidate' },
 ];
 
-// Step 3: the top level, and which standard each category maps to.
-const CATS: [name: string, holds: string, std: 'fibo' | 'iso' | null][] = [
+// Step 1: the top level, and which standard each category maps to.
+type Std = 'fibo' | 'iso' | 'codes';
+const CATS: [name: string, holds: string, std: Std | null][] = [
   ['Party', 'Cardholder, Merchant, Issuer, Acquirer', 'fibo'],
   ['Agreement', 'MerchantAgreement', 'fibo'],
   ['PaymentInstrument', 'Card, NetworkToken', 'iso'],
   ['PaymentEvent', 'Authorization, Capture, Settlement, Refund, Chargeback', 'iso'],
-  ['Code', 'MCC, ReasonCode, ResponseCode', null],
+  ['Code', 'MCC, ReasonCode, ResponseCode', 'codes'],
   ['Network', 'CardNetwork, MethodOfPayment', null],
 ];
 const MAPS = (() => {
-  const next = { fibo: 50, iso: 160 };
+  const next: Record<Std, number> = { fibo: 42, iso: 132, codes: 230 };
   return CATS.flatMap(([, , std], i) => {
     if (!std) return [];
     const cy = 34 + i * 48, ty = next[std];
-    next[std] += 30;
+    next[std] += 24;
     return ['M510,' + cy + ' C545,' + cy + ' 545,' + ty + ' 580,' + ty];
   });
 })();
+const STANDARDS: { y: number; t: string; s: string; s2: string }[] = [
+  { y: 18, t: 'FIBO', s: 'Parties, agreements', s2: 'pin a quarterly release' },
+  { y: 108, t: 'ISO 20022', s: 'Card messages', s2: 'cain, caad, cafm families' },
+  { y: 198, t: 'ISO code lists', s: 'MCC, currency, country', s2: 'ISO 18245, 4217, 3166' },
+];
 /** A seeded random sequence, so the imported classes land in the same places every time. */
 const rnd = (seed: number) => () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+
+// Steps 2 and 3: the two coverage numbers. The story's are illustrative; the draft's are read
+// from its LinkML source at build time.
+const concrete = Object.values(model.classes).filter((c) => !c.abstract);
+const DRAFT = { questions: model.questions.length, classes: concrete.length, mapped: concrete.filter((c) => c.mappings.length).length };
 
 // Step 5: the class in Turtle.
 const TTL = `pay:Chargeback a owl:Class ;
@@ -109,18 +123,6 @@ const ROUNDS: { bad: number[]; awk: number[]; label: string; notes: Note[] }[] =
 ];
 const QUESTIONS = 42;
 const STRIP = ['Generate schema', 'Load a sample week', 'Run 42 questions as Cypher', 'Fix the model'];
-
-// Who builds it: every team on the outer ring, the modeling group of five inside.
-const ring = (n: number, r: number, cy = 150) => Array.from({ length: n }, (_, i) => {
-  const a = -Math.PI / 2 + i * (2 * Math.PI / n);
-  return { a, x: (150 + r * Math.cos(a)).toFixed(1), y: (cy + r * Math.sin(a)).toFixed(1) };
-});
-const OUTER = ring(12, 124);
-const TICKS = OUTER.map(({ a }) => ({
-  x1: (150 + 110 * Math.cos(a)).toFixed(1), y1: (150 + 110 * Math.sin(a)).toFixed(1),
-  x2: (150 + 74 * Math.cos(a)).toFixed(1), y2: (150 + 74 * Math.sin(a)).toFixed(1),
-}));
-const INNER = ring(5, 26, 142);
 
 const onKey = (fn: () => void) => (ev: KeyboardEvent) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); fn(); } };
 
@@ -158,8 +160,8 @@ export function Version1() {
   const [busy, setBusy] = useState(false);
   const [stripNow, setStripNow] = useState(-1);
   const tag10 = useRef<HTMLDivElement>(null);
-  // Who builds it
-  const people = useRef<SVGSVGElement>(null);
+  // How it's authored
+  const authoring = useRef<HTMLDivElement>(null);
 
   const ttlHtml = useMemo(() => linesHtml(TTL, 'turtle'), []);
 
@@ -191,16 +193,55 @@ export function Version1() {
     ({ 1: p1, 2: p2, 3: p3, 4: p4, 5: p5 } as Record<number, () => void>)[sel.step]?.();
   }, [sel]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---------- Step 1: questions set the scope ----------
-  const p1 = () => {
-    const p = panel(1)!;
+  // ---------- Coverage meters ----------
+  /** Fills a panel's coverage bar from empty. */
+  const fillMeter = (p: HTMLElement, delay: number) => {
+    const bar = p.querySelector<HTMLElement>('.covbar i');
+    if (bar) anim(bar, { width: ['0%', bar.dataset.w + '%'] }, { duration: 0.8, delay, ease: [0.22, 1, 0.36, 1] });
+  };
+
+  // ---------- Step 1: align with standards, or import them ----------
+  const setMode3 = (m: 'align' | 'import') => {
+    modeRef.current = m;
+    setMode(m);
+    const cats = catsG.current!.children, maps = mapsG.current!.children as HTMLCollectionOf<SVGPathElement>, dots = dotsG.current!;
+    if (m === 'import') {
+      anim(cats, { opacity: 0.3 }, { duration: 0.3 });
+      anim(maps, { opacity: 0 }, { duration: 0.2 });
+      dots.replaceChildren();
+      const r = rnd(7);
+      for (let i = 0; i < 520; i++) {
+        const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        c.setAttribute('cx', (r() * 750 + 5).toFixed(1)); c.setAttribute('cy', (r() * 296 + 5).toFixed(1));
+        c.setAttribute('r', '1.9'); c.setAttribute('opacity', '0');
+        dots.appendChild(c);
+      }
+      anim(dots.children, { opacity: [0, 0.55], scale: [0, 1] }, { duration: 0.3, delay: (i) => (i / 520) * 1.2 });
+      anim(ovl.current, { opacity: [0, 1] }, { duration: 0.3, delay: 1.1 });
+    } else {
+      anim(ovl.current, { opacity: 0 }, { duration: 0.2 });
+      if (dots.children.length) anim(dots.children, { opacity: 0 }, { duration: 0.3 }).then(() => { if (modeRef.current === 'align') dots.replaceChildren(); });
+      anim(cats, { opacity: [0, 1], x: [-10, 0] }, { duration: 0.35, delay: dl(0, 0.06) });
+      Array.from(maps).forEach((m, i) => {
+        const len = m.getTotalLength();
+        m.style.opacity = '1'; m.style.strokeDasharray = String(len);
+        anim(m, { strokeDashoffset: [len, 0] }, { duration: 0.6, delay: 0.4 + i * 0.12 }).then(() => { m.style.strokeDasharray = ''; m.style.strokeDashoffset = ''; });
+      });
+    }
+  };
+  const p1 = () => setMode3('align');
+
+  // ---------- Step 2: questions set the scope, and test the draft ----------
+  const p2 = () => {
+    const p = panel(2)!;
     anim(p.querySelectorAll('.qcard'), { opacity: [0, 1], y: [14, 0] }, { duration: 0.45, delay: dl(0, 0.07), ease: [0.22, 1, 0.36, 1] });
     anim(p.querySelector('.scope'), { opacity: [0, 1], scaleX: [0, 1] }, { duration: 0.5, delay: 0.5 });
     anim(p.querySelectorAll('.outs span'), { opacity: [0, 1], y: [-16, 0] }, { duration: 0.4, delay: dl(0.8, 0.08) });
+    fillMeter(p, 1.1);
   };
 
-  // ---------- Step 2: cluster the names ----------
-  const chip = (i: number) => panel(2)!.querySelector(`.chip[data-i="${i}"]`)!;
+  // ---------- Step 3: cluster the names, and map them to standards ----------
+  const chip = (i: number) => panel(3)!.querySelector(`.chip[data-i="${i}"]`)!;
   const invRows = () => invBody.current!.querySelectorAll('tr');
   const hideRows = () => invRows().forEach((r) => { r.style.opacity = '0'; });
   useLayoutEffect(hideRows, []);
@@ -234,45 +275,15 @@ export function Version1() {
     await flip(odd, 'other');
     anim(chip(odd), { rotate: [0, -5, 5, 0] }, { duration: 0.4 });
     await wait(300); if (my !== clusterRun.current) return;
-    anim(panel(2)!.querySelectorAll('.cl .who'), { scale: [1, 1.15, 1] }, { duration: 0.4, delay: dl(0, 0.1) });
+    anim(panel(3)!.querySelectorAll('.cl .who'), { scale: [1, 1.15, 1] }, { duration: 0.4, delay: dl(0, 0.1) });
     anim(invRows(), { opacity: [0, 1], x: [-10, 0] }, { duration: 0.35, delay: dl(0.2, 0.12) });
   };
-  const p2 = () => {
+  const p3 = () => {
+    fillMeter(panel(3)!, 0.3);
     if (clustered.current) return;
     resetCluster();
-    setTimeout(() => { if (curRef.current === 2) cluster(); }, reduce ? 0 : 500);
+    setTimeout(() => { if (curRef.current === 3) cluster(); }, reduce ? 0 : 500);
   };
-
-  // ---------- Step 3: align with standards, or import them ----------
-  const setMode3 = (m: 'align' | 'import') => {
-    modeRef.current = m;
-    setMode(m);
-    const cats = catsG.current!.children, maps = mapsG.current!.children as HTMLCollectionOf<SVGPathElement>, dots = dotsG.current!;
-    if (m === 'import') {
-      anim(cats, { opacity: 0.3 }, { duration: 0.3 });
-      anim(maps, { opacity: 0 }, { duration: 0.2 });
-      dots.replaceChildren();
-      const r = rnd(7);
-      for (let i = 0; i < 520; i++) {
-        const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        c.setAttribute('cx', (r() * 750 + 5).toFixed(1)); c.setAttribute('cy', (r() * 296 + 5).toFixed(1));
-        c.setAttribute('r', '1.9'); c.setAttribute('opacity', '0');
-        dots.appendChild(c);
-      }
-      anim(dots.children, { opacity: [0, 0.55], scale: [0, 1] }, { duration: 0.3, delay: (i) => (i / 520) * 1.2 });
-      anim(ovl.current, { opacity: [0, 1] }, { duration: 0.3, delay: 1.1 });
-    } else {
-      anim(ovl.current, { opacity: 0 }, { duration: 0.2 });
-      if (dots.children.length) anim(dots.children, { opacity: 0 }, { duration: 0.3 }).then(() => { if (modeRef.current === 'align') dots.replaceChildren(); });
-      anim(cats, { opacity: [0, 1], x: [-10, 0] }, { duration: 0.35, delay: dl(0, 0.06) });
-      Array.from(maps).forEach((m, i) => {
-        const len = m.getTotalLength();
-        m.style.opacity = '1'; m.style.strokeDasharray = String(len);
-        anim(m, { strokeDashoffset: [len, 0] }, { duration: 0.6, delay: 0.4 + i * 0.12 }).then(() => { m.style.strokeDasharray = ''; m.style.strokeDashoffset = ''; });
-      });
-    }
-  };
-  const p3 = () => setMode3('align');
 
   // ---------- Step 4: modeling rules ----------
   const playRule = (r: string) => {
@@ -341,13 +352,9 @@ export function Version1() {
   };
   const runLabel = tagged ? 'Start over' : round < 0 ? 'Run the questions' : round < 2 ? 'Fix the model and rerun' : 'Tag 1.0';
 
-  // ---------- Who builds it ----------
-  useEffect(() => inView(people.current!, () => {
-    const svg = people.current!;
-    anim(svg.querySelectorAll('#pdots circle'), { scale: [0, 1] }, { duration: 0.4, delay: dl(0, 0.08) });
-    anim(svg.querySelectorAll('#tdots circle'), { scale: [0, 1], opacity: [0, 1] }, { duration: 0.35, delay: dl(0.4, 0.05) });
-    anim(svg.querySelectorAll('#revs line'), { opacity: [0, 1] }, { duration: 0.3, delay: dl(1.0, 0.04) });
-    anim(root.current!.querySelectorAll('.trow .tk'), { opacity: [0, 1], y: [6, 0] }, { duration: 0.3, delay: dl(0.2, 0.04) });
+  // ---------- How it's authored ----------
+  useEffect(() => inView(authoring.current!, () => {
+    anim(authoring.current!.querySelectorAll('.trow .tk'), { opacity: [0, 1], y: [6, 0] }, { duration: 0.3, delay: dl(0.2, 0.04) });
   }, { amount: 0.4 }), []);
 
   const vpanel = (n: number, children: ReactNode) => (
@@ -360,7 +367,7 @@ export function Version1() {
       <p className="intro">Questions and standards from the top, evidence from the code below. They meet in a small core that you prove with real data before tagging 1.0.</p>
       <div className="diagram-wrap">
         <svg id="v1map" className="v1map" viewBox="0 0 1100 322" role="img" aria-label="Competency questions and standards from the business, and a term inventory from code, converge into a core ontology that is proved with data before tagging 1.0" ref={mapSvg}>
-          <text className="lane" x="58" y="52">From the business</text>
+          <text className="lane" x="58" y="52">From standards and the business</text>
           <text className="lane" x="58" y="214">From the evidence</text>
           <rect className="corebox" x="560" y="84" width="220" height="190" rx="14" />
           <text className="coret" x="576" y="110">Core v1</text>
@@ -372,8 +379,8 @@ export function Version1() {
                 ref={(el) => { if (el) edgeEls.current[k] = el; }} />;
             })}
           </g>
-          <rect className="lblbg" x="430" y="20" width="194" height="18" />
-          <text className="elbl" x="527" y="33" textAnchor="middle">each question becomes a test</text>
+          <rect className="lblbg" x="593" y="20" width="194" height="18" />
+          <text className="elbl" x="690" y="33" textAnchor="middle">each question becomes a test</text>
           <text className="elbl" x="792" y="317" textAnchor="middle">fix the model, regenerate</text>
           <g id="v1nodes">
             {Object.entries(V1N).map(([k, n]) => {
@@ -406,6 +413,28 @@ export function Version1() {
         <div className="sviz">
 
           {vpanel(1, <>
+            <div className="vbtns">
+              <button type="button" className="vbtn" id="modeAlign" aria-pressed={mode === 'align'} onClick={() => setMode3('align')}>Align with mappings</button>
+              <button type="button" className="vbtn" id="modeImport" aria-pressed={mode === 'import'} onClick={() => setMode3('import')}>Import everything</button>
+            </div>
+            <div className="xwrap"><svg id="topsvg" viewBox="0 0 760 306" style={{ display: 'block', width: '100%', minWidth: '560px', height: 'auto' }} role="img" aria-label="Six top-level categories linked to FIBO, ISO 20022 and ISO code lists by mapping annotations">
+              <g id="maps" ref={mapsG}>{MAPS.map((d) => <path key={d} className="mapl" d={d} />)}</g>
+              <g id="cats" ref={catsG}>
+                {CATS.map(([name, holds], i) => {
+                  const y = 14 + i * 48, cy = y + 20;
+                  return <g key={name} className="cat"><rect className="box" x="20" y={y} width="490" height="40" rx="8" /><text className="t" x="36" y={cy + 5}>{name}</text><text className="s" x="198" y={cy + 4}>{holds}</text></g>;
+                })}
+              </g>
+              {STANDARDS.map((d) => (
+                <g key={d.t} className="std"><rect className="box" x="580" y={d.y} width="170" height="70" rx="10" /><text className="t" x="596" y={d.y + 24}>{d.t}</text><text className="s" x="596" y={d.y + 43}>{d.s}</text><text className="s" x="596" y={d.y + 59}>{d.s2}</text></g>
+              ))}
+              <text className="elbl" x="665" y="292" textAnchor="middle">linked by skos:closeMatch</text>
+              <g className="dots" id="dots" ref={dotsG}></g>
+              <g className="ovl" id="ovl" opacity="0" ref={ovl}><rect x="150" y="132" width="460" height="42" rx="21" /><text x="380" y="158">owl:imports FIBO 2026 Q2: 2,228 classes, most unused</text></g>
+            </svg></div>
+          </>)}
+
+          {vpanel(2, <>
             <p className="vcap">A question needs it: in v1</p>
             <div className="qgrid">
               <div className="qcard"><span className="team">Disputes</span>Which merchants had the most 10.4 chargebacks last month?<br /><span className="cq">test CQ-01</span></div>
@@ -418,9 +447,13 @@ export function Version1() {
             <div className="scope"><span>Scope line</span></div>
             <p className="vcap">No question needs it: out of v1</p>
             <div className="outs"><span>General ledger postings</span><span>Merchant onboarding paperwork</span><span>Card manufacturing</span><span>Marketing segments</span></div>
+            <Meter label="Coverage 1: questions the standards draft answers" n={17} of={42} notes={[
+              'Illustrative. Modeling, then proving it with data, takes it to 42 of 42.',
+              `This repo's draft, read from its LinkML source: ${DRAFT.questions} of ${DRAFT.questions} questions walk real relationships.`,
+            ]} />
           </>)}
 
-          {vpanel(2, <>
+          {vpanel(3, <>
             <div className="vbtns">
               <button type="button" className="vbtn go" id="clusterBtn" onClick={() => { resetCluster(); requestAnimationFrame(() => cluster()); }}>Cluster the names</button>
               <button type="button" className="vbtn" id="clusterReset" onClick={resetCluster}>Reset</button>
@@ -447,28 +480,11 @@ export function Version1() {
                 <tr><td>RetrievalRequest</td><td>1</td><td>disputes-svc</td><td><span className="pill">new candidate</span></td></tr>
               </tbody>
             </table>
-            <p className="note">The output is a term inventory, not Turtle. People turn it into the ontology.</p>
-          </>)}
-
-          {vpanel(3, <>
-            <div className="vbtns">
-              <button type="button" className="vbtn" id="modeAlign" aria-pressed={mode === 'align'} onClick={() => setMode3('align')}>Align with mappings</button>
-              <button type="button" className="vbtn" id="modeImport" aria-pressed={mode === 'import'} onClick={() => setMode3('import')}>Import everything</button>
-            </div>
-            <div className="xwrap"><svg id="topsvg" viewBox="0 0 760 306" style={{ display: 'block', width: '100%', minWidth: '560px', height: 'auto' }} role="img" aria-label="Six top-level categories linked to FIBO and ISO 20022 by mapping annotations">
-              <g id="maps" ref={mapsG}>{MAPS.map((d) => <path key={d} className="mapl" d={d} />)}</g>
-              <g id="cats" ref={catsG}>
-                {CATS.map(([name, holds], i) => {
-                  const y = 14 + i * 48, cy = y + 20;
-                  return <g key={name} className="cat"><rect className="box" x="20" y={y} width="490" height="40" rx="8" /><text className="t" x="36" y={cy + 5}>{name}</text><text className="s" x="198" y={cy + 4}>{holds}</text></g>;
-                })}
-              </g>
-              <g className="std"><rect className="box" x="580" y="30" width="170" height="80" rx="10" /><text className="t" x="596" y="62">FIBO</text><text className="s" x="596" y="84">Parties, agreements</text></g>
-              <g className="std"><rect className="box" x="580" y="140" width="170" height="80" rx="10" /><text className="t" x="596" y="172">ISO 20022</text><text className="s" x="596" y="194">Payment business model</text></g>
-              <text className="elbl" x="665" y="246" textAnchor="middle">linked by skos:closeMatch</text>
-              <g className="dots" id="dots" ref={dotsG}></g>
-              <g className="ovl" id="ovl" opacity="0" ref={ovl}><rect x="150" y="132" width="460" height="42" rx="21" /><text x="380" y="158">owl:imports FIBO: thousands of classes, most unused</text></g>
-            </svg></div>
+            <p className="note">The output is a term inventory, not ontology code. People turn it into the ontology.</p>
+            <Meter label="Coverage 2: mined terms that map to a standard concept" n={61} of={140} notes={[
+              'Illustrative. Terms with no standard match become our own classes.',
+              `This repo's draft: ${DRAFT.mapped} of ${DRAFT.classes} concrete classes map to a standard so far.`,
+            ]} />
           </>)}
 
           {vpanel(4, <>
@@ -545,24 +561,11 @@ export function Version1() {
 
       <div className="twocol">
         <div className="tc">
-          <h3>Who builds it</h3>
-          <div className="people">
-            <svg viewBox="0 0 300 300" id="peoplesvg" role="img" aria-label="A modeling group of five writes; every team reviews" ref={people}>
-              <circle className="ring" cx="150" cy="150" r="124" />
-              <g id="revs">{TICKS.map((t, i) => <line key={i} className="rv" {...t} markerEnd="url(#mg-mut)" />)}</g>
-              <circle className="inner" cx="150" cy="150" r="64" />
-              <g id="pdots">{INNER.map((d, i) => <circle key={i} className="pdot" cx={d.x} cy={d.y} r="8" />)}</g>
-              <text className="ptext" x="150" y="192">writes</text>
-              <g id="tdots">{OUTER.map((d, i) => <circle key={i} className="tdot" cx={d.x} cy={d.y} r="9" />)}</g>
-              <text className="otext" x="150" y="296">Every team reviews pull requests</text>
-            </svg>
-            <ul className="roles">
-              <li>Ontology lead</li><li>Authorization expert</li><li>Disputes expert</li><li>Settlement expert</li><li>Release gate: you</li><li className="out">Everyone else reviews</li>
-            </ul>
-          </div>
+          <h3>Who owns it</h3>
+          <Ownership />
           <div className="scopechips"><span><b>15 to 25</b> classes in v1</span><span><b>Weeks</b>, not quarters</span></div>
         </div>
-        <div className="tc">
+        <div className="tc" ref={authoring}>
           <h3>Authoring: Turtle or LinkML</h3>
           <div className="tool"><p className="tname">Turtle in Git</p>
             <div className="trow"><span className="tk hand">OWL classes</span><span className="tk hand">SHACL shapes</span><span className="ar">→</span><span className="tk mid">Your generator</span><span className="ar">→</span><span className="tk you">Pydantic</span><span className="tk you">Extraction schema</span><span className="tk you">Docs site</span><span className="tk you">Neptune CSV headers</span><span className="tk you">OpenSearch mappings</span></div></div>
@@ -574,6 +577,18 @@ export function Version1() {
         </div>
       </div>
     </section>
+  );
+}
+
+/** One coverage number, as a bar and a count, with notes on where it comes from. */
+function Meter({ label, n, of, notes }: { label: string; n: number; of: number; notes: string[] }) {
+  const w = Math.round((n / of) * 100);
+  return (
+    <div className="cov">
+      <div className="covh"><b>{label}</b><span className="covn">{n} of {of}</span></div>
+      <div className="covbar"><i data-w={w} style={{ width: w + '%' }}></i></div>
+      {notes.map((x) => <p key={x} className="covnote">{x}</p>)}
+    </div>
   );
 }
 

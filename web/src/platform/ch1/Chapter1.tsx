@@ -1,3 +1,4 @@
+import './ch1.css';
 import { Authoring } from './Authoring';
 import { BuildingBlocks } from './BuildingBlocks';
 import { Version1 } from './Version1';

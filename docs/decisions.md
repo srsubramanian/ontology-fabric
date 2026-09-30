@@ -30,7 +30,7 @@ Settled unless a later entry says otherwise. Newest changes are at the bottom of
    - A card reaches its issuer through its BIN range (`Card IN_BIN_RANGE BinRange ASSIGNED_TO Issuer`), never a direct link, so a portfolio moving to another issuer is one edge change.
    - A chunk `MENTIONS` any entity it names, such as a merchant, a reason code or a dispute. In LinkML its range is `linkml:Any`. Who may see the chunk is still decided by its classification in OpenSearch.
 8. **SHACL 1.0 core gates every load.** Missing required links reject the record. SHACL 1.2 is still a Working Draft and RDF 1.2 a Candidate Recommendation; wait until both are W3C Recommendations.
-9. **Bootstrap from industry standards, then hand ownership to teams.** This direction is agreed; updating the platform page to show it is still open.
+9. **Bootstrap from industry standards, then hand ownership to teams.** Chapter 1 of the platform page shows it.
    - Sources: ISO 20022 card and payment messages, FIBO for parties and agreements, and ISO code lists.
    - Align with them through `skos:closeMatch`. Never use `owl:imports`, and pin the FIBO release you mapped against.
    - Measure coverage rather than assume it, in two ways: how many competency questions the draft answers, and how many mined code terms map to a standard concept.

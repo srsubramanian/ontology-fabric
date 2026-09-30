@@ -66,6 +66,10 @@ What changed around this build, and what the pages rely on. Every finding below 
   - The Registration Authority's list of business areas (dated 4 June 2025) defines at least 48, each with a four-letter code such as `cain` for acquirer-to-issuer card transactions. We counted them from the list; the "30 business areas" figure often quoted is from 2020. https://www.iso20022.org/sites/default/files/media/file/ISO20022_BusinessAreas.pdf
   - The acquirer-to-issuer card messages (ATICA) span the `cain`, `caad` and `cafm` message families: authorisation, financial presentment, reversal, reconciliation, retrieval, inquiry, verification, card management, chargeback and file actions. Public listings show at least 23 message definitions. The exact current count couldn't be confirmed, because iso20022.org refuses automated requests. https://www.iotafinance.com/en/SWIFT-ISO20022-Business-area-cain-Acquirer-to-Issuer-Card-Transactions.html
   - From 14 November 2026, CBPR+ rejects fully unstructured postal addresses. Messages need at least a structured town and country; hybrid addresses are allowed. https://www.bny.com/content/dam/bnymellon/documents/pdf/iso-20022/hybrid-postal-address-industry-requirement.pdf
+- **ISO code lists** (checked 2026-09-30), shown on chapter 1 as the third standard:
+  - Merchant category codes are ISO 18245; the current edition is ISO 18245:2023. https://www.iso.org/standard/79450.html
+  - Currency codes are ISO 4217 and country codes ISO 3166. https://www.iso.org/iso-4217-currency-codes.html and https://www.iso.org/iso-3166-country-codes.html
+  - Dispute reason codes aren't an ISO list: each card network publishes its own.
 - **SHACL 1.2 Core is still a W3C Working Draft**; the latest is dated 18 September 2026. https://www.w3.org/standards/history/shacl12-core/
 - **RDF 1.2 has moved further:** RDF 1.2 Concepts has been a Candidate Recommendation since 7 April 2026, but it isn't a Recommendation yet. Decision 8 now says so; waiting still holds. https://www.w3.org/standards/history/rdf12-concepts/
 - **Visa VAMP**:

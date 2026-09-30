@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { flushSync } from 'react-dom';
 import { reduce } from '../../kit/motion';
 import { anim, dl, drawIn, hideAll, wait } from './anim';
+import payments from '../../../../ontology/payments.yaml?raw';
 import { linesHtml } from './lines';
 import { Keys, Stepper } from './Stepper';
 
@@ -12,10 +13,10 @@ const STEPS = [
   { t: 'The story', keys: ['A real card-not-present payment, and its dispute', 'These are instances: things that happened', 'The ontology defines what kinds of things they are'] },
   { t: 'OWL', keys: ['OWL, the Web Ontology Language, defines classes and relationships', 'Classes form a hierarchy: a Chargeback is a DisputeEvent', 'It describes meaning, not individual payments'] },
   { t: 'Turtle', keys: ['Turtle is a plain-text way to write OWL', 'Each statement is a sentence: subject, predicate, object', 'Prefixes are short names for full web addresses'] },
-  { t: 'Git', keys: ['The Turtle files live in a Git repository', 'Every change is a pull request that people review', 'Tags mark releases that other teams can pin'] },
+  { t: 'Git', keys: ['People write LinkML; CI generates the Turtle', 'Every change is a pull request its owner reviews', 'Tags mark releases that other teams can pin'] },
   { t: 'SHACL', keys: ['SHACL, the Shapes Constraint Language, checks data', 'A shape lists what a valid Chargeback must have', 'Data that fails never reaches Neptune'] },
   { t: 'OWL vs SHACL', keys: ['OWL: missing information is unknown', 'SHACL: missing information is an error', 'You need both: meaning to share, rules to enforce'] },
-  { t: 'Four forms', keys: ['The same Chargeback appears in four places', 'Only the Turtle and SHACL are written by hand', 'The generator produces the rest'] },
+  { t: 'Four forms', keys: ['People write the Chargeback once, in LinkML', 'Generators write the OWL and SHACL we publish', 'They also write the Neptune and OpenSearch shapes we load'] },
 ];
 
 const TTL = [
@@ -71,9 +72,17 @@ const WORLD_TEXT = {
   shacl: 'SHACL: the required DISPUTES link is missing, so cb:991 is invalid and is stopped at the load gate.',
 };
 
+/** The Chargeback class as it's written in the LinkML source, read from the file at build time. */
+const SOURCE = (() => {
+  const lines = payments.split('\n'), a = lines.indexOf('  Chargeback:');
+  const z = lines.findIndex((l, i) => i > a && !l.trim());
+  return lines.slice(a, z).map((l) => l.slice(2)).join('\n');
+})();
+
+/** What the generators write from it, trimmed: OWL, SHACL, a Neptune load and an OpenSearch document. */
 const FORMS: [lang: string, code: string][] = [
-  ['turtle', 'pay:Chargeback  a  owl:Class ;\n    rdfs:subClassOf  pay:DisputeEvent ;\n    rdfs:label  "Chargeback"@en .'],
-  ['turtle', 'pay:ChargebackShape  a  sh:NodeShape ;\n    sh:targetClass  pay:Chargeback ;\n    sh:property [ sh:path pay:disputes ;\n        sh:minCount 1 ; sh:maxCount 1 ] .'],
+  ['turtle', 'pay:Chargeback  a  owl:Class ;\n    rdfs:label  "Chargeback" ;\n    rdfs:subClassOf  pay:DisputeEvent ;\n    skos:altLabel  "CB", "chargeback case" .'],
+  ['turtle', 'pay:Chargeback  a  sh:NodeShape ;\n    sh:closed  true ;\n    sh:property [ sh:path pay:disputes ;\n        sh:class pay:Capture ;\n        sh:minCount 1 ; sh:maxCount 1 ] ;\n    sh:targetClass  pay:Chargeback .'],
   ['cypher', "MERGE (cb:Chargeback:DisputeEvent:PaymentEvent\n       {id: 'cb:1001'})\nSET cb.opened_at =\n      datetime('2026-08-19T14:05:00Z'),\n    cb.ontology_version = '1.6.0'\nMERGE (cap:Capture:PaymentEvent {id:'cap:7731'})\nMERGE (cb)-[:DISPUTES]->(cap)"],
   ['json', '{\n  "neptune_id": "cb:1001",\n  "labels": ["Chargeback", "DisputeEvent",\n             "PaymentEvent"],\n  "codes": ["10.4"],\n  "summary": "Chargeback, Harbor Grill order",\n  "ontology_version": "1.6.0"\n}'],
 ];
@@ -118,6 +127,7 @@ export function BuildingBlocks() {
     ttl: linesHtml(TTL, 'turtle'),
     report: linesHtml(REPORT, 'walktext'),
     shape: linesHtml(SHAPE, 'turtle'),
+    source: linesHtml(SOURCE, 'yaml'),
     forms: FORMS.map(([lang, code]) => linesHtml(code, lang)),
   }), []);
 
@@ -173,11 +183,11 @@ export function BuildingBlocks() {
       4: () => { playGit(p); },
       6: () => { ++wRun.current; showWorld('owl'); },
       7: () => {
-        const forms = p.querySelectorAll('.form'), gen = p.querySelector('.genbar');
-        hideAll(forms); hideAll(gen ? [gen] : []);
-        anim([forms[0], forms[1]], { opacity: [0, 1], y: [10, 0] }, { duration: 0.4, delay: dl(0.1, 0.2) });
-        anim(gen, { opacity: [0, 1], scaleX: [0.2, 1] }, { duration: 0.5, delay: 0.8 });
-        anim([forms[2], forms[3]], { opacity: [0, 1], y: [-10, 0] }, { duration: 0.4, delay: dl(1.4, 0.2) });
+        const src = p.querySelector('.form.src')!, forms = p.querySelectorAll('.form:not(.src)'), gen = p.querySelector('.genbar')!;
+        hideAll([src, gen, ...forms]);
+        anim(src, { opacity: [0, 1], y: [10, 0] }, { duration: 0.4, delay: 0.1 });
+        anim(gen, { opacity: [0, 1], scaleX: [0.2, 1] }, { duration: 0.5, delay: 0.7 });
+        anim(forms, { opacity: [0, 1], y: [-10, 0] }, { duration: 0.4, delay: dl(1.3, 0.15) });
       },
     };
     steps[played.step]?.();
@@ -370,7 +380,7 @@ export function BuildingBlocks() {
           </div>
 
           <div className="dpanel" data-d="4" hidden={cur !== 4} ref={(el) => { panels.current[3] = el; }}>
-            <div className="xwrap"><svg id="ddGit" viewBox="0 0 760 150" style={SVG_STYLE(560)} role="img" aria-label="Git history: main branch with version tags; a branch adds PreArbitration and merges back as version 1.6.0">
+            <div className="xwrap"><svg id="ddGit" viewBox="0 0 760 150" style={SVG_STYLE(560)} role="img" aria-label="Git history: main branch with version tags; a branch adds PreArbitration to the LinkML source and merges back as version 1.6.0">
               <path className="gmain" d="M30,56 L730,56" />
               <path className="gbranch" d="M290,56 C315,56 315,112 345,112 L525,112 C555,112 555,56 580,56" />
               <g className="gc"><circle cx="70" cy="56" r="8" /></g><g className="gc"><circle cx="190" cy="56" r="8" /></g><g className="gc"><circle cx="290" cy="56" r="8" /></g>
@@ -384,18 +394,18 @@ export function BuildingBlocks() {
             </svg></div>
             <div className="gitgrid">
               <pre className="ftree">{`ontology-repo/
-├── payments.ttl        `}<span>classes</span>{`
-├── shapes/
-│   └── chargeback.ttl  `}<span>SHACL rules</span>{`
+├── payments.yaml       `}<span>LinkML source</span>{`
+├── generated/          `}<span>OWL, SHACL, by CI</span>{`
+├── CODEOWNERS          `}<span>module owners</span>{`
 ├── competency-questions/
 │   └── cq-01.cypher    `}<span>tests</span>{`
 └── CHANGELOG.md        `}<span>releases</span></pre>
               <div className="prbox">
                 <div className="prhead"><span className="prnum">PR #212</span><span className="tier" style={{ '--c': 'var(--onto)' } as CSSProperties}>minor</span></div>
                 <h4>Add PreArbitration as a kind of DisputeEvent</h4>
-                <div className="diff"><div className="ctx">  pay:DisputeEvent  a  owl:Class .</div><div className="add">+ pay:PreArbitration  a  owl:Class ;</div><div className="add">+   rdfs:subClassOf  pay:DisputeEvent ;</div><div className="add">+   skos:definition  "Issuer challenges the</div><div className="add">+     merchant's response"@en .</div></div>
+                <div className="diff"><div className="ctx">  classes:</div><div className="add">+   PreArbitration:</div><div className="add">+     is_a: DisputeEvent</div><div className="add">+     description: Issuer challenges the</div><div className="add">+       merchant's response.</div></div>
                 <ul className="gck" id="ddGck">
-                  {['SHACL shapes still valid', 'Generator produced all artifacts', 'Competency questions pass', 'Disputes owner approved'].map((t, i) => (
+                  {['Schema lint passes', 'Generators produced all artifacts', 'Competency questions pass', 'Disputes owner approved'].map((t, i) => (
                     <li key={t} className={i < gitOk ? 'ok' : undefined}><i></i>{t}</li>
                   ))}
                 </ul>
@@ -438,9 +448,10 @@ export function BuildingBlocks() {
 
           <div className="dpanel" data-d="7" hidden={cur !== 7} ref={(el) => { panels.current[6] = el; }}>
             <div className="forms">
-              <div className="form" data-f="0"><div className="fh"><b>Ontology</b><span className="fk hand">Turtle, written by people</span></div><div className="ddcode"><pre id="ddF0" dangerouslySetInnerHTML={{ __html: html.forms[0] }} /></div></div>
-              <div className="form" data-f="1"><div className="fh"><b>Rule</b><span className="fk hand">SHACL, written by people</span></div><div className="ddcode"><pre id="ddF1" dangerouslySetInnerHTML={{ __html: html.forms[1] }} /></div></div>
-              <div className="genbar" id="ddGen">Schema generator: label chains, loader headers, index mappings</div>
+              <div className="form src"><div className="fh"><b>Source</b><span className="fk hand">LinkML, written by people</span><code className="fpath">ontology/payments.yaml</code></div><div className="ddcode"><pre id="ddSrc" dangerouslySetInnerHTML={{ __html: html.source }} /></div></div>
+              <div className="genbar" id="ddGen">Generators: OWL, SHACL, label chains, loader headers, index mappings</div>
+              <div className="form" data-f="0"><div className="fh"><b>Ontology</b><span className="fk gen">OWL in Turtle, generated</span></div><div className="ddcode"><pre id="ddF0" dangerouslySetInnerHTML={{ __html: html.forms[0] }} /></div></div>
+              <div className="form" data-f="1"><div className="fh"><b>Rule</b><span className="fk gen">SHACL, generated</span></div><div className="ddcode"><pre id="ddF1" dangerouslySetInnerHTML={{ __html: html.forms[1] }} /></div></div>
               <div className="form" data-f="2"><div className="fh"><b>Neptune</b><span className="fk gen">openCypher, shape generated</span></div><div className="ddcode"><pre id="ddF2" dangerouslySetInnerHTML={{ __html: html.forms[2] }} /></div></div>
               <div className="form" data-f="3"><div className="fh"><b>OpenSearch</b><span className="fk gen">entities index, generated</span></div><div className="ddcode"><pre id="ddF3" dangerouslySetInnerHTML={{ __html: html.forms[3] }} /></div></div>
             </div>
