@@ -1,27 +1,27 @@
 # Ontology Fabric
 
-Learning pages and design decisions for Ontology Fabric, a payments knowledge layer: an ontology-governed graph (Neptune), search (OpenSearch), warehouse data (Snowflake) and agents (Claude through MCP).
+A learning page and design decisions for Ontology Fabric, a payments knowledge layer: an ontology-governed graph (Neptune), search (OpenSearch), warehouse data (Snowflake) and agents (Claude through MCP).
 
-## Look at the pages
+## Look at the page
 
-Open these in a browser. You need to be online for the fonts; everything else is inside each file.
+Open `site/index.html` in a browser. You need to be online for the fonts; everything else is inside the file. A bar at the top switches between its three apps:
 
-- `site/platform.html`: the platform map and seven chapters
-- `site/retrieval.html`: how a question becomes an answer, across all three stores
-- `site/ontology.html`: the class explorer, read from the draft ontology in `ontology/`
+- Overview (`#map`): the platform map and seven chapters
+- Retrieval (`#retrieval`): how a question becomes an answer, across all three stores
+- Explorer (`#explorer`): the class explorer, read from the draft ontology in `ontology/`
 
-## Change a page
+## Change the page
 
-All three pages are built from `web/`, so edit the source there (you need Node 20.19 or later):
+The page is built from `web/`, so edit the source there (you need Node 20.19 or later):
 
 ```bash
 cd web
 npm install
-npm run dev      # live preview at http://localhost:5173/platform.html, /retrieval.html or /ontology.html
-npm run check    # typecheck, then rebuild every page into site/
+npm run dev      # live preview at http://localhost:5173/
+npm run check    # typecheck, then rebuild the page into site/
 ```
 
-Commit the rebuilt pages together with their source.
+Commit the rebuilt page together with its source.
 
 ## Check the ontology after a change
 
@@ -31,9 +31,9 @@ linkml-lint --config ontology/.linkmllint.yaml ontology/payments.yaml
 python tools/check_ontology.py
 ```
 
-The check fails if a competency question walks a relationship the schema doesn't have, if its query breaks decision 13's rules (unknown labels, a relationship against its direction, a write, no LIMIT), or if the class explorer reads a class differently from LinkML (that part needs Node and `npm install` in `web/`). Rebuild the pages afterwards, so the class explorer shows the change.
+The check fails if a competency question walks a relationship the schema doesn't have, if its query breaks decision 13's rules (unknown labels, a relationship against its direction, a write, no LIMIT), or if the class explorer reads a class differently from LinkML (that part needs Node and `npm install` in `web/`). Rebuild the page afterwards, so the class explorer shows the change.
 
-## Check the pages after a change
+## Check the page after a change
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
@@ -42,13 +42,13 @@ python -m playwright install chromium
 python tools/smoke_test.py
 ```
 
-The test loads every view three times: on a desktop in light and in dark, and on a 390 px phone. It fails on JavaScript errors or on any view that scrolls sideways, and saves screenshots of every view to `screenshots/`, with the dark ones in `dark/`.
+The test loads every view of every app three times: on a desktop in light and in dark, and on a 390 px phone. Each time it visits all three apps in one page load, so switching between them is tested too. It fails on JavaScript errors, on any view that scrolls sideways or on a view that shows the wrong app, and saves screenshots of every view to `screenshots/<app>/`, with the dark ones in `dark/`.
 
 ## Where things are written down
 
 - `CLAUDE.md`: what Claude Code reads at the start of every session
 - `docs/decisions.md`: settled decisions
-- `docs/style-guide.md`: how the pages look and are built
+- `docs/style-guide.md`: how the page looks and is built
 - `docs/research-2026-09.md`: what changed in 2026, with sources
 - `docs/open-questions.md`: what's undecided, and the next steps
 - `docs/handoff.md`: the story so far

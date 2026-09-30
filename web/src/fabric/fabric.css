@@ -1,0 +1,15 @@
+/* The bar above every app. The colour tokens come from the showing app's own stylesheet,
+   which sets the same ones in light and dark. */
+.fapp[hidden]{display:none !important}
+.fbar{border-bottom:1px solid var(--line); background:var(--paper)}
+.fbar-in{max-width:1180px; margin:0 auto; padding:0 28px; display:flex; align-items:center; gap:18px; box-sizing:border-box}
+.fbar[data-wide] .fbar-in{max-width:1320px}
+.fbar-brand{display:inline-flex; align-items:center; gap:9px; margin-right:auto; color:var(--ink); font-weight:800; font-size:.98rem; letter-spacing:-0.01em; white-space:nowrap}
+.fbar-mark{flex:none; display:block}
+.fbar-tabs{display:flex; gap:2px}
+.fbar-tab{padding:15px 12px 12px; margin-bottom:-1px; border-bottom:3px solid transparent; color:var(--muted); font-weight:600; font-size:.9rem; text-decoration:none; white-space:nowrap}
+.fbar-tab:hover{color:var(--ink); border-bottom-color:var(--line)}
+.fbar-tab[aria-current="page"]{color:var(--ink); border-bottom-color:var(--c)}
+.fbar-tab:focus-visible{outline:2px solid var(--ink); outline-offset:-2px; border-radius:4px}
+@media (max-width:600px){.fbar-in{padding:0 18px}}
+@media (max-width:540px){.fbar-name{display:none} .fbar-tab{padding-inline:10px}}

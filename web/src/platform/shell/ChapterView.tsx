@@ -13,14 +13,14 @@ export function ChapterView({ def, hidden, cur }: { def: ChapterDef; hidden: boo
     <section className="chapter" id={'ch' + n} data-ch={n} style={{ '--c': def.color } as CSSProperties} aria-labelledby={`ch${n}h`} hidden={hidden}>
       {def.head}
       <nav className="subtabs" aria-label="Pages in this chapter">
-        {labels.map((l, i) => <a key={l} className={'subtab' + (i === cur ? ' on' : '')} href={`#ch${n}:${i + 1}`} aria-current={i === cur ? 'page' : undefined}><span className="num">{i + 1}</span>{l}</a>)}
+        {labels.map((l, i) => <a key={l} className={'subtab' + (i === cur ? ' on' : '')} href={`#ch${n}-${i + 1}`} aria-current={i === cur ? 'page' : undefined}><span className="num">{i + 1}</span>{l}</a>)}
       </nav>
       {def.pages.map((p, i) => <PageShown.Provider key={p.label} value={i === cur}>{p.el}</PageShown.Provider>)}
       <Check n={n} hidden={cur !== last} />
       <ChapterNext n={n} hidden={cur !== last} />
       <div className="pager" hidden={!prev && !next}>
-        {prev ? <a className="vbtn" href={`#ch${n}:${cur}`}>Previous: {prev}</a> : <span></span>}
-        {next && <a className="vbtn go" href={`#ch${n}:${cur + 2}`}>Next: {next}</a>}
+        {prev ? <a className="vbtn" href={`#ch${n}-${cur}`}>Previous: {prev}</a> : <span></span>}
+        {next && <a className="vbtn go" href={`#ch${n}-${cur + 2}`}>Next: {next}</a>}
       </div>
     </section>
   );

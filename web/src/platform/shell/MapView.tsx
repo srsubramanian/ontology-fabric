@@ -23,13 +23,14 @@ export const MapView = forwardRef<MapHandle>(function MapView(_, ref) {
   const [playing, setPlayingState] = useState(false);
   const [lit, setLit] = useState<Set<string>>(() => new Set(FLOWS.query.steps[0].hops.flat().map((h) => h.replace(/^-/, ''))));
   const [selected, setSelected] = useState<string | null>(null);
-  const svg = useRef<SVGSVGElement>(null), packets = useRef<SVGGElement>(null), narrEl = useRef<HTMLDivElement>(null), playBtn = useRef<HTMLButtonElement>(null);
+  const section = useRef<HTMLElement>(null), svg = useRef<SVGSVGElement>(null), packets = useRef<SVGGElement>(null), narrEl = useRef<HTMLDivElement>(null), playBtn = useRef<HTMLButtonElement>(null);
   const edgeEls = useRef<Record<string, SVGPathElement>>({}), nodeEls = useRef<Record<string, SVGGElement>>({});
   // What the running flow reads between awaits, as the original script kept it.
   const cur = useRef('query'), curStep = useRef(0), mode = useRef<'flow' | 'detail'>('flow'), runId = useRef(0), playingRef = useRef(false);
   const live = useRef(new Set<AnimationPlaybackControls>());
 
-  const setFlowColor = (c: string) => { svg.current!.style.setProperty('--flow', c); document.documentElement.style.setProperty('--flow', c); };
+  // The flow's colour, for the diagram, the narration and the steps.
+  const setFlowColor = (c: string) => { svg.current!.style.setProperty('--flow', c); section.current!.style.setProperty('--flow', c); };
   const setPlaying = (v: boolean) => { playingRef.current = v; flushSync(() => setPlayingState(v)); };
   const cancelRun = () => {
     runId.current++;
@@ -148,7 +149,7 @@ export const MapView = forwardRef<MapHandle>(function MapView(_, ref) {
   const stepNow = narr.kind === 'step' ? narr.i : -1;
 
   return (
-    <section id="map" aria-label="System map">
+    <section id="map" aria-label="System map" ref={section}>
       <div className="controls">
         <div className="flows" role="group" aria-label="Choose a flow" id="flows">
           {FLOW_KEYS.map((k) => (

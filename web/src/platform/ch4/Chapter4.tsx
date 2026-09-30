@@ -9,7 +9,7 @@ export const chapter4: ChapterDef = {
   n: 4, color: 'var(--query)',
   head: (
     <ChapterHead n={4} title="Answer a question" idea="Search finds the entry points, the graph does the reasoning, and every answer cites its sources." flow="query">
-      <a className="vbtn go" href="retrieval.html" target="_blank" rel="noopener">Open the retrieval deep dive</a>
+      <a className="vbtn go" href="#retrieval">Open the retrieval deep dive</a>
     </ChapterHead>
   ),
   pages: [

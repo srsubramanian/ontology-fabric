@@ -1,13 +1,16 @@
-"""Load every view of the learning pages in light, dark and on a phone.
+"""Load every view of the page in light, dark and on a phone.
 
-Fails on JavaScript errors, and on any view that scrolls sideways. Saves a screenshot
-of every view in light and dark, so both themes get looked at (docs/style-guide.md).
+The page holds three apps: the overview, the retrieval walkthrough and the class explorer.
+Each pass visits all their views in one page load, so switching between apps gets tested
+too. Fails on JavaScript errors, on any view that scrolls sideways, and on any view that
+shows the wrong app. Saves a screenshot of every view in light and dark, so both themes
+get looked at (docs/style-guide.md).
 
 Usage:
     pip install -r tools/requirements.txt
     python -m playwright install chromium
-    python tools/smoke_test.py            # all pages
-    python tools/smoke_test.py ontology   # one page, by name
+    python tools/smoke_test.py            # every app
+    python tools/smoke_test.py explorer   # one app: overview, retrieval or explorer
 """
 import os
 import pathlib
@@ -19,6 +22,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 SITE = pathlib.Path(os.environ.get("SITE_DIR", ROOT / "site"))
 SHOTS = ROOT / "screenshots"
 IGNORE = ("fonts.googleapis.com", "fonts.gstatic.com", "ERR_FAILED")
+APPS = ["overview", "retrieval", "explorer"]
 
 # Each pass: a name, the viewport, the colour scheme, where screenshots go (None: no
 # screenshots) and how long to let each view's animation run before looking.
@@ -29,24 +33,29 @@ PASSES = [
 ]
 
 
-def views_for(page, name):
-    """Discover the hash routes a page offers."""
-    if name == "platform":
-        routes = ["#map"]
-        chapters = page.evaluate("[...document.querySelectorAll('section.chapter')].map(s => s.id)")
-        for ch in chapters:
+def views_for(page, url, app):
+    """Discover the views an app offers, as (hash route, screenshot name) pairs."""
+    if app == "overview":
+        page.goto(url + "#map")
+        routes = [("#map", "map")]
+        for ch in page.evaluate("[...document.querySelectorAll('section.chapter')].map(s => s.id)"):
             tabs = page.evaluate(f"document.querySelectorAll('#{ch} .subtab').length")
-            routes += [f"#{ch}:{k}" for k in range(1, tabs + 1)]
+            routes += [(f"#{ch}-{k}", f"{ch}-{k}") for k in range(1, tabs + 1)]
         return routes
-    if name == "ontology":
-        # The class explorer: the map, then each class and each competency question selected.
-        picks = page.evaluate("[...document.querySelectorAll('[data-class], [data-question]')]"
+    page.goto(url + "#" + app)
+    page.wait_for_timeout(300)
+    inside = f"[data-app={app}]"
+    if app == "explorer":
+        # The map, then each class and each competency question selected.
+        views = page.evaluate(f"[...document.querySelectorAll('{inside} [data-class], {inside} [data-question]')]"
                               ".map(e => e.dataset.class || e.dataset.question)")
-        return ["#map"] + ["#" + p for p in dict.fromkeys(picks)]
-    return ["#" + v for v in page.evaluate("[...document.querySelectorAll('.view')].map(v => v.id)")]
+        views = ["map"] + list(dict.fromkeys(views))
+    else:
+        views = page.evaluate(f"[...document.querySelectorAll('{inside} .view')].map(v => v.id)")
+    return [("#" + app if v == "map" else f"#{app}-{v}", v) for v in views]
 
 
-def visit(pw, name, label, viewport, scheme, shots, wait):
+def visit(pw, apps, label, viewport, scheme, shots, wait):
     """Load every view once under one viewport and colour scheme; return the problems found."""
     errors = []
     browser = pw.chromium.launch()
@@ -59,36 +68,40 @@ def visit(pw, name, label, viewport, scheme, shots, wait):
             errors.append(f"{label}: console: {m.text} {where}".strip())
     page.on("console", on_console)
 
-    url = (SITE / f"{name}.html").as_uri()
+    url = (SITE / "index.html").as_uri()
     page.goto(url)
     page.wait_for_timeout(1500)
-    if shots is not None:
-        (SHOTS / name / shots).mkdir(parents=True, exist_ok=True)
-    for route in views_for(page, name):
-        page.goto(url + route)
-        page.wait_for_timeout(wait)
-        width = page.evaluate("document.documentElement.scrollWidth")
-        if width > viewport["width"]:
-            errors.append(f"{label}: {route} scrolls sideways, {width}px wide")
+    for app in apps:
         if shots is not None:
-            path = SHOTS / name / shots / (route.strip("#").replace(":", "_") + ".png")
-            page.screenshot(path=str(path), full_page=True)
+            (SHOTS / app / shots).mkdir(parents=True, exist_ok=True)
+        for route, name in views_for(page, url, app):
+            page.goto(url + route)
+            page.wait_for_timeout(wait)
+            showing = page.evaluate("[...document.querySelectorAll('.fapp')].filter(a => !a.hidden).map(a => a.dataset.app)")
+            if showing != [app]:
+                errors.append(f"{label}: {route} shows {showing}, not {app}")
+            width = page.evaluate("document.documentElement.scrollWidth")
+            if width > viewport["width"]:
+                errors.append(f"{label}: {route} scrolls sideways, {width}px wide")
+            if shots is not None:
+                page.screenshot(path=str(SHOTS / app / shots / (name + ".png")), full_page=True)
     browser.close()
     return errors
 
 
 def main():
-    names = sys.argv[1:] or ["platform", "retrieval", "ontology"]
-    failed = False
+    apps = sys.argv[1:] or APPS
+    unknown = [a for a in apps if a not in APPS]
+    if unknown:
+        sys.exit(f"Unknown app: {', '.join(unknown)}. Choose from {', '.join(APPS)}.")
     with sync_playwright() as pw:
-        for name in names:
-            errors = [e for p in PASSES for e in visit(pw, name, *p)]
-            status = "ok" if not errors else f"{len(errors)} problem(s)"
-            print(f"{name}: {status}, screenshots in screenshots/{name}/ (dark ones in dark/)")
-            for e in errors:
-                print("   ", e)
-            failed = failed or bool(errors)
-    sys.exit(1 if failed else 0)
+        errors = [e for p in PASSES for e in visit(pw, apps, *p)]
+    for app in apps:
+        print(f"{app}: screenshots in screenshots/{app}/ (dark ones in dark/)")
+    print("ok" if not errors else f"{len(errors)} problem(s)")
+    for e in errors:
+        print("   ", e)
+    sys.exit(1 if errors else 0)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
-# Illustrative draft of the payments ontology, for the learning pages.
+# Illustrative draft of the payments ontology, for the learning page.
 #
-# It writes down what site/platform.html and site/retrieval.html already show:
+# It writes down what the page's overview and retrieval walkthrough already show:
 # the running examples, the relationship names in their Cypher, the modeling
 # patterns from chapter 1 (events not status fields, codes as nodes, one
 # direction, a shallow hierarchy, roles), and the classes that chapter's

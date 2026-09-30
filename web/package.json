@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node build.mjs",
+    "build": "vite build",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run build"
   },

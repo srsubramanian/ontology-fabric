@@ -1,6 +1,6 @@
 extends: recommended
 rules:
-  # pay: is this project's own namespace (site/platform.html, chapter 1).
+  # pay: is this project's own namespace (site/index.html, chapter 1).
   # The prefix registry's "pay" is an unrelated vocabulary.
   canonical_prefixes:
     level: disabled

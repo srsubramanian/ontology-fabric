@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { STAGES } from './data';
+import { link } from './link';
 
 type Props = { n: number; idea: string; keys: string[]; children: ReactNode };
 
@@ -13,7 +14,7 @@ export function Stage({ n, idea, keys, children }: Props) {
       </div>
       <div className="strip">
         {STAGES.map((s, i) => (
-          <a key={s.title} href={'#s' + (i + 1)} className={i + 1 === n ? 'on' : undefined}>{i + 1} {s.title}</a>
+          <a key={s.title} href={link('s' + (i + 1))} className={i + 1 === n ? 'on' : undefined}>{i + 1} {s.title}</a>
         ))}
       </div>
       <div className="grid2">

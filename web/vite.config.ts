@@ -12,9 +12,8 @@ const yaml: Plugin = {
   },
 };
 
-// Each page builds into one self-contained HTML file in ../site, next to the pages
-// that are still hand-written. Only Google Fonts load from outside the file.
-// build.mjs runs this once per page, since a single-file build takes one entry.
+// The page (index.html: the overview, retrieval and the class explorer) builds into one
+// self-contained HTML file, ../site/index.html. Only Google Fonts load from outside it.
 export default defineConfig({
   plugins: [react(), viteSingleFile(), yaml],
   server: { fs: { allow: ['..'] } },

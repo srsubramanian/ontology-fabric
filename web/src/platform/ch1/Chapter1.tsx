@@ -1,4 +1,3 @@
-import './ch1.css';
 import { ChapterHead } from '../shared/Chapter';
 import type { ChapterDef } from '../shell/ChapterView';
 import { Authoring } from './Authoring';
@@ -10,7 +9,7 @@ export const chapter1: ChapterDef = {
   n: 1, color: 'var(--onto)',
   head: (
     <ChapterHead n={1} title="Design the ontology" idea="The ontology is the product: one shared definition of payment concepts that everything else is generated from." flow="design">
-      <a className="vbtn go" href="ontology.html" target="_blank" rel="noopener">Open the class explorer</a>
+      <a className="vbtn go" href="#explorer">Open the class explorer</a>
     </ChapterHead>
   ),
   pages: [
