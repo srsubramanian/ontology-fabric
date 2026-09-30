@@ -1,6 +1,6 @@
 # Generated from the ontology
 
-Everything here is generated from `ontology/payments.yaml` (version 1.8.0) by
+Everything here is generated from `ontology/payments.yaml` (version 1.9.0) by
 `tools/generate.py`. Don't edit these files: change the ontology, then run
 
 ```bash
@@ -24,6 +24,7 @@ Files:
 - `neptune/edges/ACTS_AS.csv`
 - `neptune/edges/ASSIGNED_TO.csv`
 - `neptune/edges/AT_MERCHANT.csv`
+- `neptune/edges/AUTHENTICATED_BY.csv`
 - `neptune/edges/CAPTURES.csv`
 - `neptune/edges/DISPUTES.csv`
 - `neptune/edges/FROM_DEVICE.csv`
@@ -37,11 +38,13 @@ Files:
 - `neptune/edges/REFUNDS.csv`
 - `neptune/edges/REPORTS.csv`
 - `neptune/edges/RESPONDS_TO.csv`
+- `neptune/edges/REVERSES.csv`
 - `neptune/edges/SEEN_AT.csv`
 - `neptune/edges/SETTLES.csv`
 - `neptune/edges/WITH_CARD.csv`
 - `neptune/nodes/Acquirer.csv`
 - `neptune/nodes/Arbitration.csv`
+- `neptune/nodes/Authentication.csv`
 - `neptune/nodes/Authorization.csv`
 - `neptune/nodes/BinRange.csv`
 - `neptune/nodes/Capture.csv`
@@ -63,6 +66,7 @@ Files:
 - `neptune/nodes/Representment.csv`
 - `neptune/nodes/ResponseCode.csv`
 - `neptune/nodes/RetrievalRequest.csv`
+- `neptune/nodes/Reversal.csv`
 - `neptune/nodes/Settlement.csv`
 - `neptune/schema.json`
 - `opensearch/chunks.json`

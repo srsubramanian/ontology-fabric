@@ -95,6 +95,53 @@
             "title": "Arbitration",
             "type": "object"
         },
+        "Authentication": {
+            "additionalProperties": false,
+            "description": "The issuer checking that the cardholder is who they say, before an authorization, such as a 3-D Secure attempt.",
+            "properties": {
+                "authenticated_at": {
+                    "description": "When the cardholder was authenticated.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "authentication_result": {
+                    "$ref": "#/$defs/AuthenticationResult",
+                    "description": "How an authentication ended, as EMV 3-D Secure's final transaction status reports it."
+                },
+                "challenged": {
+                    "description": "Whether the issuer challenged the cardholder, such as with a one-time code, rather than letting the payment through without friction.",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "authentication_result",
+                "id"
+            ],
+            "title": "Authentication",
+            "type": "object"
+        },
+        "AuthenticationResult": {
+            "description": "How a cardholder authentication ended, following EMV 3-D Secure's final transaction status.",
+            "enum": [
+                "authenticated",
+                "attempted",
+                "not_authenticated",
+                "rejected",
+                "unavailable"
+            ],
+            "title": "AuthenticationResult",
+            "type": "string"
+        },
         "Authorization": {
             "additionalProperties": false,
             "description": "The issuer's approval or decline of a payment request.",
@@ -110,6 +157,13 @@
                     "description": "Where an authorization was requested.",
                     "type": "string"
                 },
+                "authenticated_by": {
+                    "description": "The authentication an authorization relied on.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
                 "authorized_at": {
                     "description": "When the issuer answered.",
                     "format": "date-time",
@@ -121,6 +175,10 @@
                 "channel": {
                     "$ref": "#/$defs/Channel",
                     "description": "Whether the card was present."
+                },
+                "credential": {
+                    "$ref": "#/$defs/Credential",
+                    "description": "What stood in for the card number in an authorization."
                 },
                 "currency": {
                     "description": "The transaction currency, as an ISO 4217 alphabetic code such as USD.",
@@ -144,6 +202,14 @@
                 "id": {
                     "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
                     "type": "string"
+                },
+                "token_requestor": {
+                    "description": "The Token Requestor ID of the wallet or merchant a network token was issued to: 11 digits, assigned under EMVCo's payment tokenisation.",
+                    "pattern": "^\\d{11}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
                 },
                 "with_card": {
                     "description": "The card an authorization used.",
@@ -169,6 +235,18 @@
                         "string",
                         "null"
                     ]
+                },
+                "country": {
+                    "description": "A country, as an ISO 3166-1 alpha-2 code such as US: where a merchant trades, or where a BIN range is licensed.",
+                    "pattern": "^[A-Z]{2}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "funding_source": {
+                    "$ref": "#/$defs/FundingSource",
+                    "description": "Where the money behind the cards in a BIN range comes from, as the network's BIN table reports it."
                 },
                 "id": {
                     "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
@@ -388,6 +466,16 @@
             ],
             "title": "Chunk",
             "type": "object"
+        },
+        "Credential": {
+            "description": "What stood in for the card number in an authorization.",
+            "enum": [
+                "pan",
+                "card_on_file_token",
+                "wallet_token"
+            ],
+            "title": "Credential",
+            "type": "string"
         },
         "Device": {
             "additionalProperties": false,
@@ -644,6 +732,16 @@
             "title": "FraudReport",
             "type": "object"
         },
+        "FundingSource": {
+            "description": "Where the money behind a card comes from, as networks' BIN tables report it.",
+            "enum": [
+                "credit",
+                "debit",
+                "prepaid"
+            ],
+            "title": "FundingSource",
+            "type": "string"
+        },
         "Issuer": {
             "additionalProperties": false,
             "description": "The bank that issues cards and approves or declines their authorizations.",
@@ -665,6 +763,14 @@
             "properties": {
                 "acquired_by": {
                     "description": "A merchant's acquiring bank.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "country": {
+                    "description": "A country, as an ISO 3166-1 alpha-2 code such as US: where a merchant trades, or where a BIN range is licensed.",
+                    "pattern": "^[A-Z]{2}$",
                     "type": [
                         "string",
                         "null"
@@ -1127,6 +1233,49 @@
             "title": "RetrievalRequest",
             "type": "object"
         },
+        "Reversal": {
+            "additionalProperties": false,
+            "description": "The acquirer cancelling all or part of an authorization, so the issuer releases the hold on the cardholder's funds.",
+            "properties": {
+                "amount": {
+                    "description": "The amount, in the transaction currency.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "currency": {
+                    "description": "The transaction currency, as an ISO 4217 alphabetic code such as USD.",
+                    "pattern": "^[A-Z]{3}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "reversed_at": {
+                    "description": "When the acquirer sent the reversal.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "reverses": {
+                    "description": "The authorization a reversal cancels.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "reverses",
+                "id"
+            ],
+            "title": "Reversal",
+            "type": "object"
+        },
         "Settlement": {
             "additionalProperties": false,
             "description": "Funds moving between the banks for a batch of captures.",
@@ -1174,5 +1323,5 @@
     "metamodel_version": "1.11.0",
     "title": "payments",
     "type": "object",
-    "version": "1.8.0"
+    "version": "1.9.0"
 }

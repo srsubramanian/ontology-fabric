@@ -30,7 +30,13 @@
       "code": {
         "type": "keyword"
       },
+      "country": {
+        "type": "keyword"
+      },
       "currency": {
+        "type": "keyword"
+      },
+      "funding_source": {
         "type": "keyword"
       },
       "mcc": {

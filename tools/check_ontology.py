@@ -7,8 +7,9 @@
   direction, read-only, and a LIMIT. In SQL, each walked step is marked on its line.
 - Every concrete class has the annotations the class explorer reads.
 - Every concrete class maps to a standard concept, or says why none fits (no_standard).
-  Every mapping uses a declared standard prefix, and the schema records the FIBO and
-  OMG Commons releases the mappings were checked against (decision 9).
+  Every mapping, on a class, slot, enum or enum value, uses a declared standard prefix,
+  and the schema records the FIBO and OMG Commons releases the mappings were checked
+  against (decision 9).
 - The class explorer (web/src/explorer/model.ts) reads every class the way LinkML's
   SchemaView does: the same label chain and the same inherited slots. Needs Node 22.6
   or later and `npm install` in web/; skipped, with a note, without them.
@@ -184,7 +185,9 @@ def main():
 
     schema = sv.schema
     pins = {k: v.value for k, v in (schema.annotations or {}).items()}
-    for kind, elements in (("class", sv.all_classes()), ("slot", sv.all_slots()), ("enum", sv.all_enums())):
+    values = {f"{e}.{v}": pv for e, enum in sv.all_enums().items() for v, pv in (enum.permissible_values or {}).items()}
+    for kind, elements in (("class", sv.all_classes()), ("slot", sv.all_slots()), ("enum", sv.all_enums()),
+                           ("value", values)):
         for name, el in elements.items():
             for curie in el.close_mappings or []:
                 prefix = curie.partition(":")[0]

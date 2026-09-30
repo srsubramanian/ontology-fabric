@@ -766,33 +766,70 @@ questions:
   - id: CQ-54
     domain: authorization
     question: Which authorizations were authenticated with 3-D Secure, and did the challenge succeed?
+    walks: [Authorization.authenticated_by, Authorization.at_merchant]
     answered_in: snowflake
-    gap: >-
-      Authentication isn't modelled: no 3-D Secure attempt, result or ECI value on an
-      authorization.
+    query: |
+      SELECT m.merchant_id, m.name,
+             COUNT(*) AS authenticated,
+             COUNT_IF(n.challenged) AS challenged,
+             COUNT_IF(n.challenged AND n.authentication_result = 'authenticated') / NULLIF(COUNT_IF(n.challenged), 0) AS challenge_success
+      FROM fct_authorization a
+      JOIN fct_authentication n ON n.authentication_id = a.authentication_id   -- Authorization.authenticated_by
+      JOIN dim_merchant m ON m.merchant_id = a.merchant_id                    -- Authorization.at_merchant
+      WHERE a.authorized_at >= DATEADD('day', -30, CURRENT_DATE)
+      GROUP BY 1, 2
+      ORDER BY authenticated DESC
+      LIMIT 50;
 
   - id: CQ-55
     domain: authorization
     question: Which authorizations were reversed before capture?
+    walks: [Reversal.reverses, Capture.captures]
     answered_in: snowflake
-    gap: >-
-      Reversals aren't modelled. ISO 20022's ReversalInitiation (cain.005) could map a reversal
-      event.
+    query: |
+      SELECT a.authorization_id, a.merchant_id, a.amount AS authorized,
+             r.amount AS reversed, r.reversed_at
+      FROM fct_reversal r
+      JOIN fct_authorization a ON a.authorization_id = r.authorization_id   -- Reversal.reverses
+      LEFT JOIN fct_capture c ON c.authorization_id = a.authorization_id    -- Capture.captures
+      WHERE r.reversed_at >= DATEADD('day', -30, CURRENT_DATE)
+        AND (c.capture_id IS NULL OR c.captured_at > r.reversed_at)
+      ORDER BY r.reversed_at DESC
+      LIMIT 100;
 
   - id: CQ-56
     domain: authorization
     question: Which authorizations used a network token or a digital wallet?
+    walks: [Authorization.at_merchant]
     answered_in: snowflake
-    gap: >-
-      A card is identified by a token, but there's no token type, token requestor or wallet.
+    query: |
+      SELECT m.merchant_id, m.name, a.credential, a.token_requestor,
+             COUNT(*) AS authorizations
+      FROM fct_authorization a
+      JOIN dim_merchant m ON m.merchant_id = a.merchant_id   -- Authorization.at_merchant
+      WHERE a.credential IN ('card_on_file_token', 'wallet_token')
+        AND a.authorized_at >= DATEADD('day', -30, CURRENT_DATE)
+      GROUP BY 1, 2, 3, 4
+      ORDER BY authorizations DESC
+      LIMIT 100;
 
   - id: CQ-57
     domain: authorization
     question: How do approval rates differ between domestic and cross-border authorizations?
+    walks: [Authorization.at_merchant, Authorization.with_card, Card.in_bin_range, Authorization.has_response]
     answered_in: snowflake
-    gap: >-
-      Merchants, issuers and cards have no country, so cross-border can't be told from
-      domestic. ISO 3166 codes would fill it.
+    query: |
+      SELECT IFF(m.country = b.country, 'domestic', 'cross-border') AS corridor,
+             COUNT(*) AS authorizations,
+             COUNT_IF(a.response_code = '00') / COUNT(*) AS approval_rate   -- Authorization.has_response
+      FROM fct_authorization a
+      JOIN dim_merchant m ON m.merchant_id = a.merchant_id    -- Authorization.at_merchant
+      JOIN dim_card c ON c.card_id = a.card_id                -- Authorization.with_card
+      JOIN dim_bin_range b ON b.bin_id = c.bin_id             -- Card.in_bin_range
+      WHERE a.authorized_at >= DATEADD('day', -30, CURRENT_DATE)
+      GROUP BY 1
+      ORDER BY 1
+      LIMIT 10;
 
   - id: CQ-58
     domain: authorization
@@ -804,9 +841,19 @@ questions:
   - id: CQ-59
     domain: authorization
     question: What share of authorizations were on credit, debit and prepaid cards?
+    walks: [Authorization.with_card, Card.in_bin_range]
     answered_in: snowflake
-    gap: >-
-      A card has no product type. FIBO's CreditCard and DebitCard could map one.
+    query: |
+      SELECT b.funding_source,
+             COUNT(*) AS authorizations,
+             RATIO_TO_REPORT(COUNT(*)) OVER () AS share
+      FROM fct_authorization a
+      JOIN dim_card c ON c.card_id = a.card_id                -- Authorization.with_card
+      JOIN dim_bin_range b ON b.bin_id = c.bin_id             -- Card.in_bin_range
+      WHERE a.authorized_at >= DATEADD('day', -30, CURRENT_DATE)
+      GROUP BY 1
+      ORDER BY authorizations DESC
+      LIMIT 10;
 
   - id: CQ-60
     domain: authorization
