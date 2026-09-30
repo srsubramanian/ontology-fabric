@@ -9,7 +9,7 @@
    - the two coverage numbers.
 
    While there, bring chapter 1's building-blocks deep dive in line with decision 6: its "Four forms" step still says only the Turtle and SHACL are written by hand, where with LinkML only the YAML is.
-2. **Write the "what lives where" rules for settlement and fees.** Disputes and authorization are settled (decision 2): pull in what a dispute or fraud report touches, and use daily summary edges for wider walks. Settlement and fees still need rules for when a record is pulled into Neptune.
+2. **Write the "what lives where" rule for fees.** Disputes, authorization and settlement are settled (decision 2): pull in what a dispute or fraud report touches, with its capture and settlement, and use daily summary edges for wider walks. Fees still need a rule.
 3. **Decide whether to add the ontology's "actions"** (binding ontology terms to MCP tools) in a later phase.
 
 ## Next steps for the prototype
