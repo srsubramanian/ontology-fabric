@@ -7,6 +7,8 @@
    - layered ownership (core, domain modules, team extensions);
    - review windows;
    - the two coverage numbers.
+
+   While there, bring chapter 1's building-blocks deep dive in line with decision 6: its "Four forms" step still says only the Turtle and SHACL are written by hand, where with LinkML only the YAML is.
 2. **Pick a durable execution engine** for the extraction pipeline's human reviews: Temporal's LangGraph plugin (preview), another orchestrator, or LangGraph with a Postgres checkpointer plus restart handling.
 3. **Write the "what lives where" rules for each domain.** Disputes are settled. Authorization, settlement and fees still need rules for when a record is pulled into Neptune.
 4. **Decide how Snowflake is called:** through the Snowflake-managed MCP server (Cortex Analyst over semantic views), or through a connector running reviewed SQL templates. The latter is what the retrieval page shows.
@@ -35,6 +37,5 @@ Follow the build order in Chapter 7 of `site/platform.html`, with the changes re
 ## Housekeeping
 
 - Decision 8 says "SHACL 1.2 and RDF 1.2 are still drafts". SHACL 1.2 is; RDF 1.2 Concepts has been a Candidate Recommendation since 7 April 2026 (see the research notes). Waiting still holds, but the wording needs a touch.
-
 - The published copies of the platform and retrieval pages on claude.ai predate the React port and don't link to the class explorer. Republish them from `main`, keeping their URLs.
 - If the repository becomes public: the earlier "About the owner" text is still in git history, and "13 teams" appears in `site/platform.html` and `docs/handoff.md`.

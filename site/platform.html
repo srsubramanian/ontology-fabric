@@ -2010,7 +2010,7 @@ pay:ChargebackShape a sh:NodeShape ;
   <h3 class="sech" id="phh">Build order</h3>
   <p class="intro">Get the graph right before adding search, and search right before adding agents. Each phase has a test that tells you it's done.</p>
   <ol class="phases">
-    <li><div><h3>Ontology core and generator</h3><p>Model 15 to 25 core classes: parties, instruments, lifecycle events, reason codes. Build the SHACL gate and a generator that emits Neptune CSV headers, the extraction schema and OpenSearch mappings. <a href="#v1">See how v1 is made.</a></p><p class="done"><b>Done when</b> renaming a class in Turtle regenerates every artifact, and CI fails if a committed artifact is stale.</p></div></li>
+    <li><div><h3>Ontology core and generator</h3><p>Model 15 to 25 core classes: parties, instruments, lifecycle events, reason codes. Build the SHACL gate and a generator that emits Neptune CSV headers, the extraction schema and OpenSearch mappings. <a href="#v1">See how v1 is made.</a></p><p class="done"><b>Done when</b> renaming a class in the LinkML source regenerates every artifact, and CI fails if a committed artifact is stale.</p></div></li>
     <li><div><h3>Graph first</h3><p>Load one month of disputes into Neptune with deterministic IDs, plus the parties, cards and events they touch. Leave the full authorization stream in the lake. Answer chargeback lineage questions by hand in Cypher before any LLM is involved.</p><p class="done"><b>Done when</b> reloading the same month changes nothing, and the lineage queries return what your dispute team expects.</p></div></li>
     <li><div><h3>Search layer</h3><p>Deploy the stream poller and the entities index, then the chunks index for network rules and runbooks. Build hybrid search that returns Neptune IDs.</p><p class="done"><b>Done when</b> misspelled merchant names and bare codes resolve to the right Neptune IDs.</p></div></li>
     <li><div><h3>Retrieval service and agents</h3><p>Start from AWS Labs’ BYOKG-RAG, put the tools behind AgentCore Gateway and Policy, and add ontology-checked Cypher where it falls short. Collect real questions from dispute and operations teams as an evaluation set before tuning anything.</p><p class="done"><b>Done when</b> the evaluation set passes at a threshold those teams agreed to.</p></div></li>
@@ -2094,7 +2094,7 @@ pay:ChargebackShape a sh:NodeShape ;
   const OWN = { onto:'var(--onto)', graph:'var(--graph)', search:'var(--search)', query:'var(--query)' };
 
   const NODES = [
-    {id:'ontsrc', x:20,  y:50,  h:54, t:'Ontology source', s:'OWL and Turtle in Git', o:'onto'},
+    {id:'ontsrc', x:20,  y:50,  h:54, t:'Ontology source', s:'LinkML in Git', o:'onto'},
     {id:'repos',  x:20,  y:180, h:54, t:'Code repositories', s:'JPA, OpenAPI, Avro'},
     {id:'events', x:20,  y:280, h:54, t:'Payment events', s:'ISO 8583 and 20022'},
     {id:'docs',   x:20,  y:380, h:54, t:'Documents', s:'Rules and runbooks'},
@@ -2145,7 +2145,7 @@ pay:ChargebackShape a sh:NodeShape ;
   const FLOWS = {
     design: { name:'Design time', color:'var(--onto)', steps:[
       { title:'Change the ontology', nodes:['ontsrc','gen'], hops:[['d1']],
-        text:'A domain owner merges a pull request to the Turtle files. CI runs the SHACL shapes and the generator; a failing check stops the release before anything reaches a store.' },
+        text:'A domain owner merges a pull request to the LinkML source. CI regenerates the OWL, the SHACL shapes and every other artifact, and checks sample data against the shapes; a failing check stops the release before anything reaches a store.' },
       { title:'Generate every schema from one source', nodes:['gen','neptune','extract','opensearch'], hops:[['d4','d5','d6']],
         text:'The generator emits Neptune label chains and bulk-loader CSV headers, the schema the LLM must extract against, and the OpenSearch index mappings plus the ontology index. Both stores get their schema from the same build, so they cannot drift apart.' },
       { title:'Publish the release', nodes:['gen','pub','partners'], hops:[['d2'],['d3']],
@@ -2161,7 +2161,7 @@ pay:ChargebackShape a sh:NodeShape ;
       { title:'Store chunk text in OpenSearch', nodes:['extract','opensearch','neptune'], hops:[['i7']],
         text:'Chunk text and vectors go to the chunks index. Neptune gets only a small :Chunk node with MENTIONS edges to the entities it names, so any answer traces back to its source without storing text twice.' },
       { title:'Propose ontology changes', nodes:['extract','ontsrc'], hops:[['i9']],
-        text:'When code shows something the ontology lacks, such as a new dispute state or enum value, the pipeline opens a pull request against the Turtle files. A person accepts it; the ontology never changes on its own.' }
+        text:'When code shows something the ontology lacks, such as a new dispute state or enum value, the pipeline opens a pull request against the LinkML source. A person accepts it; the ontology never changes on its own.' }
     ]},
     sync: { name:'Sync', color:'var(--search)', steps:[
       { title:'Capture the change', nodes:['neptune','poller'], hops:[['y1']],
@@ -2186,7 +2186,7 @@ pay:ChargebackShape a sh:NodeShape ;
   };
 
   const DETAIL = {
-    ontsrc:{ title:'Ontology source', what:'The product itself: payment classes, relationship types and properties in OWL and Turtle, plus SHACL shapes that define valid data. People write and approve it; the extraction pipeline only proposes changes as pull requests.',
+    ontsrc:{ title:'Ontology source', what:'The product itself: payment classes, relationship types, properties and rules in LinkML, from which the OWL and the SHACL shapes that define valid data are generated. People write and approve it; the extraction pipeline only proposes changes as pull requests.',
       holds:['Class hierarchy, such as Chargeback under DisputeEvent under PaymentEvent','Allowed relationships and their direction','Property types and code lists','Mappings back to ISO 8583 data elements'],
       watch:'Treat renamed or removed classes as major versions. Every consumer, including your own indexes, pins a version.' },
     gen:{ title:'Schema generator', holdsLabel:'Outputs', what:'A CI job, rdflib plus templates, that turns the ontology into every schema the runtime needs, so nobody writes a schema by hand twice.',
