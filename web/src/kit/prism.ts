@@ -5,8 +5,7 @@ import 'prismjs/components/prism-cypher';
 import 'prismjs/components/prism-yaml';
 import 'prismjs/components/prism-sql';
 
-// Custom grammars (docs/style-guide.md). The one only an unported platform chapter uses,
-// cedar, still lives in web/src/platform/legacy/ and moves here when its chapter is ported.
+// Custom grammars (docs/style-guide.md).
 
 /** An OpenSearch request: the method and path, then a JSON body. */
 Prism.languages.opensearch = Prism.languages.extend('json', {});
@@ -34,6 +33,16 @@ Prism.languages.walktext = {
 Prism.languages.tsq = {
   comment: /;.*/, string: /"[^"]*"/, variable: /@[\w.]+/, function: /#[\w?!-]+/,
   property: /\b[a-z_]+(?=:)/, keyword: { pattern: /(\()[a-z_]+/, lookbehind: true }, punctuation: /[()\[\]:]/,
+};
+
+/** An AgentCore Policy rule in Cedar: permit and forbid, entity types, conditions. */
+Prism.languages.cedar = {
+  comment: /\/\/.*/,
+  string: { pattern: /"[^"]*"/, greedy: true },
+  'class-name': /\b[A-Z]\w*(?=::)/,
+  keyword: /\b(?:permit|forbid|when|unless|in|like|principal|action|resource|context)\b/,
+  punctuation: /[()\[\]{};,.:]/,
+  operator: /==|!=|&&|\|\|/,
 };
 
 /** A file tree drawn with box characters, with a note after two or more spaces. */
