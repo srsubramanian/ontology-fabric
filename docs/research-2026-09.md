@@ -101,7 +101,7 @@ What changed around this build, and what the pages rely on. Every finding below 
 
 ### Prototype step 1: the draft mapped to pinned releases (checked 2026-09-30)
 
-The schema pins FIBO 2026 Q2 and OMG Commons 20250801 in its annotations. Each ISO 20022 mapping names a message version. `tools/check_ontology.py` reports 13 of 21 concrete classes mapped: FIBO 7, ISO 20022 4, OMG Commons 2. The other eight say why no standard concept fits.
+The schema pins FIBO 2026 Q2 and OMG Commons 20250801 in its annotations. Each ISO 20022 mapping names a message version. `tools/check_ontology.py` reported 13 of 21 concrete classes mapped: FIBO 7, ISO 20022 4, OMG Commons 2. The other eight say why no standard concept fits. Version 1.8.0 adds RetrievalRequest (ISO 20022, below), Arbitration and DisputeOutcome, for 14 of 24.
 
 - **FIBO 2026 Q2 has a card module**, LOAN "Card Accounts" (`fibo-loan-spc-crd`). It was read from the release's own modules: 155 files, each with a `versionIRI` under `master/2026Q2`. https://spec.edmcouncil.org/fibo/ontology/LOAN/LoansSpecific/CardAccounts/
   - `PaymentCard`: "legal document issued by a financial services provider that enables the cardholder to access the funds…" (a `cmns-doc:LegalDocument`). Card maps to it.
@@ -130,6 +130,11 @@ Some gaps in `ontology/competency-questions.yaml` name the standard concept that
 
 - **ISO 20022 card messages**, read from the message definitions page: `cain.005.001.05` ReversalInitiationV05 (authorization reversals), `cain.021.001.04` RetrievalInitiationV04 (retrieval requests), `caad.005.001.05` ReconciliationInitiationV05 (reconciliation) and `cafc.001.001.04` FeeCollectionInitiationV04 (network fees). https://www.iso20022.org/iso-20022-message-definitions
 - **FIBO 2026 Q2 card products:** the card module defines `CreditCard` and `DebitCard`, plus `CardProduct`, but no prepaid card. A card product type could map to them. https://spec.edmcouncil.org/fibo/ontology/master/2026Q2/LOAN/LoansSpecific/CardAccounts.rdf
+- **The dispute lifecycle (version 1.8.0):**
+  - `cain.021.001.04` RetrievalInitiationV04 "is sent by an issuer or agent to an acquirer to retrieve the original transaction details". RetrievalRequest maps to it. https://www.mx-message.com/m/cain-021-001-04
+  - After a representment, both Visa and Mastercard have a pre-arbitration step, then arbitration, where the network's ruling is binding. In arbitration the acquirer stands for the merchant and the issuer for the cardholder, so an outcome records which of the two won. A side that misses its response window loses the case by default. https://www.chargeflow.io/blog/pre-arbitration-chargeback-merchants-guide-prevent-revenue-loss and https://stripe.com/resources/more/chargeback-arbitration-how-the-process-works-across-card-networks
+  - Response windows differ by network and stage (Chargeflow reports roughly 10 days for a Visa pre-arbitration response, with no fixed window at Mastercard as of late 2024), so the schema stores each step's `respond_by` date rather than a rule.
+  - No ISO 20022 card message stands for a dispute's outcome or for arbitration, going by the message list above.
 - **Fraud type:** issuers report one with each fraud report. Visa's is the TC40. Mastercard's SAFE is now formally the Fraud and Loss Database, whose confirmed-fraud types added type 57, first-party misuse, from 27 October 2024. https://developer.mastercard.com/fld-fraud-submission/documentation/parameters/annexure-1/ and https://chargebacks911.com/mastercard-safe/
 
 ## Claude Code

@@ -6,6 +6,61 @@
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
+pay:Arbitration a sh:NodeShape ;
+    rdfs:comment "Either side asking the card network to decide a dispute that pre-arbitration didn't settle. The network's ruling is binding." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:decimal ;
+            sh:description "The amount, in the transaction currency." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path pay:amount ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "When the dispute step began." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:opened_at ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path pay:respond_by ],
+        [ sh:class pay:DisputeEvent ;
+            sh:description "The earlier dispute event this one answers." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 6 ;
+            sh:path pay:responds_to ],
+        [ sh:class pay:ReasonCode ;
+            sh:description "The network reason codes behind a dispute." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path pay:has_reason ],
+        [ sh:datatype xsd:string ;
+            sh:description "The transaction currency, as an ISO 4217 alphabetic code such as USD." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path pay:currency ;
+            sh:pattern "^[A-Z]{3}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path pay:id ],
+        [ sh:class pay:Capture ;
+            sh:description "Links a dispute event to the capture it contests." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path pay:disputes ] ;
+    sh:targetClass pay:Arbitration .
+
 pay:Chargeback a sh:NodeShape ;
     rdfs:label "Chargeback" ;
     rdfs:comment "A dispute event in which the issuer, through the card network, reverses all or part of a captured transaction for the cardholder." ;
@@ -15,14 +70,21 @@ pay:Chargeback a sh:NodeShape ;
             sh:description "The earlier dispute event this one answers." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:IRI ;
-            sh:order 3 ;
+            sh:order 6 ;
             sh:path pay:responds_to ],
-        [ sh:class pay:ReasonCode ;
-            sh:description "The network reason codes behind a dispute." ;
+        [ sh:datatype xsd:decimal ;
+            sh:description "The amount, in the transaction currency." ;
+            sh:maxCount 1 ;
             sh:minCount 1 ;
-            sh:nodeKind sh:IRI ;
+            sh:nodeKind sh:Literal ;
             sh:order 2 ;
-            sh:path pay:has_reason ],
+            sh:path pay:amount ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path pay:respond_by ],
         [ sh:datatype xsd:dateTime ;
             sh:description "When the dispute step began." ;
             sh:maxCount 1 ;
@@ -30,18 +92,32 @@ pay:Chargeback a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path pay:opened_at ],
+        [ sh:class pay:ReasonCode ;
+            sh:description "The network reason codes behind a dispute." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path pay:has_reason ],
         [ sh:datatype xsd:string ;
             sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 4 ;
+            sh:order 7 ;
             sh:path pay:id ],
+        [ sh:datatype xsd:string ;
+            sh:description "The transaction currency, as an ISO 4217 alphabetic code such as USD." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path pay:currency ;
+            sh:pattern "^[A-Z]{3}$" ],
         [ sh:class pay:Capture ;
             sh:description "Links a dispute event to the capture it contests." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:IRI ;
-            sh:order 1 ;
+            sh:order 4 ;
             sh:path pay:disputes ] ;
     sh:targetClass pay:Chargeback .
 
@@ -65,6 +141,74 @@ pay:Chunk a sh:NodeShape ;
             sh:order 0 ;
             sh:path pay:id ] ;
     sh:targetClass pay:Chunk .
+
+pay:DisputeOutcome a sh:NodeShape ;
+    rdfs:comment "The event that closes a dispute: which side won, how it ended, and the amount that finally went back to the cardholder. It answers the dispute's last step, and links to the disputed capture, as the chargeback does." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:dateTime ;
+            sh:description "When the dispute step began." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path pay:opened_at ],
+        [ sh:datatype xsd:decimal ;
+            sh:description "The amount, in the transaction currency." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path pay:amount ],
+        [ sh:class pay:ReasonCode ;
+            sh:description "The network reason codes behind a dispute." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 7 ;
+            sh:path pay:has_reason ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path pay:respond_by ],
+        [ sh:class pay:DisputeEvent ;
+            sh:description "The earlier dispute event this one answers." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 8 ;
+            sh:path pay:responds_to ],
+        [ sh:description "How a dispute ended." ;
+            sh:in ( "accepted" "withdrawn" "ruled" "timed_out" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 1 ;
+            sh:path pay:closure ],
+        [ sh:description "The side a dispute ended in favor of." ;
+            sh:in ( "issuer" "acquirer" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path pay:won_by ],
+        [ sh:datatype xsd:string ;
+            sh:description "The transaction currency, as an ISO 4217 alphabetic code such as USD." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path pay:currency ;
+            sh:pattern "^[A-Z]{3}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path pay:id ],
+        [ sh:class pay:Capture ;
+            sh:description "Links a dispute event to the capture it contests." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 6 ;
+            sh:path pay:disputes ] ;
+    sh:targetClass pay:DisputeOutcome .
 
 pay:FraudReport a sh:NodeShape ;
     rdfs:comment "An issuer reporting an authorization as fraud to the network." ;
@@ -140,7 +284,7 @@ pay:Party a sh:NodeShape ;
 pay:PaymentEvent a sh:NodeShape ;
     rdfs:comment "Something that happened to a payment, at a time. Each step is its own event, instead of a status field that keeps being overwritten." ;
     sh:closed false ;
-    sh:ignoredProperties ( rdf:type pay:amount pay:at_merchant pay:authorized_at pay:captured_at pay:captures pay:channel pay:currency pay:disputes pay:from_device pay:has_evidence pay:has_reason pay:has_response pay:opened_at pay:refunded_at pay:refunds pay:reported_at pay:reports pay:responds_to pay:settled_at pay:settles pay:with_card ) ;
+    sh:ignoredProperties ( rdf:type pay:amount pay:at_merchant pay:authorized_at pay:captured_at pay:captures pay:channel pay:closure pay:currency pay:disputes pay:from_device pay:has_evidence pay:has_reason pay:has_response pay:opened_at pay:refunded_at pay:refunds pay:reported_at pay:reports pay:respond_by pay:responds_to pay:settled_at pay:settles pay:with_card pay:won_by ) ;
     sh:property [ sh:datatype xsd:string ;
             sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
             sh:maxCount 1 ;
@@ -176,35 +320,54 @@ pay:PreArbitration a sh:NodeShape ;
     rdfs:comment "Issuer challenges the merchant's response before arbitration." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class pay:ReasonCode ;
-            sh:description "The network reason codes behind a dispute." ;
-            sh:nodeKind sh:IRI ;
+    sh:property [ sh:datatype xsd:decimal ;
+            sh:description "The amount, in the transaction currency." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
             sh:order 2 ;
-            sh:path pay:has_reason ],
+            sh:path pay:amount ],
         [ sh:datatype xsd:dateTime ;
             sh:description "When the dispute step began." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path pay:opened_at ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path pay:respond_by ],
         [ sh:class pay:DisputeEvent ;
             sh:description "The earlier dispute event this one answers." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:IRI ;
-            sh:order 3 ;
+            sh:order 6 ;
             sh:path pay:responds_to ],
+        [ sh:class pay:ReasonCode ;
+            sh:description "The network reason codes behind a dispute." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path pay:has_reason ],
+        [ sh:datatype xsd:string ;
+            sh:description "The transaction currency, as an ISO 4217 alphabetic code such as USD." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path pay:currency ;
+            sh:pattern "^[A-Z]{3}$" ],
         [ sh:datatype xsd:string ;
             sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 4 ;
+            sh:order 7 ;
             sh:path pay:id ],
         [ sh:class pay:Capture ;
             sh:description "Links a dispute event to the capture it contests." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:IRI ;
-            sh:order 1 ;
+            sh:order 4 ;
             sh:path pay:disputes ] ;
     sh:targetClass pay:PreArbitration .
 
@@ -251,6 +414,12 @@ pay:Representment a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:dateTime ;
+            sh:description "When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path pay:respond_by ],
+        [ sh:datatype xsd:dateTime ;
             sh:description "When the dispute step began." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -261,31 +430,99 @@ pay:Representment a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:IRI ;
-            sh:order 4 ;
+            sh:order 7 ;
             sh:path pay:responds_to ],
         [ sh:class pay:ReasonCode ;
             sh:description "The network reason codes behind a dispute." ;
             sh:nodeKind sh:IRI ;
-            sh:order 3 ;
+            sh:order 6 ;
             sh:path pay:has_reason ],
+        [ sh:datatype xsd:decimal ;
+            sh:description "The amount, in the transaction currency." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path pay:amount ],
+        [ sh:datatype xsd:string ;
+            sh:description "The transaction currency, as an ISO 4217 alphabetic code such as USD." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path pay:currency ;
+            sh:pattern "^[A-Z]{3}$" ],
         [ sh:class pay:Document ;
             sh:description "Documents sent as evidence." ;
             sh:nodeKind sh:IRI ;
             sh:order 0 ;
             sh:path pay:has_evidence ],
-        [ sh:class pay:Capture ;
-            sh:description "Links a dispute event to the capture it contests." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:IRI ;
-            sh:order 2 ;
-            sh:path pay:disputes ],
         [ sh:datatype xsd:string ;
             sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path pay:id ],
+        [ sh:class pay:Capture ;
+            sh:description "Links a dispute event to the capture it contests." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
             sh:order 5 ;
-            sh:path pay:id ] ;
+            sh:path pay:disputes ] ;
     sh:targetClass pay:Representment .
+
+pay:RetrievalRequest a sh:NodeShape ;
+    rdfs:comment "The issuer asking the acquirer for the original transaction details, often before it decides whether to dispute." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:decimal ;
+            sh:description "The amount, in the transaction currency." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path pay:amount ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "When the dispute step began." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:opened_at ],
+        [ sh:class pay:DisputeEvent ;
+            sh:description "The earlier dispute event this one answers." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 6 ;
+            sh:path pay:responds_to ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path pay:respond_by ],
+        [ sh:class pay:ReasonCode ;
+            sh:description "The network reason codes behind a dispute." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path pay:has_reason ],
+        [ sh:datatype xsd:string ;
+            sh:description "The transaction currency, as an ISO 4217 alphabetic code such as USD." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path pay:currency ;
+            sh:pattern "^[A-Z]{3}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path pay:id ],
+        [ sh:class pay:Capture ;
+            sh:description "Links a dispute event to the capture it contests." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path pay:disputes ] ;
+    sh:targetClass pay:RetrievalRequest .
 
 pay:Settlement a sh:NodeShape ;
     rdfs:comment "Funds moving between the banks for a batch of captures." ;
@@ -571,14 +808,15 @@ pay:PartyRole a sh:NodeShape ;
     sh:targetClass pay:PartyRole .
 
 pay:DisputeEvent a sh:NodeShape ;
-    rdfs:comment "A step in a dispute over a captured transaction." ;
+    rdfs:comment "A step in a dispute over a captured transaction. Each step carries the amount in dispute and, while it waits for an answer, the date the other side must respond by." ;
     sh:closed false ;
-    sh:ignoredProperties ( rdf:type pay:has_evidence ) ;
-    sh:property [ sh:class pay:ReasonCode ;
-            sh:description "The network reason codes behind a dispute." ;
-            sh:nodeKind sh:IRI ;
+    sh:ignoredProperties ( rdf:type pay:closure pay:has_evidence pay:won_by ) ;
+    sh:property [ sh:datatype xsd:decimal ;
+            sh:description "The amount, in the transaction currency." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
             sh:order 2 ;
-            sh:path pay:has_reason ],
+            sh:path pay:amount ],
         [ sh:datatype xsd:dateTime ;
             sh:description "When the dispute step began." ;
             sh:maxCount 1 ;
@@ -589,19 +827,37 @@ pay:DisputeEvent a sh:NodeShape ;
             sh:description "The earlier dispute event this one answers." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:IRI ;
-            sh:order 3 ;
+            sh:order 6 ;
             sh:path pay:responds_to ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path pay:respond_by ],
+        [ sh:class pay:ReasonCode ;
+            sh:description "The network reason codes behind a dispute." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path pay:has_reason ],
+        [ sh:datatype xsd:string ;
+            sh:description "The transaction currency, as an ISO 4217 alphabetic code such as USD." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path pay:currency ;
+            sh:pattern "^[A-Z]{3}$" ],
         [ sh:datatype xsd:string ;
             sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 4 ;
+            sh:order 7 ;
             sh:path pay:id ],
         [ sh:class pay:Capture ;
             sh:description "Links a dispute event to the capture it contests." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:IRI ;
-            sh:order 1 ;
+            sh:order 4 ;
             sh:path pay:disputes ] ;
     sh:targetClass pay:DisputeEvent .
 

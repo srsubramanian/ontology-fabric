@@ -26,7 +26,7 @@
 id: https://ontology.example.com/payments
 name: payments
 title: Payments ontology (illustrative draft)
-version: 1.7.0
+version: 1.8.0
 prefixes:
   pay: https://ontology.example.com/payments/
   linkml: https://w3id.org/linkml/
@@ -270,11 +270,29 @@ classes:
   DisputeEvent:
     is_a: PaymentEvent
     abstract: true
-    description: A step in a dispute over a captured transaction.
-    slots: [opened_at, disputes, has_reason, responds_to]
+    description: >-
+      A step in a dispute over a captured transaction. Each step carries the
+      amount in dispute and, while it waits for an answer, the date the other
+      side must respond by.
+    slots: [opened_at, respond_by, amount, currency, disputes, has_reason, responds_to]
     annotations:
       owner: disputes
       lives_in: graph
+
+  RetrievalRequest:
+    is_a: DisputeEvent
+    description: >-
+      The issuer asking the acquirer for the original transaction details,
+      often before it decides whether to dispute.
+    aliases: [copy request, request for copy]
+    close_mappings: [iso20022:cain.021.001.04]
+    slot_usage:
+      disputes:
+        required: true
+    annotations:
+      owner: disputes
+      lives_in: graph
+      id_rule: "rr:{retrieval_id}"
 
   Chargeback:
     is_a: DisputeEvent
@@ -291,11 +309,15 @@ classes:
         required: true
       opened_at:
         required: true
+      amount:
+        required: true
+      currency:
+        required: true
     annotations:
       owner: disputes
       lives_in: graph
       id_rule: "cb:{chargeback_id}"
-      example: "cb:1001, Aug 19, reason 10.4"
+      example: "cb:1001, Aug 19, reason 10.4, $42.50"
 
   Representment:
     is_a: DisputeEvent
@@ -327,6 +349,49 @@ classes:
       no_standard: >-
         Pre-arbitration is a card network rule, with no ISO 20022 message or
         FIBO concept of its own.
+
+  Arbitration:
+    is_a: DisputeEvent
+    description: >-
+      Either side asking the card network to decide a dispute that
+      pre-arbitration didn't settle. The network's ruling is binding.
+    aliases: [arbitration case]
+    slot_usage:
+      responds_to:
+        required: true
+    annotations:
+      owner: disputes
+      lives_in: graph
+      id_rule: "arb:{arbitration_id}"
+      no_standard: >-
+        Arbitration is a card network rule, with no ISO 20022 message or
+        FIBO concept of its own.
+
+  DisputeOutcome:
+    is_a: DisputeEvent
+    description: >-
+      The event that closes a dispute: which side won, how it ended, and the
+      amount that finally went back to the cardholder. It answers the
+      dispute's last step, and links to the disputed capture, as the
+      chargeback does.
+    aliases: [dispute resolution, case closure]
+    slots: [won_by, closure]
+    slot_usage:
+      disputes:
+        required: true
+      responds_to:
+        required: true
+      won_by:
+        required: true
+      closure:
+        required: true
+    annotations:
+      owner: disputes
+      lives_in: graph
+      id_rule: "out:{outcome_id}"
+      no_standard: >-
+        The ISO 20022 card messages carry the steps of a dispute, but none
+        stands for its outcome. Networks record it in their own case systems.
 
   # ---------- Codes and documents ----------
 
@@ -441,6 +506,17 @@ slots:
   opened_at:
     description: When the dispute step began.
     range: datetime
+  respond_by:
+    description: >-
+      When the other side must answer this step by, under the network's rules
+      for the stage. Missing it decides the dispute against that side.
+    range: datetime
+  won_by:
+    description: The side a dispute ended in favor of.
+    range: DisputeSide
+  closure:
+    description: How a dispute ended.
+    range: DisputeClosure
 
   # ---------- Relationships: one canonical direction each ----------
 
@@ -535,6 +611,26 @@ enums:
     permissible_values:
       card_present:
       card_not_present:
+
+  DisputeSide:
+    description: The two sides of a card dispute. Each bank stands in for its customer.
+    permissible_values:
+      issuer:
+        description: The issuer, for its cardholder.
+      acquirer:
+        description: The acquirer, for its merchant.
+
+  DisputeClosure:
+    description: How a dispute ended.
+    permissible_values:
+      accepted:
+        description: One side accepted the other's last step.
+      withdrawn:
+        description: The issuer withdrew the dispute, often because its cardholder did.
+      ruled:
+        description: The card network ruled in arbitration.
+      timed_out:
+        description: A side missed its deadline, so the dispute went against it.
 
   DocumentKind:
     description: Kinds of document the platform indexes.

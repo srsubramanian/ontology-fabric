@@ -332,42 +332,73 @@ questions:
   - id: CQ-27
     domain: disputes
     question: What is our win rate on representments, by reason code?
-    answered_in: snowflake
-    gap: >-
-      The schema has no dispute outcome. A closing event on the dispute chain, with who won
-      and the amount returned, would answer it.
+    walks: [Representment.responds_to, Chargeback.has_reason, DisputeOutcome.disputes, Chargeback.disputes]
+    answered_in: neptune
+    query: |
+      MATCH (rep:Representment)-[:RESPONDS_TO]->(cb:Chargeback)-[:HAS_REASON]->(rc:ReasonCode)
+      MATCH (out:DisputeOutcome)-[:DISPUTES]->(:Capture)<-[:DISPUTES]-(cb)
+      WHERE cb.opened_at >= $since
+      WITH rc, count(DISTINCT cb) AS represented,
+           count(DISTINCT CASE WHEN out.won_by = 'acquirer' THEN cb END) AS won
+      RETURN rc.id AS reason, represented, won, toFloat(won) / represented AS win_rate
+      ORDER BY represented DESC
+      LIMIT 20
 
   - id: CQ-28
     domain: disputes
     question: Which chargebacks are close to missing their response deadline?
+    walks: [Chargeback.disputes, Capture.captures, Authorization.at_merchant, Representment.responds_to, DisputeOutcome.responds_to]
     answered_in: neptune
-    gap: >-
-      No response deadline is modelled. Each network sets one per dispute stage; a due date
-      on each dispute event, or a rule it links to, would answer it.
+    query: |
+      MATCH (cb:Chargeback)-[:DISPUTES]->(:Capture)-[:CAPTURES]->(:Authorization)-[:AT_MERCHANT]->(m:Merchant)
+      WHERE cb.respond_by >= $now AND cb.respond_by < $soon
+        AND NOT (cb)<-[:RESPONDS_TO]-(:Representment)
+        AND NOT (cb)<-[:RESPONDS_TO]-(:DisputeOutcome)
+      RETURN cb.id AS chargeback, m.id AS merchant, cb.respond_by AS respond_by,
+             cb.amount AS amount, cb.currency AS currency
+      ORDER BY respond_by
+      LIMIT 100
 
   - id: CQ-29
     domain: disputes
     question: How much was disputed, as opposed to captured?
-    answered_in: snowflake
-    gap: >-
-      A dispute event has no amount or currency of its own, so a partial chargeback can't be
-      told from a full one.
+    walks: [Chargeback.disputes, Capture.captures, Authorization.at_merchant]
+    answered_in: neptune
+    query: |
+      MATCH (cb:Chargeback)-[:DISPUTES]->(c:Capture)-[:CAPTURES]->(:Authorization)-[:AT_MERCHANT]->(:Merchant {id: $merchant})
+      WHERE cb.opened_at >= $since
+      RETURN cb.id AS chargeback, cb.amount AS disputed, cb.currency AS disputed_currency,
+             c.amount AS captured, c.currency AS captured_currency,
+             cb.currency = c.currency AND cb.amount < c.amount AS partial
+      ORDER BY cb.opened_at DESC
+      LIMIT 100
 
   - id: CQ-30
     domain: disputes
     question: Which disputes went to arbitration, and how did the network rule?
+    walks: [Arbitration.responds_to, PreArbitration.responds_to, Representment.responds_to, DisputeOutcome.responds_to]
     answered_in: neptune
-    gap: >-
-      The dispute chain stops at pre-arbitration. Arbitration and the network's ruling aren't
-      modelled.
+    query: |
+      MATCH (arb:Arbitration)-[:RESPONDS_TO]->(:PreArbitration)-[:RESPONDS_TO]->(:Representment)-[:RESPONDS_TO]->(cb:Chargeback)
+      WHERE arb.opened_at >= $since
+      OPTIONAL MATCH (out:DisputeOutcome)-[:RESPONDS_TO]->(arb)
+      RETURN cb.id AS chargeback, arb.id AS arbitration, arb.opened_at AS filed_at,
+             out.won_by AS won_by, out.amount AS amount, out.currency AS currency
+      ORDER BY filed_at DESC
+      LIMIT 100
 
   - id: CQ-31
     domain: disputes
     question: Which retrieval requests turned into chargebacks?
+    walks: [RetrievalRequest.disputes, Chargeback.disputes]
     answered_in: neptune
-    gap: >-
-      Retrieval requests aren't modelled. ISO 20022's RetrievalInitiation (cain.021) could map
-      a retrieval request event.
+    query: |
+      MATCH (rr:RetrievalRequest)-[:DISPUTES]->(:Capture)<-[:DISPUTES]-(cb:Chargeback)
+      WHERE rr.opened_at >= $since AND cb.opened_at > rr.opened_at
+      RETURN rr.id AS retrieval_request, rr.opened_at AS requested_at,
+             cb.id AS chargeback, cb.opened_at AS charged_back_at
+      ORDER BY requested_at DESC
+      LIMIT 100
 
   - id: CQ-32
     domain: disputes
@@ -388,9 +419,15 @@ questions:
   - id: CQ-34
     domain: disputes
     question: Which chargebacks did the cardholder later withdraw?
+    walks: [DisputeOutcome.disputes, Chargeback.disputes]
     answered_in: neptune
-    gap: >-
-      Dispute withdrawals and reversals aren't modelled as events.
+    query: |
+      MATCH (out:DisputeOutcome {closure: 'withdrawn'})-[:DISPUTES]->(:Capture)<-[:DISPUTES]-(cb:Chargeback)
+      WHERE out.opened_at >= $since
+      RETURN cb.id AS chargeback, cb.opened_at AS opened_at, out.opened_at AS withdrawn_at,
+             cb.amount AS amount, cb.currency AS currency
+      ORDER BY withdrawn_at DESC
+      LIMIT 100
 
   # ---------- Authorization ----------
 
