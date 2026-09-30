@@ -30,7 +30,7 @@ from pydantic import (
 
 
 metamodel_version = "1.11.0"
-version = "1.7.0"
+version = "1.8.0"
 
 
 class ConfiguredBaseModel(BaseModel):
@@ -114,6 +114,42 @@ class Channel(str, Enum):
     """
     card_present = "card_present"
     card_not_present = "card_not_present"
+
+
+class DisputeSide(str, Enum):
+    """
+    The two sides of a card dispute. Each bank stands in for its customer.
+    """
+    issuer = "issuer"
+    """
+    The issuer, for its cardholder.
+    """
+    acquirer = "acquirer"
+    """
+    The acquirer, for its merchant.
+    """
+
+
+class DisputeClosure(str, Enum):
+    """
+    How a dispute ended.
+    """
+    accepted = "accepted"
+    """
+    One side accepted the other's last step.
+    """
+    withdrawn = "withdrawn"
+    """
+    The issuer withdrew the dispute, often because its cardholder did.
+    """
+    ruled = "ruled"
+    """
+    The card network ruled in arbitration.
+    """
+    timed_out = "timed_out"
+    """
+    A side missed its deadline, so the dispute went against it.
+    """
 
 
 class DocumentKind(str, Enum):
@@ -474,8 +510,8 @@ class Authorization(PaymentEvent):
                         'with_card': {'name': 'with_card', 'required': True}}})
 
     authorized_at: Optional[datetime ] = Field(default=None, description="""When the issuer answered.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization']} })
-    amount: Optional[Decimal] = Field(default=None, description="""The amount, in the transaction currency.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund']} })
-    currency: Optional[str] = Field(default=None, description="""The transaction currency, as an ISO 4217 alphabetic code such as USD.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund']} })
+    amount: Optional[Decimal] = Field(default=None, description="""The amount, in the transaction currency.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
+    currency: Optional[str] = Field(default=None, description="""The transaction currency, as an ISO 4217 alphabetic code such as USD.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
     channel: Optional[Channel] = Field(default=None, description="""Whether the card was present.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization']} })
     at_merchant: str = Field(default=..., description="""Where an authorization was requested.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization']} })
     with_card: str = Field(default=..., description="""The card an authorization used.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization']} })
@@ -521,8 +557,8 @@ class Capture(PaymentEvent):
          'slot_usage': {'captures': {'name': 'captures', 'required': True}}})
 
     captured_at: Optional[datetime ] = Field(default=None, description="""When the merchant claimed the funds.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Capture']} })
-    amount: Optional[Decimal] = Field(default=None, description="""The amount, in the transaction currency.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund']} })
-    currency: Optional[str] = Field(default=None, description="""The transaction currency, as an ISO 4217 alphabetic code such as USD.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund']} })
+    amount: Optional[Decimal] = Field(default=None, description="""The amount, in the transaction currency.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
+    currency: Optional[str] = Field(default=None, description="""The transaction currency, as an ISO 4217 alphabetic code such as USD.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
     captures: str = Field(default=..., description="""The authorization a capture claims funds for.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Capture']} })
     id: str = Field(default=..., description="""The one ID used in Neptune, OpenSearch and Snowflake.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Party',
                        'PartyRole',
@@ -591,8 +627,8 @@ class Refund(PaymentEvent):
          'slot_usage': {'refunds': {'name': 'refunds', 'required': True}}})
 
     refunded_at: Optional[datetime ] = Field(default=None, description="""When the refund was made.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Refund']} })
-    amount: Optional[Decimal] = Field(default=None, description="""The amount, in the transaction currency.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund']} })
-    currency: Optional[str] = Field(default=None, description="""The transaction currency, as an ISO 4217 alphabetic code such as USD.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund']} })
+    amount: Optional[Decimal] = Field(default=None, description="""The amount, in the transaction currency.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
+    currency: Optional[str] = Field(default=None, description="""The transaction currency, as an ISO 4217 alphabetic code such as USD.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
     refunds: str = Field(default=..., description="""The capture a refund returns money from.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Refund']} })
     id: str = Field(default=..., description="""The one ID used in Neptune, OpenSearch and Snowflake.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Party',
                        'PartyRole',
@@ -647,7 +683,7 @@ class FraudReport(PaymentEvent):
 
 class DisputeEvent(PaymentEvent):
     """
-    A step in a dispute over a captured transaction.
+    A step in a dispute over a captured transaction. Each step carries the amount in dispute and, while it waits for an answer, the date the other side must respond by.
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'abstract': True,
          'annotations': {'lives_in': {'tag': 'lives_in', 'value': 'graph'},
@@ -655,6 +691,9 @@ class DisputeEvent(PaymentEvent):
          'from_schema': 'https://ontology.example.com/payments'})
 
     opened_at: Optional[datetime ] = Field(default=None, description="""When the dispute step began.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    respond_by: Optional[datetime ] = Field(default=None, description="""When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    amount: Optional[Decimal] = Field(default=None, description="""The amount, in the transaction currency.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
+    currency: Optional[str] = Field(default=None, description="""The transaction currency, as an ISO 4217 alphabetic code such as USD.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
     disputes: Optional[str] = Field(default=None, description="""Links a dispute event to the capture it contests.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
     has_reason: Optional[list[str]] = Field(default=None, description="""The network reason codes behind a dispute.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
     responds_to: Optional[str] = Field(default=None, description="""The earlier dispute event this one answers.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
@@ -669,6 +708,63 @@ class DisputeEvent(PaymentEvent):
                        'Document',
                        'Chunk']} })
 
+    @field_validator('currency')
+    def pattern_currency(cls, v):
+        pattern=re.compile(r"^[A-Z]{3}$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.match(element):
+                    err_msg = f"Invalid currency format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.match(v):
+            err_msg = f"Invalid currency format: {v}"
+            raise ValueError(err_msg)
+        return v
+
+
+class RetrievalRequest(DisputeEvent):
+    """
+    The issuer asking the acquirer for the original transaction details, often before it decides whether to dispute.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'aliases': ['copy request', 'request for copy'],
+         'annotations': {'id_rule': {'tag': 'id_rule', 'value': 'rr:{retrieval_id}'},
+                         'lives_in': {'tag': 'lives_in', 'value': 'graph'},
+                         'owner': {'tag': 'owner', 'value': 'disputes'}},
+         'close_mappings': ['iso20022:cain.021.001.04'],
+         'from_schema': 'https://ontology.example.com/payments',
+         'slot_usage': {'disputes': {'name': 'disputes', 'required': True}}})
+
+    opened_at: Optional[datetime ] = Field(default=None, description="""When the dispute step began.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    respond_by: Optional[datetime ] = Field(default=None, description="""When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    amount: Optional[Decimal] = Field(default=None, description="""The amount, in the transaction currency.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
+    currency: Optional[str] = Field(default=None, description="""The transaction currency, as an ISO 4217 alphabetic code such as USD.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
+    disputes: str = Field(default=..., description="""Links a dispute event to the capture it contests.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    has_reason: Optional[list[str]] = Field(default=None, description="""The network reason codes behind a dispute.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    responds_to: Optional[str] = Field(default=None, description="""The earlier dispute event this one answers.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    id: str = Field(default=..., description="""The one ID used in Neptune, OpenSearch and Snowflake.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Party',
+                       'PartyRole',
+                       'Card',
+                       'BinRange',
+                       'Device',
+                       'PaymentEvent',
+                       'ReasonCode',
+                       'ResponseCode',
+                       'Document',
+                       'Chunk']} })
+
+    @field_validator('currency')
+    def pattern_currency(cls, v):
+        pattern=re.compile(r"^[A-Z]{3}$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.match(element):
+                    err_msg = f"Invalid currency format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.match(v):
+            err_msg = f"Invalid currency format: {v}"
+            raise ValueError(err_msg)
+        return v
+
 
 class Chargeback(DisputeEvent):
     """
@@ -676,18 +772,23 @@ class Chargeback(DisputeEvent):
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'aliases': ['CB', 'chargeback case'],
          'annotations': {'example': {'tag': 'example',
-                                     'value': 'cb:1001, Aug 19, reason 10.4'},
+                                     'value': 'cb:1001, Aug 19, reason 10.4, $42.50'},
                          'id_rule': {'tag': 'id_rule', 'value': 'cb:{chargeback_id}'},
                          'lives_in': {'tag': 'lives_in', 'value': 'graph'},
                          'owner': {'tag': 'owner', 'value': 'disputes'}},
          'close_mappings': ['iso20022:cain.027.001.04'],
          'from_schema': 'https://ontology.example.com/payments',
-         'slot_usage': {'disputes': {'name': 'disputes', 'required': True},
+         'slot_usage': {'amount': {'name': 'amount', 'required': True},
+                        'currency': {'name': 'currency', 'required': True},
+                        'disputes': {'name': 'disputes', 'required': True},
                         'has_reason': {'name': 'has_reason', 'required': True},
                         'opened_at': {'name': 'opened_at', 'required': True}},
          'title': 'Chargeback'})
 
     opened_at: datetime  = Field(default=..., description="""When the dispute step began.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    respond_by: Optional[datetime ] = Field(default=None, description="""When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    amount: Decimal = Field(default=..., description="""The amount, in the transaction currency.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
+    currency: str = Field(default=..., description="""The transaction currency, as an ISO 4217 alphabetic code such as USD.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
     disputes: str = Field(default=..., description="""Links a dispute event to the capture it contests.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
     has_reason: list[str] = Field(default=..., description="""The network reason codes behind a dispute.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
     responds_to: Optional[str] = Field(default=None, description="""The earlier dispute event this one answers.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
@@ -701,6 +802,19 @@ class Chargeback(DisputeEvent):
                        'ResponseCode',
                        'Document',
                        'Chunk']} })
+
+    @field_validator('currency')
+    def pattern_currency(cls, v):
+        pattern=re.compile(r"^[A-Z]{3}$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.match(element):
+                    err_msg = f"Invalid currency format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.match(v):
+            err_msg = f"Invalid currency format: {v}"
+            raise ValueError(err_msg)
+        return v
 
 
 class Representment(DisputeEvent):
@@ -723,6 +837,9 @@ class Representment(DisputeEvent):
 
     has_evidence: Optional[list[str]] = Field(default=None, description="""Documents sent as evidence.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Representment']} })
     opened_at: Optional[datetime ] = Field(default=None, description="""When the dispute step began.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    respond_by: Optional[datetime ] = Field(default=None, description="""When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    amount: Optional[Decimal] = Field(default=None, description="""The amount, in the transaction currency.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
+    currency: Optional[str] = Field(default=None, description="""The transaction currency, as an ISO 4217 alphabetic code such as USD.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
     disputes: Optional[str] = Field(default=None, description="""Links a dispute event to the capture it contests.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
     has_reason: Optional[list[str]] = Field(default=None, description="""The network reason codes behind a dispute.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
     responds_to: str = Field(default=..., description="""The earlier dispute event this one answers.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
@@ -736,6 +853,19 @@ class Representment(DisputeEvent):
                        'ResponseCode',
                        'Document',
                        'Chunk']} })
+
+    @field_validator('currency')
+    def pattern_currency(cls, v):
+        pattern=re.compile(r"^[A-Z]{3}$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.match(element):
+                    err_msg = f"Invalid currency format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.match(v):
+            err_msg = f"Invalid currency format: {v}"
+            raise ValueError(err_msg)
+        return v
 
 
 class PreArbitration(DisputeEvent):
@@ -755,6 +885,9 @@ class PreArbitration(DisputeEvent):
          'slot_usage': {'responds_to': {'name': 'responds_to', 'required': True}}})
 
     opened_at: Optional[datetime ] = Field(default=None, description="""When the dispute step began.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    respond_by: Optional[datetime ] = Field(default=None, description="""When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    amount: Optional[Decimal] = Field(default=None, description="""The amount, in the transaction currency.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
+    currency: Optional[str] = Field(default=None, description="""The transaction currency, as an ISO 4217 alphabetic code such as USD.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
     disputes: Optional[str] = Field(default=None, description="""Links a dispute event to the capture it contests.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
     has_reason: Optional[list[str]] = Field(default=None, description="""The network reason codes behind a dispute.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
     responds_to: str = Field(default=..., description="""The earlier dispute event this one answers.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
@@ -768,6 +901,120 @@ class PreArbitration(DisputeEvent):
                        'ResponseCode',
                        'Document',
                        'Chunk']} })
+
+    @field_validator('currency')
+    def pattern_currency(cls, v):
+        pattern=re.compile(r"^[A-Z]{3}$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.match(element):
+                    err_msg = f"Invalid currency format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.match(v):
+            err_msg = f"Invalid currency format: {v}"
+            raise ValueError(err_msg)
+        return v
+
+
+class Arbitration(DisputeEvent):
+    """
+    Either side asking the card network to decide a dispute that pre-arbitration didn't settle. The network's ruling is binding.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'aliases': ['arbitration case'],
+         'annotations': {'id_rule': {'tag': 'id_rule', 'value': 'arb:{arbitration_id}'},
+                         'lives_in': {'tag': 'lives_in', 'value': 'graph'},
+                         'no_standard': {'tag': 'no_standard',
+                                         'value': 'Arbitration is a card network rule, '
+                                                  'with no ISO 20022 message or FIBO '
+                                                  'concept of its own.'},
+                         'owner': {'tag': 'owner', 'value': 'disputes'}},
+         'from_schema': 'https://ontology.example.com/payments',
+         'slot_usage': {'responds_to': {'name': 'responds_to', 'required': True}}})
+
+    opened_at: Optional[datetime ] = Field(default=None, description="""When the dispute step began.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    respond_by: Optional[datetime ] = Field(default=None, description="""When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    amount: Optional[Decimal] = Field(default=None, description="""The amount, in the transaction currency.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
+    currency: Optional[str] = Field(default=None, description="""The transaction currency, as an ISO 4217 alphabetic code such as USD.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
+    disputes: Optional[str] = Field(default=None, description="""Links a dispute event to the capture it contests.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    has_reason: Optional[list[str]] = Field(default=None, description="""The network reason codes behind a dispute.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    responds_to: str = Field(default=..., description="""The earlier dispute event this one answers.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    id: str = Field(default=..., description="""The one ID used in Neptune, OpenSearch and Snowflake.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Party',
+                       'PartyRole',
+                       'Card',
+                       'BinRange',
+                       'Device',
+                       'PaymentEvent',
+                       'ReasonCode',
+                       'ResponseCode',
+                       'Document',
+                       'Chunk']} })
+
+    @field_validator('currency')
+    def pattern_currency(cls, v):
+        pattern=re.compile(r"^[A-Z]{3}$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.match(element):
+                    err_msg = f"Invalid currency format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.match(v):
+            err_msg = f"Invalid currency format: {v}"
+            raise ValueError(err_msg)
+        return v
+
+
+class DisputeOutcome(DisputeEvent):
+    """
+    The event that closes a dispute: which side won, how it ended, and the amount that finally went back to the cardholder. It answers the dispute's last step, and links to the disputed capture, as the chargeback does.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'aliases': ['dispute resolution', 'case closure'],
+         'annotations': {'id_rule': {'tag': 'id_rule', 'value': 'out:{outcome_id}'},
+                         'lives_in': {'tag': 'lives_in', 'value': 'graph'},
+                         'no_standard': {'tag': 'no_standard',
+                                         'value': 'The ISO 20022 card messages carry '
+                                                  'the steps of a dispute, but none '
+                                                  'stands for its outcome. Networks '
+                                                  'record it in their own case '
+                                                  'systems.'},
+                         'owner': {'tag': 'owner', 'value': 'disputes'}},
+         'from_schema': 'https://ontology.example.com/payments',
+         'slot_usage': {'closure': {'name': 'closure', 'required': True},
+                        'disputes': {'name': 'disputes', 'required': True},
+                        'responds_to': {'name': 'responds_to', 'required': True},
+                        'won_by': {'name': 'won_by', 'required': True}}})
+
+    won_by: DisputeSide = Field(default=..., description="""The side a dispute ended in favor of.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeOutcome']} })
+    closure: DisputeClosure = Field(default=..., description="""How a dispute ended.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeOutcome']} })
+    opened_at: Optional[datetime ] = Field(default=None, description="""When the dispute step began.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    respond_by: Optional[datetime ] = Field(default=None, description="""When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    amount: Optional[Decimal] = Field(default=None, description="""The amount, in the transaction currency.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
+    currency: Optional[str] = Field(default=None, description="""The transaction currency, as an ISO 4217 alphabetic code such as USD.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization', 'Capture', 'Refund', 'DisputeEvent']} })
+    disputes: str = Field(default=..., description="""Links a dispute event to the capture it contests.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    has_reason: Optional[list[str]] = Field(default=None, description="""The network reason codes behind a dispute.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    responds_to: str = Field(default=..., description="""The earlier dispute event this one answers.""", json_schema_extra = { "linkml_meta": {'domain_of': ['DisputeEvent']} })
+    id: str = Field(default=..., description="""The one ID used in Neptune, OpenSearch and Snowflake.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Party',
+                       'PartyRole',
+                       'Card',
+                       'BinRange',
+                       'Device',
+                       'PaymentEvent',
+                       'ReasonCode',
+                       'ResponseCode',
+                       'Document',
+                       'Chunk']} })
+
+    @field_validator('currency')
+    def pattern_currency(cls, v):
+        pattern=re.compile(r"^[A-Z]{3}$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.match(element):
+                    err_msg = f"Invalid currency format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.match(v):
+            err_msg = f"Invalid currency format: {v}"
+            raise ValueError(err_msg)
+        return v
 
 
 class ReasonCode(ConfiguredBaseModel):
@@ -901,9 +1148,12 @@ Settlement.model_rebuild()
 Refund.model_rebuild()
 FraudReport.model_rebuild()
 DisputeEvent.model_rebuild()
+RetrievalRequest.model_rebuild()
 Chargeback.model_rebuild()
 Representment.model_rebuild()
 PreArbitration.model_rebuild()
+Arbitration.model_rebuild()
+DisputeOutcome.model_rebuild()
 ReasonCode.model_rebuild()
 ResponseCode.model_rebuild()
 Document.model_rebuild()

@@ -21,7 +21,16 @@
       "ontology_version": {
         "type": "keyword"
       },
+      "amount": {
+        "type": "double"
+      },
+      "closure": {
+        "type": "keyword"
+      },
       "code": {
+        "type": "keyword"
+      },
+      "currency": {
         "type": "keyword"
       },
       "mcc": {
@@ -47,6 +56,12 @@
       },
       "reported_at": {
         "type": "date"
+      },
+      "respond_by": {
+        "type": "date"
+      },
+      "won_by": {
+        "type": "keyword"
       },
       "embedding": {
         "type": "knn_vector",

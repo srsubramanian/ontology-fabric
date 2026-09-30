@@ -1,9 +1,14 @@
 {
-  "ontology_version": "1.7.0",
+  "ontology_version": "1.8.0",
   "labels": {
     "Acquirer": [
       "Acquirer",
       "PartyRole"
+    ],
+    "Arbitration": [
+      "Arbitration",
+      "DisputeEvent",
+      "PaymentEvent"
     ],
     "Authorization": [
       "Authorization",
@@ -33,6 +38,11 @@
     ],
     "Device": [
       "Device"
+    ],
+    "DisputeOutcome": [
+      "DisputeOutcome",
+      "DisputeEvent",
+      "PaymentEvent"
     ],
     "Document": [
       "Document"
@@ -76,6 +86,11 @@
     ],
     "ResponseCode": [
       "ResponseCode"
+    ],
+    "RetrievalRequest": [
+      "RetrievalRequest",
+      "DisputeEvent",
+      "PaymentEvent"
     ],
     "Settlement": [
       "Settlement",

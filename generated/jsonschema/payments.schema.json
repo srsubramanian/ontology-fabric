@@ -27,6 +27,74 @@
                 "string"
             ]
         },
+        "Arbitration": {
+            "additionalProperties": false,
+            "description": "Either side asking the card network to decide a dispute that pre-arbitration didn't settle. The network's ruling is binding.",
+            "properties": {
+                "amount": {
+                    "description": "The amount, in the transaction currency.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "currency": {
+                    "description": "The transaction currency, as an ISO 4217 alphabetic code such as USD.",
+                    "pattern": "^[A-Z]{3}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "disputes": {
+                    "description": "Links a dispute event to the capture it contests.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "has_reason": {
+                    "description": "The network reason codes behind a dispute.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "opened_at": {
+                    "description": "When the dispute step began.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "respond_by": {
+                    "description": "When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "responds_to": {
+                    "description": "The earlier dispute event this one answers.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "responds_to",
+                "id"
+            ],
+            "title": "Arbitration",
+            "type": "object"
+        },
         "Authorization": {
             "additionalProperties": false,
             "description": "The issuer's approval or decline of a payment request.",
@@ -233,6 +301,15 @@
             "additionalProperties": false,
             "description": "A dispute event in which the issuer, through the card network, reverses all or part of a captured transaction for the cardholder.",
             "properties": {
+                "amount": {
+                    "description": "The amount, in the transaction currency.",
+                    "type": "number"
+                },
+                "currency": {
+                    "description": "The transaction currency, as an ISO 4217 alphabetic code such as USD.",
+                    "pattern": "^[A-Z]{3}$",
+                    "type": "string"
+                },
                 "disputes": {
                     "description": "Links a dispute event to the capture it contests.",
                     "type": "string"
@@ -253,6 +330,14 @@
                     "format": "date-time",
                     "type": "string"
                 },
+                "respond_by": {
+                    "description": "When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
                 "responds_to": {
                     "description": "The earlier dispute event this one answers.",
                     "type": [
@@ -263,6 +348,8 @@
             },
             "required": [
                 "opened_at",
+                "amount",
+                "currency",
                 "disputes",
                 "has_reason",
                 "id"
@@ -327,10 +414,36 @@
             "title": "Device",
             "type": "object"
         },
+        "DisputeClosure": {
+            "description": "How a dispute ended.",
+            "enum": [
+                "accepted",
+                "withdrawn",
+                "ruled",
+                "timed_out"
+            ],
+            "title": "DisputeClosure",
+            "type": "string"
+        },
         "DisputeEvent": {
             "additionalProperties": false,
-            "description": "A step in a dispute over a captured transaction.",
+            "description": "A step in a dispute over a captured transaction. Each step carries the amount in dispute and, while it waits for an answer, the date the other side must respond by.",
             "properties": {
+                "amount": {
+                    "description": "The amount, in the transaction currency.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "currency": {
+                    "description": "The transaction currency, as an ISO 4217 alphabetic code such as USD.",
+                    "pattern": "^[A-Z]{3}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
                 "disputes": {
                     "description": "Links a dispute event to the capture it contests.",
                     "type": [
@@ -360,6 +473,14 @@
                         "null"
                     ]
                 },
+                "respond_by": {
+                    "description": "When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
                 "responds_to": {
                     "description": "The earlier dispute event this one answers.",
                     "type": [
@@ -373,6 +494,91 @@
             ],
             "title": "DisputeEvent",
             "type": "object"
+        },
+        "DisputeOutcome": {
+            "additionalProperties": false,
+            "description": "The event that closes a dispute: which side won, how it ended, and the amount that finally went back to the cardholder. It answers the dispute's last step, and links to the disputed capture, as the chargeback does.",
+            "properties": {
+                "amount": {
+                    "description": "The amount, in the transaction currency.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "closure": {
+                    "$ref": "#/$defs/DisputeClosure",
+                    "description": "How a dispute ended."
+                },
+                "currency": {
+                    "description": "The transaction currency, as an ISO 4217 alphabetic code such as USD.",
+                    "pattern": "^[A-Z]{3}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "disputes": {
+                    "description": "Links a dispute event to the capture it contests.",
+                    "type": "string"
+                },
+                "has_reason": {
+                    "description": "The network reason codes behind a dispute.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "opened_at": {
+                    "description": "When the dispute step began.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "respond_by": {
+                    "description": "When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "responds_to": {
+                    "description": "The earlier dispute event this one answers.",
+                    "type": "string"
+                },
+                "won_by": {
+                    "$ref": "#/$defs/DisputeSide",
+                    "description": "The side a dispute ended in favor of."
+                }
+            },
+            "required": [
+                "won_by",
+                "closure",
+                "disputes",
+                "responds_to",
+                "id"
+            ],
+            "title": "DisputeOutcome",
+            "type": "object"
+        },
+        "DisputeSide": {
+            "description": "The two sides of a card dispute. Each bank stands in for its customer.",
+            "enum": [
+                "issuer",
+                "acquirer"
+            ],
+            "title": "DisputeSide",
+            "type": "string"
         },
         "Document": {
             "additionalProperties": false,
@@ -620,6 +826,21 @@
             "additionalProperties": false,
             "description": "Issuer challenges the merchant's response before arbitration.",
             "properties": {
+                "amount": {
+                    "description": "The amount, in the transaction currency.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "currency": {
+                    "description": "The transaction currency, as an ISO 4217 alphabetic code such as USD.",
+                    "pattern": "^[A-Z]{3}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
                 "disputes": {
                     "description": "Links a dispute event to the capture it contests.",
                     "type": [
@@ -643,6 +864,14 @@
                 },
                 "opened_at": {
                     "description": "When the dispute step began.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "respond_by": {
+                    "description": "When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side.",
                     "format": "date-time",
                     "type": [
                         "string",
@@ -734,6 +963,21 @@
             "additionalProperties": false,
             "description": "The merchant's response to a chargeback, with its evidence.",
             "properties": {
+                "amount": {
+                    "description": "The amount, in the transaction currency.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "currency": {
+                    "description": "The transaction currency, as an ISO 4217 alphabetic code such as USD.",
+                    "pattern": "^[A-Z]{3}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
                 "disputes": {
                     "description": "Links a dispute event to the capture it contests.",
                     "type": [
@@ -773,6 +1017,14 @@
                         "null"
                     ]
                 },
+                "respond_by": {
+                    "description": "When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
                 "responds_to": {
                     "description": "The earlier dispute event this one answers.",
                     "type": "string"
@@ -805,6 +1057,74 @@
                 "id"
             ],
             "title": "ResponseCode",
+            "type": "object"
+        },
+        "RetrievalRequest": {
+            "additionalProperties": false,
+            "description": "The issuer asking the acquirer for the original transaction details, often before it decides whether to dispute.",
+            "properties": {
+                "amount": {
+                    "description": "The amount, in the transaction currency.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "currency": {
+                    "description": "The transaction currency, as an ISO 4217 alphabetic code such as USD.",
+                    "pattern": "^[A-Z]{3}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "disputes": {
+                    "description": "Links a dispute event to the capture it contests.",
+                    "type": "string"
+                },
+                "has_reason": {
+                    "description": "The network reason codes behind a dispute.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "opened_at": {
+                    "description": "When the dispute step began.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "respond_by": {
+                    "description": "When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "responds_to": {
+                    "description": "The earlier dispute event this one answers.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "disputes",
+                "id"
+            ],
+            "title": "RetrievalRequest",
             "type": "object"
         },
         "Settlement": {
@@ -854,5 +1174,5 @@
     "metamodel_version": "1.11.0",
     "title": "payments",
     "type": "object",
-    "version": "1.7.0"
+    "version": "1.8.0"
 }

@@ -4,7 +4,7 @@
 // line passes through a box and no two lines cross.
 
 export const NODE = { w: 140, h: 48 };
-export const VIEW = { w: 828, h: 744 };
+export const VIEW = { w: 828, h: 960 };
 
 /** Top-left corner of each concrete class. */
 export const POS: Record<string, [number, number]> = {
@@ -13,9 +13,13 @@ export const POS: Record<string, [number, number]> = {
   FraudReport: [240, 210], Settlement: [436, 210], Representment: [640, 210],
   Merchant: [24, 282], Authorization: [240, 282], Capture: [436, 282], Chargeback: [640, 282],
   Acquirer: [24, 354], Refund: [436, 354], PreArbitration: [640, 354],
-  Cardholder: [24, 466], Card: [240, 466],
-  Issuer: [24, 538], BinRange: [240, 538], ResponseCode: [436, 538],
-  Person: [24, 666], Organization: [240, 666],
+  // The rest of the dispute chain, below pre-arbitration: arbitration, the outcome, and the retrieval
+  // request that can come before a chargeback.
+  Arbitration: [640, 426], DisputeOutcome: [640, 498], RetrievalRequest: [640, 570],
+  // Below the payment events' frame, so none of these reads as a payment event.
+  Cardholder: [24, 682], Card: [240, 682],
+  Issuer: [24, 754], BinRange: [240, 754], ResponseCode: [436, 754],
+  Person: [24, 882], Organization: [240, 882],
 };
 
 const PAD = { x: 14, top: 30, bottom: 14 };
@@ -63,7 +67,7 @@ const PORTS: Record<string, { from: Port; to?: Port; stub?: [number, number]; la
   'Settlement.settles': { from: ['bottom', 0.5], to: ['top', 0.5] },
   'Refund.refunds': { from: ['top', 0.5], to: ['bottom', 0.5] },
   'FraudReport.reports': { from: ['bottom', 0.5], to: ['top', 0.5] },
-  'DisputeEvent.disputes': { from: ['left', 0.535], to: ['right', 0.5] },
+  'DisputeEvent.disputes': { from: ['left', 0.2788], to: ['right', 0.5] },
   'DisputeEvent.has_reason': { from: ['top', 0.44], to: ['bottom', 0.428], label: { side: 'left' } },
   'Representment.has_evidence': { from: ['left', 0.2], to: ['bottom', 0.88], label: { side: 'left' } },
   'Chunk.part_of': { from: ['bottom', 0.09], to: ['top', 0.81] },

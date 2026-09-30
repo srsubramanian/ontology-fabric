@@ -1,1 +1,1 @@
-:ID,:LABEL,opened_at:DateTime,ontology_version:String
+:ID,:LABEL,opened_at:DateTime,respond_by:DateTime,amount:Double,currency:String,ontology_version:String
