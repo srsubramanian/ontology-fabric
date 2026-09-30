@@ -34,5 +34,7 @@ Follow the build order in Chapter 7 of `site/platform.html`, with the changes re
 
 ## Housekeeping
 
+- Decision 8 says "SHACL 1.2 and RDF 1.2 are still drafts". SHACL 1.2 is; RDF 1.2 Concepts has been a Candidate Recommendation since 7 April 2026 (see the research notes). Waiting still holds, but the wording needs a touch.
+
 - The published copies of the platform and retrieval pages on claude.ai predate the React port and don't link to the class explorer. Republish them from `main`, keeping their URLs.
 - If the repository becomes public: the earlier "About the owner" text is still in git history, and "13 teams" appears in `site/platform.html` and `docs/handoff.md`.

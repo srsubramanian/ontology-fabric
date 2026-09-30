@@ -1,6 +1,6 @@
 # Research notes, September 2026
 
-What changed around this build, and what the pages rely on. Where the source URL wasn't captured, the finding is marked **re-verify**. It came from a September 2026 web search, but check it before building on it.
+What changed around this build, and what the pages rely on. Every finding below was re-checked against its source on 30 September 2026. Anything that couldn't be confirmed says so.
 
 ## Direction
 
@@ -11,53 +11,59 @@ What changed around this build, and what the pages rely on. Where the source URL
   Sources:
   - Overview: https://docs.aws.amazon.com/prescriptive-guidance/latest/semantic-layer-agentic-ai-ontology-reasoning-virtual-knowledge-graph/semantic-layer-agentic-ai-ontology-reasoning-virtual-knowledge-graph.html
   - Trade-offs: https://docs.aws.amazon.com/prescriptive-guidance/latest/semantic-layer-agentic-ai-ontology-reasoning-virtual-knowledge-graph/technology-tradeoffs-alternatives.html
-- **Semantic layers for agents shipped across the major data platforms in early 2026**: Snowflake, Databricks, Microsoft Fabric IQ (whose ontology also covers rules and actions), and Google. **Re-verify.**
+- **Semantic layers for agents shipped across the major data platforms between late 2025 and spring 2026:**
+  - Snowflake: semantic views queryable with standard SQL (GA 2 March 2026; see Snowflake under Stores).
+  - Databricks: Unity Catalog Business Semantics, including metric views, went GA on 2 April 2026. https://www.databricks.com/blog/redefining-semantics-data-layer-future-bi-and-ai
+  - Microsoft Fabric IQ: its Ontology item, still in preview, defines entity types, relationships, rules and metrics, lets agents take governed actions, and can import RDF or OWL. https://learn.microsoft.com/fabric/iq/overview
+  - Google: Looker BI agents grounded in the Looker semantic layer, announced at Next '26 in April 2026. https://cloud.google.com/blog/products/business-intelligence/looker-updates-for-agentic-bi-at-next26
 
 ## Agents and access
 
 - **MCP spec 2026-07-28** is stateless: no initialize handshake or sessions. Requests carry `_meta` plus `Mcp-Method` and `Mcp-Name` headers, and results carry `resultType` and `structuredContent`. Source: https://aws.amazon.com/blogs/machine-learning/how-agentcore-gateway-supports-the-mcp-2026-07-28-spec/
-- **AgentCore Policy went GA in March 2026.** It uses Cedar policies at the gateway, default deny, and a forbid rule beats any permit. **Re-verify.**
+- **AgentCore Policy went GA on 3 March 2026.** Cedar policies are attached to an AgentCore Gateway. With no matching policy the answer is deny, and any matching forbid beats every permit.
+  - https://aws.amazon.com/about-aws/whats-new/2026/03/policy-amazon-bedrock-agentcore-generally-available/
+  - https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-understanding-cedar.html
 - **Neptune has no server-enforced read-only query flag.** Pair app-level validation with a read-only IAM role. Source: the BYOKG-RAG documentation at https://github.com/awslabs/graphrag-toolkit
-- **MCP moved to the Linux Foundation's Agentic AI Foundation in December 2025, and A2A joined it in August 2026.** **Re-verify.**
+- **MCP moved to the Linux Foundation's Agentic AI Foundation (AAIF), formed on 9 December 2025, and A2A joined it in August 2026.**
+  - https://www.linuxfoundation.org/press/linux-foundation-announces-the-formation-of-the-agentic-ai-foundation
+  - https://aaif.io/blog/a2a-joins-aaif
 
 ## Stores
 
-- **Neptune's openCypher still has no full-text search integration with OpenSearch** (only Gremlin and SPARQL do). Since March 2026, openCypher queries can read S3 data through `neptune.read()`. **Re-verify.**
+- **Neptune's openCypher still has no full-text search integration with OpenSearch.** The Neptune guide still says it supports full-text search "in both Gremlin and SPARQL queries", so decision 12 stands. https://docs.aws.amazon.com/neptune/latest/userguide/full-text-search.html
+- **Since 16 March 2026, openCypher queries can read S3 data** through `neptune.read()`. https://aws.amazon.com/about-aws/whats-new/2026/03/neptune-read-s3-opencypher/
 - **OpenSearch**:
-  - The hybrid search normalization processor (min-max plus weighted arithmetic mean) is still current.
-  - Reciprocal rank fusion is available.
-  - An S3 Vectors engine can back vector fields while keeping hybrid search.
-  - OpenSearch Serverless was rebuilt in May 2026 and can scale to zero.
-
-  **Re-verify** each.
-- **S3 Vectors has been generally available since December 2025.** **Re-verify.**
+  - The hybrid search normalization processor (min-max, then a weighted arithmetic mean) is still current. https://docs.opensearch.org/latest/search-plugins/search-pipelines/normalization-processor/
+  - Reciprocal rank fusion is available through the score-ranker processor. https://docs.opensearch.org/latest/vector-search/ai-search/hybrid-search/rrf/
+  - An `s3vector` engine can back `knn_vector` fields on managed domains running OpenSearch 2.19 or later, keeping hybrid search, filters and aggregations. https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors-opensearch.html
+  - The next generation of OpenSearch Serverless went GA in May 2026 and can scale to zero. https://aws.amazon.com/about-aws/whats-new/2026/05/amazon-opensearch-serverless-next-generation-generally-available/
+- **S3 Vectors has been generally available since 2 December 2025**, with up to 2 billion vectors per index. https://aws.amazon.com/about-aws/whats-new/2025/12/amazon-s3-vectors-generally-available/
 - **Snowflake**:
   - The Snowflake-managed MCP server has been GA since 4 November 2025. It exposes Cortex Analyst (over semantic views), Cortex Search and SQL execution as tools, each call running under a specific Snowflake role. Preview notes: https://docs.snowflake.com/release-notes/2025/other/2025-10-02-mcp-server
   - Cortex Agents and MCP servers inside Snowflake Native Apps went GA on 7 August 2026: https://docs.snowflake.com/en/release-notes/2026/other/2026-08-07-native-apps-agents-mcp-ga
   - Semantic views can be queried with standard SQL (GA 2 March 2026), but they only see Snowflake data: https://atlan.com/know/snowflake/snowflake-semantic-views/
-- **Embeddings**: Nova 2 multimodal embeddings let you choose 256 to 3,072 dimensions. Cohere Embed v4 on Bedrock handles tables and charts and is tuned for finance. **Re-verify.**
+- **Embeddings:**
+  - Amazon Nova Multimodal Embeddings (October 2025) offers 256, 384, 1,024 or 3,072 dimensions. https://aws.amazon.com/about-aws/whats-new/2025/10/amazon-nova-multimodal-embeddings
+  - Cohere Embed v4 on Bedrock (October 2025) reads documents with tables and charts, and is tuned for industries including finance. https://aws.amazon.com/about-aws/whats-new/2025/10/coheres-embed-v4-multimodal-embeddings-bedrock
 
 ## Reuse
 
 - **AWS Labs' BYOKG-RAG** answers questions over a graph you bring. It combines four retrieval strategies (agentic, scoring-based, path-based, query-based), supports Neptune Database and Analytics with OpenSearch or S3 Vectors, and is Apache 2.0 licensed. https://github.com/awslabs/graphrag-toolkit
-- **Bedrock Knowledge Bases GraphRAG** still builds its own graph from S3 documents, so it doesn't fit an ontology we own. **Re-verify.**
-- **Durable execution**: Temporal released a LangGraph plugin in public preview in July 2026. **Re-verify.**
+- **Bedrock Knowledge Bases GraphRAG** still builds its own graph, in Neptune Analytics, from the documents you upload to S3, so it doesn't fit an ontology we own. https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-build-graphs-build.html
+- **Durable execution**: Temporal's LangGraph plugin for Python entered public preview on 16 July 2026. https://temporal.io/blog/temporal-langgraph-plugin-durable-execution
 
 ## Standards and payments
 
 - **FIBO** lives at https://github.com/edmcouncil/fibo and https://spec.edmcouncil.org/fibo/ under the MIT licence.
   - It's published as RDF/XML modules, a single-file Turtle "Quickstart", SKOS, and a data dictionary in CSV and XLSX.
-  - Scale: about 196 ontology files in the 2026 Q2 production release, and about 3,173 entities in a derived model. As much as a third can change in a quarter.
+  - Scale: the 2026 Q2 production release imports 153 ontologies, which declare 2,228 classes. We counted both from the release itself (`AboutFIBOProd`), which is why these figures replace the earlier estimates. https://spec.edmcouncil.org/fibo/ontology/master/2026Q2/AboutFIBOProd.rdf
   - It covers parties, agreements and instruments well, but has little on the card lifecycle.
-
-  **Re-verify** the counts.
 - **ISO 20022**:
-  - Swift counted 400+ messages across 20+ business areas back in 2017; BNY Mellon put it at 30 business areas in 2020.
-  - The acquirer-to-issuer card messages (ATICA, about 30) cover authorisation, financial presentment, reversal, retrieval, chargeback, fraud reporting and fee collection.
-  - Swift's CBPR+ rules start rejecting fully unstructured addresses on 14 November 2026.
-
-  **Re-verify.**
-- **SHACL 1.2 and RDF 1.2 are still W3C Working Drafts.** **Re-verify.**
+  - The Registration Authority's list of business areas (dated 4 June 2025) defines at least 48, each with a four-letter code such as `cain` for acquirer-to-issuer card transactions. We counted them from the list; the "30 business areas" figure often quoted is from 2020. https://www.iso20022.org/sites/default/files/media/file/ISO20022_BusinessAreas.pdf
+  - The acquirer-to-issuer card messages (ATICA) span the `cain`, `caad` and `cafm` message families: authorisation, financial presentment, reversal, reconciliation, retrieval, inquiry, verification, card management, chargeback and file actions. Public listings show at least 23 message definitions. The exact current count couldn't be confirmed, because iso20022.org refuses automated requests. https://www.iotafinance.com/en/SWIFT-ISO20022-Business-area-cain-Acquirer-to-Issuer-Card-Transactions.html
+  - From 14 November 2026, CBPR+ rejects fully unstructured postal addresses. Messages need at least a structured town and country; hybrid addresses are allowed. https://www.bny.com/content/dam/bnymellon/documents/pdf/iso-20022/hybrid-postal-address-industry-requirement.pdf
+- **SHACL 1.2 Core is still a W3C Working Draft**; the latest is dated 18 September 2026. https://www.w3.org/standards/history/shacl12-core/
+- **RDF 1.2 has moved further:** RDF 1.2 Concepts has been a Candidate Recommendation since 7 April 2026, but it isn't a Recommendation yet. Decision 8 calls both specifications drafts; waiting still holds. https://www.w3.org/standards/history/rdf12-concepts/
 - **Visa VAMP**:
   - The merchant Excessive threshold dropped from 2.2% to 1.5% on 1 April 2026 (the CEMEA region stays at 2.2%).
   - The ratio counts fraud reports (TC40) plus disputes (TC15).
