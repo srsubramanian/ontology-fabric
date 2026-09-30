@@ -16,7 +16,7 @@ Ontology Fabric is the working name for a payments knowledge layer: an ontology-
 - `generated/`: everything the generator (`tools/generate.py`) makes from the ontology: OWL, SHACL, the extraction JSON Schema, Pydantic models, Neptune load headers with label chains, and OpenSearch index mappings. Don't edit it by hand.
 - `docs/`: decisions, style guide, 2026 research notes, open questions, and how the project got here.
 - `tools/smoke_test.py`: loads every view of every app headlessly, fails on JavaScript errors and saves screenshots.
-- `tools/check_ontology.py`: checks that every competency question walks real relationships and has a query that passes decision 13's checks, that every class has the annotations the explorer reads, and that the explorer reads each class the way LinkML does. It prints the two coverage numbers.
+- `tools/check_ontology.py`: checks that every competency question either walks real relationships, with a query that passes decision 13's checks, or names the gap in the schema that stops it, that every class has the annotations the explorer reads, and that the explorer reads each class the way LinkML does. It prints the two coverage numbers.
 
 ## Working rules
 

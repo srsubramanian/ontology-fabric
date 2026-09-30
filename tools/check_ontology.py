@@ -1,6 +1,7 @@
 """Check the draft ontology beyond what linkml-lint covers, and print its coverage.
 
-- Every competency question walks relationships the schema really has.
+- Every competency question walks relationships the schema really has, or says what the
+  schema lacks (gap). A gap question has no walks or query, and counts as unanswered.
 - Every competency question's query passes the checks decision 13 applies to generated
   queries: labels and relationship types the ontology has, each relationship in its one
   direction, read-only, and a LIMIT. In SQL, each walked step is marked on its line.
@@ -11,7 +12,8 @@
 - The class explorer (web/src/explorer/model.ts) reads every class the way LinkML's
   SchemaView does: the same label chain and the same inherited slots. Needs Node 22.6
   or later and `npm install` in web/; skipped, with a note, without them.
-- Coverage, the two numbers from decision 9: questions the schema answers,
+- Each question has a unique ID and a domain owned by a team.
+- Coverage, the two numbers from decision 9: questions the schema answers, by domain,
   and classes mapped to a standard concept, by standard.
 
 Usage:
@@ -31,6 +33,7 @@ from linkml_runtime.utils.schemaview import SchemaView
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OWNERS = {"core", "authorization", "settlement", "disputes", "risk"}
+DOMAINS = OWNERS - {"core"}
 LIVES_IN = {"graph", "warehouse", "search"}
 STORES = {"neptune", "snowflake"}
 # The standards the ontology aligns with, by the start of their prefix, and the
@@ -113,6 +116,8 @@ def check_cypher(sv, rels, qid, query, problems):
 def check_queries(sv, questions, problems):
     rels = relationships(sv)
     for q in questions:
+        if q.get("gap"):
+            continue
         query = q.get("query", "")
         if not query.strip():
             problems.append(f"{q['id']}: needs a query")
@@ -122,7 +127,8 @@ def check_queries(sv, questions, problems):
         if q.get("answered_in") == "neptune":
             check_cypher(sv, rels, q["id"], query, problems)
             for step in q["walks"]:
-                if f"[:{step.partition('.')[2].upper()}]" not in query:
+                # [:TYPE] or [r:TYPE], the way the explorer's tracer finds the line.
+                if not re.search(rf"\[\w*:{step.partition('.')[2].upper()}\]", query):
                     problems.append(f"{q['id']}: the query doesn't walk {step}")
         else:
             if not re.match(r"\s*(SELECT|WITH)\b", query, re.I):
@@ -192,12 +198,24 @@ def main():
                         problems.append(f"{kind} {name}: {curie} needs the release it was checked against, in the schema's {pin} annotation")
 
     questions = yaml.safe_load((ROOT / "ontology" / "competency-questions.yaml").read_text())["questions"]
-    failing = set()
+    failing, gaps, seen = set(), set(), set()
     for q in questions:
         before = len(problems)
+        if q["id"] in seen:
+            problems.append(f"{q['id']}: used by more than one question")
+        seen.add(q["id"])
+        if q.get("domain") not in DOMAINS:
+            problems.append(f"{q['id']}: domain must be one of {sorted(DOMAINS)}")
         if q.get("answered_in") not in STORES:
             problems.append(f"{q['id']}: answered_in must be one of {sorted(STORES)}")
-        for step in q["walks"]:
+        if q.get("gap"):
+            gaps.add(q["id"])
+            if q.get("walks") or q.get("query"):
+                problems.append(f"{q['id']}: a gap question has no walks or query; say what the schema lacks instead")
+            continue
+        if not q.get("walks"):
+            problems.append(f"{q['id']}: needs walks, or a gap saying what the schema lacks")
+        for step in q.get("walks") or []:
             cls_name, _, slot_name = step.partition(".")
             if cls_name not in classes:
                 problems.append(f"{q['id']}: no class {cls_name}")
@@ -221,7 +239,10 @@ def main():
             if standard(curie):
                 by_standard.setdefault(standard(curie), set()).add(c.name)
     print(f"{len(classes)} classes, {len(concrete)} concrete")
-    print(f"competency questions the schema can walk: {len(questions) - len(failing)} of {len(questions)}")
+    answered = [q for q in questions if q["id"] not in failing | gaps]
+    by_domain = ", ".join(f"{d} {sum(q['domain'] == d for q in answered)} of {sum(q['domain'] == d for q in questions)}"
+                          for d in sorted(DOMAINS) if any(q["domain"] == d for q in questions))
+    print(f"competency questions the schema answers: {len(answered)} of {len(questions)} ({by_domain}); {len(gaps)} gaps")
     print(f"concrete classes mapped to a standard: {len(mapped)} of {len(concrete)}"
           f" ({', '.join(f'{k} {len(v)}' for k, v in sorted(by_standard.items()))})")
     for p in problems:

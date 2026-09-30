@@ -1,21 +1,29 @@
 # Competency questions: what version 1 must answer (site/index.html#ch1-2,
-# chapter 1, "Version 1"). Each one becomes a test in CI.
+# chapter 1, "Version 1"). Each one becomes a test in CI. Drafted for review by
+# the owning teams (decision 9): cut, reword or add, then rerun the checks.
 #
+#   domain       the team that owns the question: disputes, authorization,
+#                settlement or risk
 #   walks        the relationships the question follows, as Class.slot,
 #                in the order a query walks them
 #   answered_in  the store that answers it, by the shape of the count
 #                (decision 14): neptune for walks and counts along
 #                relationships, snowflake for counts over big tables and time
-#   query        an illustrative query, written against the draft schema:
+#   query        an illustrative query, written against the schema:
 #                openCypher for Neptune, SQL for Snowflake. Warehouse table
 #                names are illustrative too. In SQL, a trailing comment such as
 #                "-- Authorization.with_card" marks the line that walks a step.
+#   gap          for a question the schema can't answer yet: what it lacks.
+#                A gap question has no walks or query, and counts against
+#                coverage until the schema can walk it.
 #
 # tools/check_ontology.py checks every query the way decision 13 checks
-# generated ones: labels and relationships the ontology has, in their one
+# generated queries: labels and relationships the ontology has, in their one
 # direction, read-only, and with a LIMIT.
 
 questions:
+
+  # ---------- Disputes ----------
 
   - id: CQ-01
     domain: disputes
@@ -42,6 +50,349 @@ questions:
       RETURN rep.id AS response, rep.opened_at AS sent_at, collect(doc.id) AS evidence
       ORDER BY sent_at
       LIMIT 20
+
+  - id: CQ-07
+    domain: disputes
+    question: Which chargebacks against this merchant still have no representment?
+    walks: [Chargeback.disputes, Capture.captures, Authorization.at_merchant, Representment.responds_to]
+    answered_in: neptune
+    query: |
+      MATCH (cb:Chargeback)-[:DISPUTES]->(:Capture)-[:CAPTURES]->(:Authorization)-[:AT_MERCHANT]->(:Merchant {id: $merchant})
+      WHERE NOT (cb)<-[:RESPONDS_TO]-(:Representment)
+      RETURN cb.id AS chargeback, cb.opened_at AS opened_at
+      ORDER BY opened_at
+      LIMIT 100
+
+  - id: CQ-08
+    domain: disputes
+    question: Show this chargeback's whole dispute chain, from chargeback to pre-arbitration.
+    walks: [Representment.responds_to, PreArbitration.responds_to]
+    answered_in: neptune
+    query: |
+      MATCH (cb:Chargeback {id: $chargeback})
+      OPTIONAL MATCH (rep:Representment)-[:RESPONDS_TO]->(cb)
+      OPTIONAL MATCH (pa:PreArbitration)-[:RESPONDS_TO]->(rep)
+      RETURN cb.id AS chargeback, cb.opened_at AS opened_at, rep.id AS representment,
+             rep.opened_at AS represented_at, pa.id AS pre_arbitration, pa.opened_at AS challenged_at
+      LIMIT 10
+
+  - id: CQ-09
+    domain: disputes
+    question: Which reason codes did this merchant's chargebacks cite in the last 90 days?
+    walks: [Chargeback.disputes, Capture.captures, Authorization.at_merchant, Chargeback.has_reason]
+    answered_in: neptune
+    query: |
+      MATCH (:Merchant {id: $merchant})<-[:AT_MERCHANT]-(:Authorization)<-[:CAPTURES]-(:Capture)<-[:DISPUTES]-(cb:Chargeback)
+      MATCH (cb)-[:HAS_REASON]->(rc:ReasonCode)
+      WHERE cb.opened_at >= $since
+      RETURN rc.id AS reason, count(DISTINCT cb) AS chargebacks
+      ORDER BY chargebacks DESC
+      LIMIT 20
+
+  - id: CQ-10
+    domain: disputes
+    question: Which chargebacks were opened on a transaction we had already refunded?
+    walks: [Chargeback.disputes, Refund.refunds]
+    answered_in: neptune
+    query: |
+      MATCH (cb:Chargeback)-[:DISPUTES]->(cap:Capture)<-[:REFUNDS]-(rf:Refund)
+      WHERE rf.refunded_at < cb.opened_at
+      RETURN cb.id AS chargeback, cap.id AS capture, rf.id AS refund, rf.refunded_at AS refunded_at
+      LIMIT 100
+
+  - id: CQ-11
+    domain: disputes
+    question: Which network rule passages explain reason code 10.4?
+    walks: [Chunk.mentions, Chunk.part_of]
+    answered_in: neptune
+    query: |
+      MATCH (k:Chunk)-[:MENTIONS]->(:ReasonCode {id: $reason})
+      MATCH (k)-[:PART_OF]->(doc:Document)
+      WHERE doc.kind = 'network_rules'
+      RETURN doc.id AS document, k.id AS passage
+      LIMIT 20
+
+  - id: CQ-12
+    domain: disputes
+    question: Which documents have we sent as evidence against reason code 13.1, and how often?
+    walks: [Representment.responds_to, Chargeback.has_reason, Representment.has_evidence]
+    answered_in: neptune
+    query: |
+      MATCH (rep:Representment)-[:RESPONDS_TO]->(cb:Chargeback)-[:HAS_REASON]->(:ReasonCode {id: $reason})
+      MATCH (rep)-[:HAS_EVIDENCE]->(doc:Document)
+      RETURN doc.id AS document, doc.kind AS kind, count(DISTINCT rep) AS representments
+      ORDER BY representments DESC
+      LIMIT 20
+
+  - id: CQ-13
+    domain: disputes
+    question: Which merchants had pre-arbitration challenges this quarter?
+    walks: [PreArbitration.responds_to, Representment.responds_to, Chargeback.disputes, Capture.captures, Authorization.at_merchant]
+    answered_in: neptune
+    query: |
+      MATCH (pa:PreArbitration)-[:RESPONDS_TO]->(:Representment)-[:RESPONDS_TO]->(cb:Chargeback)
+      MATCH (cb)-[:DISPUTES]->(:Capture)-[:CAPTURES]->(:Authorization)-[:AT_MERCHANT]->(m:Merchant)
+      WHERE pa.opened_at >= $quarter_start
+      RETURN m.id AS merchant, m.name AS name, count(DISTINCT pa) AS pre_arbitrations
+      ORDER BY pre_arbitrations DESC
+      LIMIT 20
+
+  - id: CQ-14
+    domain: disputes
+    question: Which cards have been charged back more than once?
+    walks: [Chargeback.disputes, Capture.captures, Authorization.with_card]
+    answered_in: neptune
+    query: |
+      MATCH (cb:Chargeback)-[:DISPUTES]->(:Capture)-[:CAPTURES]->(:Authorization)-[:WITH_CARD]->(c:Card)
+      WITH c, count(DISTINCT cb) AS chargebacks
+      WHERE chargebacks > 1
+      RETURN c.id AS card, chargebacks
+      ORDER BY chargebacks DESC
+      LIMIT 50
+
+  - id: CQ-15
+    domain: disputes
+    question: Which issuers file the most chargebacks against this acquirer's merchants?
+    walks: [Merchant.acquired_by, Authorization.at_merchant, Chargeback.disputes, Capture.captures, Authorization.with_card, Card.in_bin_range, BinRange.assigned_to]
+    answered_in: neptune
+    query: |
+      MATCH (:Acquirer {id: $acquirer})<-[:ACQUIRED_BY]-(:Merchant)<-[:AT_MERCHANT]-(a:Authorization)
+      MATCH (cb:Chargeback)-[:DISPUTES]->(:Capture)-[:CAPTURES]->(a)
+      MATCH (a)-[:WITH_CARD]->(:Card)-[:IN_BIN_RANGE]->(:BinRange)-[:ASSIGNED_TO]->(i:Issuer)
+      RETURN i.id AS issuer, count(DISTINCT cb) AS chargebacks
+      ORDER BY chargebacks DESC
+      LIMIT 10
+
+  - id: CQ-16
+    domain: disputes
+    question: Which of this merchant's chargebacks followed a fraud report on the same authorization?
+    walks: [FraudReport.reports, Authorization.at_merchant, Chargeback.disputes, Capture.captures]
+    answered_in: neptune
+    query: |
+      MATCH (fr:FraudReport)-[:REPORTS]->(a:Authorization)-[:AT_MERCHANT]->(:Merchant {id: $merchant})
+      MATCH (cb:Chargeback)-[:DISPUTES]->(:Capture)-[:CAPTURES]->(a)
+      WHERE fr.reported_at <= cb.opened_at
+      RETURN a.id AS authorization, fr.id AS fraud_report, cb.id AS chargeback
+      LIMIT 100
+
+  - id: CQ-17
+    domain: disputes
+    question: For each reason code, how many chargebacks came in this month, and how many did we represent?
+    walks: [Chargeback.has_reason, Representment.responds_to]
+    answered_in: neptune
+    query: |
+      MATCH (cb:Chargeback)-[:HAS_REASON]->(rc:ReasonCode)
+      WHERE cb.opened_at >= $month_start
+      OPTIONAL MATCH (rep:Representment)-[:RESPONDS_TO]->(cb)
+      RETURN rc.network AS network, rc.code AS reason, count(DISTINCT cb) AS chargebacks,
+             count(DISTINCT rep) AS represented
+      ORDER BY chargebacks DESC
+      LIMIT 50
+
+  - id: CQ-18
+    domain: disputes
+    question: Which documents mention this chargeback?
+    walks: [Chunk.mentions, Chunk.part_of]
+    answered_in: neptune
+    query: |
+      MATCH (k:Chunk)-[:MENTIONS]->(:Chargeback {id: $chargeback})
+      MATCH (k)-[:PART_OF]->(doc:Document)
+      RETURN DISTINCT doc.id AS document, doc.kind AS kind
+      LIMIT 20
+
+  - id: CQ-19
+    domain: disputes
+    question: Tell the whole story of this dispute, from authorization to the evidence we sent.
+    walks: [Chargeback.disputes, Capture.captures, Representment.responds_to, Representment.has_evidence]
+    answered_in: neptune
+    query: |
+      MATCH (cb:Chargeback {id: $chargeback})-[:DISPUTES]->(cap:Capture)-[:CAPTURES]->(a:Authorization)
+      OPTIONAL MATCH (rep:Representment)-[:RESPONDS_TO]->(cb)
+      OPTIONAL MATCH (rep)-[:HAS_EVIDENCE]->(doc:Document)
+      RETURN a.id AS authorization, a.authorized_at AS authorized_at, cap.id AS capture,
+             cb.id AS chargeback, rep.id AS representment, collect(doc.id) AS evidence
+      LIMIT 1
+
+  - id: CQ-20
+    domain: disputes
+    question: Which restaurants (MCC 5812) had 13.1 chargebacks last month?
+    walks: [Chargeback.has_reason, Chargeback.disputes, Capture.captures, Authorization.at_merchant]
+    answered_in: neptune
+    query: |
+      MATCH (cb:Chargeback)-[:HAS_REASON]->(:ReasonCode {id: $reason})
+      MATCH (cb)-[:DISPUTES]->(:Capture)-[:CAPTURES]->(:Authorization)-[:AT_MERCHANT]->(m:Merchant)
+      WHERE m.mcc = $mcc AND cb.opened_at >= $month_start AND cb.opened_at < $month_end
+      RETURN m.id AS merchant, m.name AS name, count(DISTINCT cb) AS chargebacks
+      ORDER BY chargebacks DESC
+      LIMIT 20
+
+  - id: CQ-21
+    domain: disputes
+    question: How many chargebacks did this merchant get each month over the last year, and how much had those transactions captured?
+    walks: [Chargeback.disputes, Capture.captures, Authorization.at_merchant]
+    answered_in: snowflake
+    query: |
+      SELECT DATE_TRUNC('month', cb.opened_at) AS month,
+             COUNT(*) AS chargebacks,
+             SUM(c.amount) AS captured_amount
+      FROM fct_chargeback cb
+      JOIN fct_capture c ON c.capture_id = cb.capture_id                    -- Chargeback.disputes
+      JOIN fct_authorization a ON a.authorization_id = c.authorization_id   -- Capture.captures
+      WHERE a.merchant_id = :merchant_id                                    -- Authorization.at_merchant
+        AND cb.opened_at >= DATEADD('month', -12, CURRENT_DATE)
+      GROUP BY 1
+      ORDER BY 1
+      LIMIT 12;
+
+  - id: CQ-22
+    domain: disputes
+    question: What is this merchant's dispute ratio this month, chargebacks over settled transactions?
+    walks: [Chargeback.disputes, Capture.captures, Authorization.at_merchant, Settlement.settles]
+    answered_in: snowflake
+    query: |
+      WITH settled AS (
+        SELECT COUNT(DISTINCT c.capture_id) AS n
+        FROM fct_settlement_item s
+        JOIN fct_capture c ON c.capture_id = s.capture_id                   -- Settlement.settles
+        JOIN fct_authorization a ON a.authorization_id = c.authorization_id -- Capture.captures
+        WHERE a.merchant_id = :merchant_id                                  -- Authorization.at_merchant
+          AND s.settled_at >= DATE_TRUNC('month', CURRENT_DATE)
+      ),
+      disputed AS (
+        SELECT COUNT(*) AS n
+        FROM fct_chargeback cb
+        JOIN fct_capture c ON c.capture_id = cb.capture_id                  -- Chargeback.disputes
+        JOIN fct_authorization a ON a.authorization_id = c.authorization_id -- Capture.captures
+        WHERE a.merchant_id = :merchant_id                                  -- Authorization.at_merchant
+          AND cb.opened_at >= DATE_TRUNC('month', CURRENT_DATE)
+      )
+      SELECT disputed.n AS chargebacks, settled.n AS settled_transactions,
+             disputed.n / NULLIF(settled.n, 0) AS dispute_ratio
+      FROM disputed, settled
+      LIMIT 1;
+
+  - id: CQ-23
+    domain: disputes
+    question: How did chargebacks by reason code move week to week this quarter?
+    walks: [Chargeback.has_reason]
+    answered_in: snowflake
+    query: |
+      SELECT DATE_TRUNC('week', cb.opened_at) AS week, rc.network, rc.code,
+             COUNT(*) AS chargebacks
+      FROM fct_chargeback cb
+      JOIN dim_reason_code rc ON rc.reason_code_id = cb.reason_code_id   -- Chargeback.has_reason
+      WHERE cb.opened_at >= DATE_TRUNC('quarter', CURRENT_DATE)
+      GROUP BY 1, 2, 3
+      ORDER BY 1, 4 DESC
+      LIMIT 500;
+
+  - id: CQ-24
+    domain: disputes
+    question: What share of chargebacks did we represent over the last six months, by reason code?
+    walks: [Chargeback.has_reason, Representment.responds_to]
+    answered_in: snowflake
+    query: |
+      SELECT rc.network, rc.code,
+             COUNT(DISTINCT cb.chargeback_id) AS chargebacks,
+             COUNT(DISTINCT rep.representment_id) AS represented,
+             represented / NULLIF(chargebacks, 0) AS represent_rate
+      FROM fct_chargeback cb
+      JOIN dim_reason_code rc ON rc.reason_code_id = cb.reason_code_id      -- Chargeback.has_reason
+      LEFT JOIN fct_representment rep ON rep.chargeback_id = cb.chargeback_id   -- Representment.responds_to
+      WHERE cb.opened_at >= DATEADD('month', -6, CURRENT_DATE)
+      GROUP BY 1, 2
+      ORDER BY chargebacks DESC
+      LIMIT 50;
+
+  - id: CQ-25
+    domain: disputes
+    question: How many days did we take to represent a chargeback last quarter?
+    walks: [Representment.responds_to]
+    answered_in: snowflake
+    query: |
+      SELECT AVG(DATEDIFF('day', cb.opened_at, rep.opened_at)) AS average_days,
+             MEDIAN(DATEDIFF('day', cb.opened_at, rep.opened_at)) AS median_days
+      FROM fct_representment rep
+      JOIN fct_chargeback cb ON cb.chargeback_id = rep.chargeback_id   -- Representment.responds_to
+      WHERE rep.opened_at >= DATEADD('quarter', -1, DATE_TRUNC('quarter', CURRENT_DATE))
+        AND rep.opened_at < DATE_TRUNC('quarter', CURRENT_DATE)
+      LIMIT 1;
+
+  - id: CQ-26
+    domain: disputes
+    question: Which disputes did we settle with a refund instead of a representment?
+    walks: [Chargeback.disputes, Refund.refunds, Representment.responds_to]
+    answered_in: neptune
+    query: |
+      MATCH (cb:Chargeback)-[:DISPUTES]->(cap:Capture)<-[:REFUNDS]-(rf:Refund)
+      WHERE rf.refunded_at > cb.opened_at AND NOT (cb)<-[:RESPONDS_TO]-(:Representment)
+      RETURN cb.id AS chargeback, rf.id AS refund, rf.amount AS refunded
+      LIMIT 100
+
+  - id: CQ-27
+    domain: disputes
+    question: What is our win rate on representments, by reason code?
+    answered_in: snowflake
+    gap: >-
+      The schema has no dispute outcome. A closing event on the dispute chain, with who won
+      and the amount returned, would answer it.
+
+  - id: CQ-28
+    domain: disputes
+    question: Which chargebacks are close to missing their response deadline?
+    answered_in: neptune
+    gap: >-
+      No response deadline is modelled. Each network sets one per dispute stage; a due date
+      on each dispute event, or a rule it links to, would answer it.
+
+  - id: CQ-29
+    domain: disputes
+    question: How much was disputed, as opposed to captured?
+    answered_in: snowflake
+    gap: >-
+      A dispute event has no amount or currency of its own, so a partial chargeback can't be
+      told from a full one.
+
+  - id: CQ-30
+    domain: disputes
+    question: Which disputes went to arbitration, and how did the network rule?
+    answered_in: neptune
+    gap: >-
+      The dispute chain stops at pre-arbitration. Arbitration and the network's ruling aren't
+      modelled.
+
+  - id: CQ-31
+    domain: disputes
+    question: Which retrieval requests turned into chargebacks?
+    answered_in: neptune
+    gap: >-
+      Retrieval requests aren't modelled. ISO 20022's RetrievalInitiation (cain.021) could map
+      a retrieval request event.
+
+  - id: CQ-32
+    domain: disputes
+    question: Which chargebacks were fraud disputes, and which were consumer disputes?
+    answered_in: neptune
+    gap: >-
+      Reason codes have no category, such as fraud, authorization, processing error or consumer
+      dispute, to group them across networks.
+
+  - id: CQ-33
+    domain: disputes
+    question: Which merchants are in a network's dispute monitoring program this month, and at what tier?
+    answered_in: snowflake
+    gap: >-
+      Monitoring programs, their tiers and their thresholds aren't modelled. The retrieval
+      walkthrough computes a VAMP-style ratio, but no class says which program a merchant is in.
+
+  - id: CQ-34
+    domain: disputes
+    question: Which chargebacks did the cardholder later withdraw?
+    answered_in: neptune
+    gap: >-
+      Dispute withdrawals and reversals aren't modelled as events.
+
+  # ---------- Authorization ----------
 
   - id: CQ-03
     domain: authorization
@@ -81,6 +432,369 @@ questions:
       ORDER BY today / NULLIF(daily_average, 0) DESC NULLS LAST
       LIMIT 20;
 
+  - id: CQ-35
+    domain: authorization
+    question: What was each issuer's approval rate yesterday?
+    walks: [Authorization.with_card, Card.in_bin_range, BinRange.assigned_to, Authorization.has_response]
+    answered_in: snowflake
+    query: |
+      SELECT i.issuer_id, i.name,
+             COUNT(*) AS authorizations,
+             COUNT_IF(a.response_code = '00') / COUNT(*) AS approval_rate   -- Authorization.has_response
+      FROM fct_authorization a
+      JOIN dim_card c ON c.card_id = a.card_id                -- Authorization.with_card
+      JOIN dim_bin_range b ON b.bin_id = c.bin_id             -- Card.in_bin_range
+      JOIN dim_issuer i ON i.issuer_id = b.issuer_id          -- BinRange.assigned_to
+      WHERE a.authorized_at >= DATEADD('day', -1, CURRENT_DATE) AND a.authorized_at < CURRENT_DATE
+      GROUP BY 1, 2
+      ORDER BY authorizations DESC
+      LIMIT 50;
+
+  - id: CQ-36
+    domain: authorization
+    question: Which merchants' approval rates fell most this week, compared with last week?
+    walks: [Authorization.at_merchant, Authorization.has_response]
+    answered_in: snowflake
+    query: |
+      WITH weekly AS (
+        SELECT a.merchant_id,                                             -- Authorization.at_merchant
+               DATE_TRUNC('week', a.authorized_at) AS week,
+               COUNT_IF(a.response_code = '00') / COUNT(*) AS approval_rate   -- Authorization.has_response
+        FROM fct_authorization a
+        WHERE a.authorized_at >= DATEADD('week', -1, DATE_TRUNC('week', CURRENT_DATE))
+        GROUP BY 1, 2
+      )
+      SELECT merchant_id,
+             MAX(IFF(week = DATE_TRUNC('week', CURRENT_DATE), approval_rate, NULL))
+               - MAX(IFF(week < DATE_TRUNC('week', CURRENT_DATE), approval_rate, NULL)) AS change
+      FROM weekly
+      GROUP BY merchant_id
+      ORDER BY change ASC NULLS LAST
+      LIMIT 20;
+
+  - id: CQ-37
+    domain: authorization
+    question: What were the most common decline codes on card-not-present authorizations last month?
+    walks: [Authorization.has_response]
+    answered_in: snowflake
+    query: |
+      SELECT a.response_code, COUNT(*) AS declines                -- Authorization.has_response
+      FROM fct_authorization a
+      WHERE a.channel = 'card_not_present'
+        AND a.response_code <> '00'
+        AND a.authorized_at >= DATEADD('month', -1, DATE_TRUNC('month', CURRENT_DATE))
+        AND a.authorized_at < DATE_TRUNC('month', CURRENT_DATE)
+      GROUP BY 1
+      ORDER BY declines DESC
+      LIMIT 20;
+
+  - id: CQ-38
+    domain: authorization
+    question: How much did each merchant authorize and capture yesterday, by currency?
+    walks: [Authorization.at_merchant, Capture.captures]
+    answered_in: snowflake
+    query: |
+      WITH captured AS (
+        SELECT c.authorization_id, SUM(c.amount) AS amount
+        FROM fct_capture c
+        GROUP BY 1
+      )
+      SELECT a.merchant_id, a.currency,                                 -- Authorization.at_merchant
+             SUM(a.amount) AS authorized, SUM(captured.amount) AS captured
+      FROM fct_authorization a
+      LEFT JOIN captured ON captured.authorization_id = a.authorization_id   -- Capture.captures
+      WHERE a.authorized_at >= DATEADD('day', -1, CURRENT_DATE) AND a.authorized_at < CURRENT_DATE
+      GROUP BY 1, 2
+      ORDER BY authorized DESC
+      LIMIT 100;
+
+  - id: CQ-39
+    domain: authorization
+    question: Which approved authorizations from the last month were never captured within seven days?
+    walks: [Authorization.has_response, Capture.captures]
+    answered_in: snowflake
+    query: |
+      SELECT a.authorization_id, a.merchant_id, a.authorized_at, a.amount, a.currency
+      FROM fct_authorization a
+      LEFT JOIN fct_capture c ON c.authorization_id = a.authorization_id   -- Capture.captures
+      WHERE a.response_code = '00'                                         -- Authorization.has_response
+        AND c.capture_id IS NULL
+        AND a.authorized_at < DATEADD('day', -7, CURRENT_TIMESTAMP)
+        AND a.authorized_at >= DATEADD('day', -30, CURRENT_TIMESTAMP)
+      ORDER BY a.authorized_at
+      LIMIT 100;
+
+  - id: CQ-40
+    domain: authorization
+    question: Which authorizations were captured for more than they approved?
+    walks: [Capture.captures]
+    answered_in: snowflake
+    query: |
+      SELECT a.authorization_id, a.merchant_id, a.amount AS authorized, SUM(c.amount) AS captured
+      FROM fct_authorization a
+      JOIN fct_capture c ON c.authorization_id = a.authorization_id   -- Capture.captures
+      WHERE a.authorized_at >= DATEADD('day', -30, CURRENT_DATE)
+      GROUP BY a.authorization_id, a.merchant_id, a.amount
+      HAVING SUM(c.amount) > a.amount
+      ORDER BY captured - authorized DESC
+      LIMIT 100;
+
+  - id: CQ-41
+    domain: authorization
+    question: How many authorizations came from each BIN range yesterday, card present and not present?
+    walks: [Authorization.with_card, Card.in_bin_range]
+    answered_in: snowflake
+    query: |
+      SELECT b.prefix, a.channel, COUNT(*) AS authorizations
+      FROM fct_authorization a
+      JOIN dim_card c ON c.card_id = a.card_id              -- Authorization.with_card
+      JOIN dim_bin_range b ON b.bin_id = c.bin_id           -- Card.in_bin_range
+      WHERE a.authorized_at >= DATEADD('day', -1, CURRENT_DATE) AND a.authorized_at < CURRENT_DATE
+      GROUP BY 1, 2
+      ORDER BY authorizations DESC
+      LIMIT 200;
+
+  - id: CQ-42
+    domain: authorization
+    question: What is the approval rate by card network and channel this month?
+    walks: [Authorization.with_card, Authorization.has_response]
+    answered_in: snowflake
+    query: |
+      SELECT c.network, a.channel, COUNT(*) AS authorizations,
+             COUNT_IF(a.response_code = '00') / COUNT(*) AS approval_rate   -- Authorization.has_response
+      FROM fct_authorization a
+      JOIN dim_card c ON c.card_id = a.card_id              -- Authorization.with_card
+      WHERE a.authorized_at >= DATE_TRUNC('month', CURRENT_DATE)
+      GROUP BY 1, 2
+      ORDER BY 1, 2
+      LIMIT 20;
+
+  - id: CQ-43
+    domain: authorization
+    question: Which acquirers' merchants had the lowest approval rates last week?
+    walks: [Authorization.at_merchant, Merchant.acquired_by, Authorization.has_response]
+    answered_in: snowflake
+    query: |
+      SELECT m.acquirer_id,                                                 -- Merchant.acquired_by
+             COUNT(*) AS authorizations,
+             COUNT_IF(a.response_code = '00') / COUNT(*) AS approval_rate   -- Authorization.has_response
+      FROM fct_authorization a
+      JOIN dim_merchant m ON m.merchant_id = a.merchant_id                  -- Authorization.at_merchant
+      WHERE a.authorized_at >= DATEADD('week', -1, DATE_TRUNC('week', CURRENT_DATE))
+        AND a.authorized_at < DATE_TRUNC('week', CURRENT_DATE)
+      GROUP BY 1
+      ORDER BY approval_rate ASC
+      LIMIT 20;
+
+  - id: CQ-44
+    domain: authorization
+    question: In which hours today did this merchant see the most authorizations, and from how many cards?
+    walks: [Authorization.at_merchant, Authorization.with_card]
+    answered_in: snowflake
+    query: |
+      SELECT DATE_TRUNC('hour', a.authorized_at) AS hour,
+             COUNT(*) AS authorizations,
+             COUNT(DISTINCT a.card_id) AS cards                   -- Authorization.with_card
+      FROM fct_authorization a
+      WHERE a.merchant_id = :merchant_id                          -- Authorization.at_merchant
+        AND a.authorized_at >= CURRENT_DATE
+      GROUP BY 1
+      ORDER BY authorizations DESC
+      LIMIT 24;
+
+  - id: CQ-45
+    domain: authorization
+    question: Which device did this disputed authorization come from, and where else has that device been seen?
+    walks: [Authorization.from_device, Device.seen_at]
+    answered_in: neptune
+    query: |
+      MATCH (a:Authorization {id: $authorization})-[:FROM_DEVICE]->(d:Device)
+      MATCH (d)-[s:SEEN_AT]->(m:Merchant)
+      RETURN d.id AS device, m.id AS merchant, s.auths AS auths, s.last_seen AS last_seen
+      ORDER BY last_seen DESC
+      LIMIT 50
+
+  - id: CQ-46
+    domain: authorization
+    question: Which issuer approved the authorization behind this chargeback, and through which BIN range?
+    walks: [Chargeback.disputes, Capture.captures, Authorization.with_card, Card.in_bin_range, BinRange.assigned_to]
+    answered_in: neptune
+    query: |
+      MATCH (:Chargeback {id: $chargeback})-[:DISPUTES]->(:Capture)-[:CAPTURES]->(a:Authorization)-[:WITH_CARD]->(c:Card)
+      MATCH (c)-[:IN_BIN_RANGE]->(b:BinRange)-[:ASSIGNED_TO]->(i:Issuer)
+      RETURN a.id AS authorization, c.id AS card, b.prefix AS bin, i.id AS issuer
+      LIMIT 1
+
+  - id: CQ-47
+    domain: authorization
+    question: Which disputed transactions were on-us, with the same bank as issuer and acquirer?
+    walks: [Authorization.with_card, Card.in_bin_range, BinRange.assigned_to, Authorization.at_merchant, Merchant.acquired_by, Organization.acts_as]
+    answered_in: neptune
+    query: |
+      MATCH (a:Authorization)-[:WITH_CARD]->(:Card)-[:IN_BIN_RANGE]->(:BinRange)-[:ASSIGNED_TO]->(i:Issuer)
+      MATCH (a)-[:AT_MERCHANT]->(:Merchant)-[:ACQUIRED_BY]->(acq:Acquirer)
+      MATCH (i)<-[:ACTS_AS]-(bank:Organization)-[:ACTS_AS]->(acq)
+      RETURN a.id AS authorization, bank.id AS bank, bank.name AS name
+      LIMIT 100
+
+  - id: CQ-48
+    domain: authorization
+    question: Which of this card's authorizations are in the graph, and which dispute or fraud report brought each one in?
+    walks: [Authorization.with_card, Chargeback.disputes, Capture.captures, FraudReport.reports]
+    answered_in: neptune
+    query: |
+      MATCH (a:Authorization)-[:WITH_CARD]->(:Card {id: $card})
+      OPTIONAL MATCH (cb:Chargeback)-[:DISPUTES]->(:Capture)-[:CAPTURES]->(a)
+      OPTIONAL MATCH (fr:FraudReport)-[:REPORTS]->(a)
+      RETURN a.id AS authorization, collect(DISTINCT cb.id) AS chargebacks,
+             collect(DISTINCT fr.id) AS fraud_reports
+      LIMIT 100
+
+  - id: CQ-49
+    domain: authorization
+    question: What was this merchant's average authorization amount by channel over the last 30 days?
+    walks: [Authorization.at_merchant]
+    answered_in: snowflake
+    query: |
+      SELECT a.channel, a.currency, COUNT(*) AS authorizations, AVG(a.amount) AS average_amount
+      FROM fct_authorization a
+      WHERE a.merchant_id = :merchant_id                          -- Authorization.at_merchant
+        AND a.authorized_at >= DATEADD('day', -30, CURRENT_DATE)
+      GROUP BY 1, 2
+      ORDER BY authorizations DESC
+      LIMIT 10;
+
+  - id: CQ-50
+    domain: authorization
+    question: Which response codes does this issuer return most on card-not-present authorizations?
+    walks: [Authorization.with_card, Card.in_bin_range, BinRange.assigned_to, Authorization.has_response]
+    answered_in: snowflake
+    query: |
+      SELECT a.response_code, COUNT(*) AS authorizations          -- Authorization.has_response
+      FROM fct_authorization a
+      JOIN dim_card c ON c.card_id = a.card_id                    -- Authorization.with_card
+      JOIN dim_bin_range b ON b.bin_id = c.bin_id                 -- Card.in_bin_range
+      WHERE b.issuer_id = :issuer_id                              -- BinRange.assigned_to
+        AND a.channel = 'card_not_present'
+        AND a.authorized_at >= DATEADD('day', -30, CURRENT_DATE)
+      GROUP BY 1
+      ORDER BY authorizations DESC
+      LIMIT 20;
+
+  - id: CQ-51
+    domain: authorization
+    question: Which merchant category codes had the highest decline rate this month?
+    walks: [Authorization.at_merchant, Authorization.has_response]
+    answered_in: snowflake
+    query: |
+      SELECT m.mcc, COUNT(*) AS authorizations,
+             COUNT_IF(a.response_code <> '00') / COUNT(*) AS decline_rate   -- Authorization.has_response
+      FROM fct_authorization a
+      JOIN dim_merchant m ON m.merchant_id = a.merchant_id                  -- Authorization.at_merchant
+      WHERE a.authorized_at >= DATE_TRUNC('month', CURRENT_DATE)
+      GROUP BY 1
+      HAVING COUNT(*) >= 1000
+      ORDER BY decline_rate DESC
+      LIMIT 20;
+
+  - id: CQ-52
+    domain: authorization
+    question: At which merchants did this card's disputed or fraud-reported authorizations happen?
+    walks: [Authorization.with_card, Authorization.at_merchant]
+    answered_in: neptune
+    query: |
+      MATCH (a:Authorization)-[:WITH_CARD]->(:Card {id: $card})
+      MATCH (a)-[:AT_MERCHANT]->(m:Merchant)
+      RETURN m.id AS merchant, m.name AS name, count(a) AS authorizations
+      ORDER BY authorizations DESC
+      LIMIT 50
+
+  - id: CQ-53
+    domain: authorization
+    question: How many authorizations did this acquirer's merchants get per response code, hour by hour, today?
+    walks: [Authorization.at_merchant, Merchant.acquired_by, Authorization.has_response]
+    answered_in: snowflake
+    query: |
+      SELECT DATE_TRUNC('hour', a.authorized_at) AS hour,
+             a.response_code,                                     -- Authorization.has_response
+             COUNT(*) AS authorizations
+      FROM fct_authorization a
+      JOIN dim_merchant m ON m.merchant_id = a.merchant_id        -- Authorization.at_merchant
+      WHERE m.acquirer_id = :acquirer_id                          -- Merchant.acquired_by
+        AND a.authorized_at >= CURRENT_DATE
+      GROUP BY 1, 2
+      ORDER BY 1, 3 DESC
+      LIMIT 500;
+
+  - id: CQ-54
+    domain: authorization
+    question: Which authorizations were authenticated with 3-D Secure, and did the challenge succeed?
+    answered_in: snowflake
+    gap: >-
+      Authentication isn't modelled: no 3-D Secure attempt, result or ECI value on an
+      authorization.
+
+  - id: CQ-55
+    domain: authorization
+    question: Which authorizations were reversed before capture?
+    answered_in: snowflake
+    gap: >-
+      Reversals aren't modelled. ISO 20022's ReversalInitiation (cain.005) could map a reversal
+      event.
+
+  - id: CQ-56
+    domain: authorization
+    question: Which authorizations used a network token or a digital wallet?
+    answered_in: snowflake
+    gap: >-
+      A card is identified by a token, but there's no token type, token requestor or wallet.
+
+  - id: CQ-57
+    domain: authorization
+    question: How do approval rates differ between domestic and cross-border authorizations?
+    answered_in: snowflake
+    gap: >-
+      Merchants, issuers and cards have no country, so cross-border can't be told from
+      domestic. ISO 3166 codes would fill it.
+
+  - id: CQ-58
+    domain: authorization
+    question: Which hotel and car rental authorizations were incremental or estimated?
+    answered_in: snowflake
+    gap: >-
+      An authorization has no type, such as initial, incremental, estimated or final.
+
+  - id: CQ-59
+    domain: authorization
+    question: What share of authorizations were on credit, debit and prepaid cards?
+    answered_in: snowflake
+    gap: >-
+      A card has no product type. FIBO's CreditCard and DebitCard could map one.
+
+  - id: CQ-60
+    domain: authorization
+    question: Which recurring payments are failing for this merchant?
+    answered_in: snowflake
+    gap: >-
+      An authorization has no recurring or stored-credential indicator.
+
+  - id: CQ-61
+    domain: authorization
+    question: Which authorizations were only partly approved?
+    answered_in: snowflake
+    gap: >-
+      An authorization has one amount, so an approved amount can't be told from the requested
+      one.
+
+  - id: CQ-62
+    domain: authorization
+    question: Which authorizations did the network approve in stand-in while the issuer was down?
+    answered_in: snowflake
+    gap: >-
+      Nothing records who made the decision: the issuer, the network's stand-in or a processor.
+
+  # ---------- Settlement ----------
+
   - id: CQ-05
     domain: settlement
     question: Which captures haven't settled after 3 days?
@@ -94,6 +808,426 @@ questions:
         AND c.captured_at < DATEADD('day', -3, CURRENT_TIMESTAMP)
       ORDER BY c.captured_at
       LIMIT 100;
+
+  - id: CQ-63
+    domain: settlement
+    question: How much did each acquirer settle yesterday, by currency?
+    walks: [Settlement.settles, Capture.captures, Authorization.at_merchant, Merchant.acquired_by]
+    answered_in: snowflake
+    query: |
+      SELECT m.acquirer_id, c.currency,                                     -- Merchant.acquired_by
+             SUM(c.amount) AS settled
+      FROM fct_settlement_item s
+      JOIN fct_capture c ON c.capture_id = s.capture_id                     -- Settlement.settles
+      JOIN fct_authorization a ON a.authorization_id = c.authorization_id   -- Capture.captures
+      JOIN dim_merchant m ON m.merchant_id = a.merchant_id                  -- Authorization.at_merchant
+      WHERE s.settled_at >= DATEADD('day', -1, CURRENT_DATE) AND s.settled_at < CURRENT_DATE
+      GROUP BY 1, 2
+      ORDER BY settled DESC
+      LIMIT 100;
+
+  - id: CQ-64
+    domain: settlement
+    question: How many hours does it take captures to settle, by acquirer, this month?
+    walks: [Settlement.settles, Capture.captures, Authorization.at_merchant, Merchant.acquired_by]
+    answered_in: snowflake
+    query: |
+      SELECT m.acquirer_id,                                                 -- Merchant.acquired_by
+             MEDIAN(DATEDIFF('hour', c.captured_at, s.settled_at)) AS median_hours,
+             MAX(DATEDIFF('hour', c.captured_at, s.settled_at)) AS slowest_hours
+      FROM fct_settlement_item s
+      JOIN fct_capture c ON c.capture_id = s.capture_id                     -- Settlement.settles
+      JOIN fct_authorization a ON a.authorization_id = c.authorization_id   -- Capture.captures
+      JOIN dim_merchant m ON m.merchant_id = a.merchant_id                  -- Authorization.at_merchant
+      WHERE s.settled_at >= DATE_TRUNC('month', CURRENT_DATE)
+      GROUP BY 1
+      ORDER BY median_hours DESC
+      LIMIT 50;
+
+  - id: CQ-65
+    domain: settlement
+    question: Which captures were refunded more than once, or for more than was captured?
+    walks: [Refund.refunds]
+    answered_in: snowflake
+    query: |
+      SELECT c.capture_id, c.amount AS captured, SUM(r.amount) AS refunded, COUNT(*) AS refunds
+      FROM fct_capture c
+      JOIN fct_refund r ON r.capture_id = c.capture_id     -- Refund.refunds
+      GROUP BY c.capture_id, c.amount
+      HAVING COUNT(*) > 1 OR SUM(r.amount) > c.amount
+      ORDER BY refunded DESC
+      LIMIT 100;
+
+  - id: CQ-66
+    domain: settlement
+    question: What was each merchant's refund rate last month, refunded over captured amount?
+    walks: [Refund.refunds, Capture.captures, Authorization.at_merchant]
+    answered_in: snowflake
+    query: |
+      WITH captured AS (
+        SELECT a.merchant_id, c.currency, SUM(c.amount) AS amount           -- Authorization.at_merchant
+        FROM fct_capture c
+        JOIN fct_authorization a ON a.authorization_id = c.authorization_id -- Capture.captures
+        WHERE c.captured_at >= DATEADD('month', -1, DATE_TRUNC('month', CURRENT_DATE))
+          AND c.captured_at < DATE_TRUNC('month', CURRENT_DATE)
+        GROUP BY 1, 2
+      ),
+      refunded AS (
+        SELECT a.merchant_id, r.currency, SUM(r.amount) AS amount           -- Authorization.at_merchant
+        FROM fct_refund r
+        JOIN fct_capture c ON c.capture_id = r.capture_id                   -- Refund.refunds
+        JOIN fct_authorization a ON a.authorization_id = c.authorization_id -- Capture.captures
+        WHERE r.refunded_at >= DATEADD('month', -1, DATE_TRUNC('month', CURRENT_DATE))
+          AND r.refunded_at < DATE_TRUNC('month', CURRENT_DATE)
+        GROUP BY 1, 2
+      )
+      SELECT captured.merchant_id, captured.currency, captured.amount AS captured,
+             refunded.amount AS refunded, refunded.amount / NULLIF(captured.amount, 0) AS refund_rate
+      FROM captured
+      LEFT JOIN refunded ON refunded.merchant_id = captured.merchant_id AND refunded.currency = captured.currency
+      ORDER BY refund_rate DESC NULLS LAST
+      LIMIT 50;
+
+  - id: CQ-67
+    domain: settlement
+    question: How much did this merchant capture, refund and have charged back each day this month?
+    walks: [Capture.captures, Authorization.at_merchant, Refund.refunds, Chargeback.disputes]
+    answered_in: snowflake
+    query: |
+      WITH merchant_captures AS (
+        SELECT c.capture_id, c.captured_at, c.amount
+        FROM fct_capture c
+        JOIN fct_authorization a ON a.authorization_id = c.authorization_id -- Capture.captures
+        WHERE a.merchant_id = :merchant_id                                  -- Authorization.at_merchant
+      )
+      SELECT d.day,
+             (SELECT SUM(amount) FROM merchant_captures mc
+               WHERE DATE_TRUNC('day', mc.captured_at) = d.day) AS captured,
+             (SELECT SUM(r.amount) FROM fct_refund r
+               JOIN merchant_captures mc ON mc.capture_id = r.capture_id    -- Refund.refunds
+               WHERE DATE_TRUNC('day', r.refunded_at) = d.day) AS refunded,
+             (SELECT SUM(mc.amount) FROM fct_chargeback cb
+               JOIN merchant_captures mc ON mc.capture_id = cb.capture_id   -- Chargeback.disputes
+               WHERE DATE_TRUNC('day', cb.opened_at) = d.day) AS charged_back
+      FROM (SELECT DISTINCT DATE_TRUNC('day', captured_at) AS day FROM merchant_captures
+            WHERE captured_at >= DATE_TRUNC('month', CURRENT_DATE)) d
+      ORDER BY d.day
+      LIMIT 31;
+
+  - id: CQ-68
+    domain: settlement
+    question: Which settlements paid out a capture that had already been fully refunded?
+    walks: [Settlement.settles, Refund.refunds]
+    answered_in: snowflake
+    query: |
+      SELECT s.settlement_id, c.capture_id, c.amount AS captured, SUM(r.amount) AS refunded
+      FROM fct_settlement_item s
+      JOIN fct_capture c ON c.capture_id = s.capture_id     -- Settlement.settles
+      JOIN fct_refund r ON r.capture_id = c.capture_id      -- Refund.refunds
+      WHERE r.refunded_at < s.settled_at
+      GROUP BY s.settlement_id, c.capture_id, c.amount
+      HAVING SUM(r.amount) >= c.amount
+      LIMIT 100;
+
+  - id: CQ-69
+    domain: settlement
+    question: Which captures were settled twice?
+    walks: [Settlement.settles]
+    answered_in: snowflake
+    query: |
+      SELECT s.capture_id, COUNT(DISTINCT s.settlement_id) AS settlements   -- Settlement.settles
+      FROM fct_settlement_item s
+      GROUP BY 1
+      HAVING COUNT(DISTINCT s.settlement_id) > 1
+      LIMIT 100;
+
+  - id: CQ-70
+    domain: settlement
+    question: How much of what was captured yesterday settled, by currency?
+    walks: [Settlement.settles]
+    answered_in: snowflake
+    query: |
+      SELECT c.currency,
+             SUM(c.amount) AS captured,
+             SUM(IFF(s.capture_id IS NOT NULL, c.amount, 0)) AS settled
+      FROM fct_capture c
+      LEFT JOIN fct_settlement_item s ON s.capture_id = c.capture_id   -- Settlement.settles
+      WHERE c.captured_at >= DATEADD('day', -1, CURRENT_DATE) AND c.captured_at < CURRENT_DATE
+      GROUP BY 1
+      ORDER BY captured DESC
+      LIMIT 50;
+
+  - id: CQ-71
+    domain: settlement
+    question: Which merchants capture late, more than three days after authorization?
+    walks: [Capture.captures, Authorization.at_merchant]
+    answered_in: snowflake
+    query: |
+      SELECT a.merchant_id,                                                 -- Authorization.at_merchant
+             COUNT(*) AS captures,
+             COUNT_IF(DATEDIFF('day', a.authorized_at, c.captured_at) > 3) AS late_captures
+      FROM fct_capture c
+      JOIN fct_authorization a ON a.authorization_id = c.authorization_id   -- Capture.captures
+      WHERE c.captured_at >= DATEADD('day', -30, CURRENT_DATE)
+      GROUP BY 1
+      HAVING late_captures > 0
+      ORDER BY late_captures DESC
+      LIMIT 50;
+
+  - id: CQ-72
+    domain: settlement
+    question: Which settlement paid out the capture behind this chargeback, and was any of it refunded?
+    walks: [Chargeback.disputes, Settlement.settles, Refund.refunds]
+    answered_in: neptune
+    query: |
+      MATCH (:Chargeback {id: $chargeback})-[:DISPUTES]->(cap:Capture)
+      OPTIONAL MATCH (s:Settlement)-[:SETTLES]->(cap)
+      OPTIONAL MATCH (rf:Refund)-[:REFUNDS]->(cap)
+      RETURN cap.id AS capture, cap.amount AS captured, collect(DISTINCT s.id) AS settlements,
+             collect(DISTINCT rf.id) AS refunds
+      LIMIT 1
+
+  - id: CQ-73
+    domain: settlement
+    question: Which disputed captures were never settled?
+    walks: [Chargeback.disputes, Settlement.settles]
+    answered_in: neptune
+    query: |
+      MATCH (cb:Chargeback)-[:DISPUTES]->(cap:Capture)
+      WHERE NOT (cap)<-[:SETTLES]-(:Settlement)
+      RETURN cb.id AS chargeback, cap.id AS capture, cap.captured_at AS captured_at
+      LIMIT 100
+
+  - id: CQ-74
+    domain: settlement
+    question: Which merchants split their authorizations into several captures last month?
+    walks: [Capture.captures, Authorization.at_merchant]
+    answered_in: snowflake
+    query: |
+      WITH per_authorization AS (
+        SELECT c.authorization_id, COUNT(*) AS captures
+        FROM fct_capture c
+        WHERE c.captured_at >= DATEADD('month', -1, DATE_TRUNC('month', CURRENT_DATE))
+        GROUP BY 1
+      )
+      SELECT a.merchant_id,                                                 -- Authorization.at_merchant
+             COUNT_IF(p.captures > 1) AS split_authorizations,
+             MAX(p.captures) AS most_captures
+      FROM per_authorization p
+      JOIN fct_authorization a ON a.authorization_id = p.authorization_id   -- Capture.captures
+      GROUP BY 1
+      HAVING split_authorizations > 0
+      ORDER BY split_authorizations DESC
+      LIMIT 50;
+
+  - id: CQ-75
+    domain: settlement
+    question: How much did each merchant refund last week, by currency?
+    walks: [Refund.refunds, Capture.captures, Authorization.at_merchant]
+    answered_in: snowflake
+    query: |
+      SELECT a.merchant_id, r.currency,                                     -- Authorization.at_merchant
+             COUNT(*) AS refunds, SUM(r.amount) AS refunded
+      FROM fct_refund r
+      JOIN fct_capture c ON c.capture_id = r.capture_id                     -- Refund.refunds
+      JOIN fct_authorization a ON a.authorization_id = c.authorization_id   -- Capture.captures
+      WHERE r.refunded_at >= DATEADD('week', -1, DATE_TRUNC('week', CURRENT_DATE))
+        AND r.refunded_at < DATE_TRUNC('week', CURRENT_DATE)
+      GROUP BY 1, 2
+      ORDER BY refunded DESC
+      LIMIT 100;
+
+  - id: CQ-76
+    domain: settlement
+    question: How much of yesterday's captured volume hasn't settled yet, per acquirer?
+    walks: [Settlement.settles, Capture.captures, Authorization.at_merchant, Merchant.acquired_by]
+    answered_in: snowflake
+    query: |
+      SELECT m.acquirer_id, c.currency,                                     -- Merchant.acquired_by
+             SUM(c.amount) AS unsettled
+      FROM fct_capture c
+      JOIN fct_authorization a ON a.authorization_id = c.authorization_id   -- Capture.captures
+      JOIN dim_merchant m ON m.merchant_id = a.merchant_id                  -- Authorization.at_merchant
+      LEFT JOIN fct_settlement_item s ON s.capture_id = c.capture_id        -- Settlement.settles
+      WHERE s.capture_id IS NULL
+        AND c.captured_at >= DATEADD('day', -1, CURRENT_DATE) AND c.captured_at < CURRENT_DATE
+      GROUP BY 1, 2
+      ORDER BY unsettled DESC
+      LIMIT 100;
+
+  - id: CQ-77
+    domain: settlement
+    question: Which merchants refunded within an hour of capturing, and how often?
+    walks: [Refund.refunds, Capture.captures, Authorization.at_merchant]
+    answered_in: snowflake
+    query: |
+      SELECT a.merchant_id,                                                 -- Authorization.at_merchant
+             COUNT(*) AS quick_refunds, SUM(r.amount) AS refunded
+      FROM fct_refund r
+      JOIN fct_capture c ON c.capture_id = r.capture_id                     -- Refund.refunds
+      JOIN fct_authorization a ON a.authorization_id = c.authorization_id   -- Capture.captures
+      WHERE DATEDIFF('minute', c.captured_at, r.refunded_at) <= 60
+        AND r.refunded_at >= DATEADD('day', -30, CURRENT_DATE)
+      GROUP BY 1
+      ORDER BY quick_refunds DESC
+      LIMIT 50;
+
+  - id: CQ-78
+    domain: settlement
+    question: How much was captured each day this month, by merchant category code?
+    walks: [Capture.captures, Authorization.at_merchant]
+    answered_in: snowflake
+    query: |
+      SELECT DATE_TRUNC('day', c.captured_at) AS day, m.mcc, c.currency, SUM(c.amount) AS captured
+      FROM fct_capture c
+      JOIN fct_authorization a ON a.authorization_id = c.authorization_id   -- Capture.captures
+      JOIN dim_merchant m ON m.merchant_id = a.merchant_id                  -- Authorization.at_merchant
+      WHERE c.captured_at >= DATE_TRUNC('month', CURRENT_DATE)
+      GROUP BY 1, 2, 3
+      ORDER BY 1, captured DESC
+      LIMIT 1000;
+
+  - id: CQ-79
+    domain: settlement
+    question: Which refunds went back on authorizations that were later reported as fraud?
+    walks: [Refund.refunds, Capture.captures, FraudReport.reports]
+    answered_in: neptune
+    query: |
+      MATCH (rf:Refund)-[:REFUNDS]->(:Capture)-[:CAPTURES]->(a:Authorization)<-[:REPORTS]-(fr:FraudReport)
+      RETURN rf.id AS refund, rf.refunded_at AS refunded_at, a.id AS authorization,
+             fr.id AS fraud_report, fr.reported_at AS reported_at
+      LIMIT 100
+
+  - id: CQ-80
+    domain: settlement
+    question: What share of each issuer's settled amount came back as chargebacks last quarter?
+    walks: [Settlement.settles, Capture.captures, Authorization.with_card, Card.in_bin_range, BinRange.assigned_to, Chargeback.disputes]
+    answered_in: snowflake
+    query: |
+      SELECT b.issuer_id,                                                   -- BinRange.assigned_to
+             SUM(c.amount) AS settled,
+             SUM(IFF(cb.chargeback_id IS NOT NULL, c.amount, 0)) AS charged_back,
+             charged_back / NULLIF(settled, 0) AS chargeback_share
+      FROM fct_settlement_item s
+      JOIN fct_capture c ON c.capture_id = s.capture_id                     -- Settlement.settles
+      JOIN fct_authorization a ON a.authorization_id = c.authorization_id   -- Capture.captures
+      JOIN dim_card card ON card.card_id = a.card_id                        -- Authorization.with_card
+      JOIN dim_bin_range b ON b.bin_id = card.bin_id                        -- Card.in_bin_range
+      LEFT JOIN fct_chargeback cb ON cb.capture_id = c.capture_id           -- Chargeback.disputes
+      WHERE s.settled_at >= DATEADD('quarter', -1, DATE_TRUNC('quarter', CURRENT_DATE))
+        AND s.settled_at < DATE_TRUNC('quarter', CURRENT_DATE)
+      GROUP BY 1
+      ORDER BY chargeback_share DESC
+      LIMIT 50;
+
+  - id: CQ-81
+    domain: settlement
+    question: Which captures took more than five days to settle this month?
+    walks: [Settlement.settles]
+    answered_in: snowflake
+    query: |
+      SELECT c.capture_id, c.captured_at, s.settled_at,
+             DATEDIFF('day', c.captured_at, s.settled_at) AS days
+      FROM fct_settlement_item s
+      JOIN fct_capture c ON c.capture_id = s.capture_id     -- Settlement.settles
+      WHERE s.settled_at >= DATE_TRUNC('month', CURRENT_DATE)
+        AND DATEDIFF('day', c.captured_at, s.settled_at) > 5
+      ORDER BY days DESC
+      LIMIT 100;
+
+  - id: CQ-82
+    domain: settlement
+    question: Which merchants captured in a different currency from the one they authorized in?
+    walks: [Capture.captures, Authorization.at_merchant]
+    answered_in: snowflake
+    query: |
+      SELECT a.merchant_id, a.currency AS authorized_in, c.currency AS captured_in,   -- Authorization.at_merchant
+             COUNT(*) AS captures
+      FROM fct_capture c
+      JOIN fct_authorization a ON a.authorization_id = c.authorization_id   -- Capture.captures
+      WHERE c.currency <> a.currency
+        AND c.captured_at >= DATEADD('day', -30, CURRENT_DATE)
+      GROUP BY 1, 2, 3
+      ORDER BY captures DESC
+      LIMIT 50;
+
+  - id: CQ-83
+    domain: settlement
+    question: Which merchants' captures did this settlement pay out, and how much each?
+    walks: [Settlement.settles, Capture.captures, Authorization.at_merchant]
+    answered_in: snowflake
+    query: |
+      SELECT a.merchant_id, c.currency, COUNT(*) AS captures, SUM(c.amount) AS paid   -- Authorization.at_merchant
+      FROM fct_settlement_item s
+      JOIN fct_capture c ON c.capture_id = s.capture_id                     -- Settlement.settles
+      JOIN fct_authorization a ON a.authorization_id = c.authorization_id   -- Capture.captures
+      WHERE s.settlement_id = :settlement_id
+      GROUP BY 1, 2
+      ORDER BY paid DESC
+      LIMIT 500;
+
+  - id: CQ-84
+    domain: settlement
+    question: What interchange did each capture pay?
+    answered_in: snowflake
+    gap: >-
+      Fee amounts stay in Snowflake (decision 2), but the ontology has no fee program or
+      interchange category to join them on.
+
+  - id: CQ-85
+    domain: settlement
+    question: Which settlement file or batch carried this capture?
+    answered_in: snowflake
+    gap: >-
+      Settlement files and batches stay in Snowflake (decision 2) and aren't modelled, so a
+      capture can't be traced to its file.
+
+  - id: CQ-86
+    domain: settlement
+    question: What exchange rate converted this capture into the settlement currency?
+    answered_in: snowflake
+    gap: >-
+      A settlement has no amount, currency or conversion rate of its own.
+
+  - id: CQ-87
+    domain: settlement
+    question: When was this merchant paid for yesterday's captures?
+    answered_in: snowflake
+    gap: >-
+      Merchant funding, the acquirer paying the merchant, isn't modelled. Settlement covers
+      funds between banks only.
+
+  - id: CQ-88
+    domain: settlement
+    question: Which captures were adjusted after they settled?
+    answered_in: snowflake
+    gap: >-
+      Adjustments and corrections aren't modelled as events.
+
+  - id: CQ-89
+    domain: settlement
+    question: What reserve is the acquirer holding back for this merchant?
+    answered_in: snowflake
+    gap: >-
+      Merchant reserves and holdbacks aren't modelled.
+
+  - id: CQ-90
+    domain: settlement
+    question: Which settlements didn't reconcile with the network's totals?
+    answered_in: snowflake
+    gap: >-
+      Reconciliation stays in Snowflake (decision 2) and has no class. ISO 20022's
+      ReconciliationInitiation (caad.005) could map a reconciliation event.
+
+  - id: CQ-91
+    domain: settlement
+    question: What fees did the network collect from this acquirer last month?
+    answered_in: snowflake
+    gap: >-
+      Network fees aren't modelled. ISO 20022's FeeCollectionInitiation (cafc.001) could map a
+      fee collection event.
+
+  # ---------- Risk ----------
 
   - id: CQ-06
     domain: risk
@@ -111,3 +1245,422 @@ questions:
       WHERE other <> flagged
       RETURN DISTINCT other.id AS merchant, 'shared acquirer' AS link
       LIMIT 50
+
+  - id: CQ-92
+    domain: risk
+    question: Which devices seen at this merchant were also seen at merchants with fraud reports?
+    walks: [Device.seen_at, FraudReport.reports, Authorization.at_merchant]
+    answered_in: neptune
+    query: |
+      MATCH (:Merchant {id: $merchant})<-[:SEEN_AT]-(d:Device)-[:SEEN_AT]->(other:Merchant)
+      MATCH (:FraudReport)-[:REPORTS]->(:Authorization)-[:AT_MERCHANT]->(other)
+      RETURN DISTINCT d.id AS device, other.id AS merchant
+      LIMIT 50
+
+  - id: CQ-93
+    domain: risk
+    question: Which cards used on this device were reported as fraud?
+    walks: [Authorization.from_device, Authorization.with_card, FraudReport.reports]
+    answered_in: neptune
+    query: |
+      MATCH (a:Authorization)-[:FROM_DEVICE]->(:Device {id: $device})
+      MATCH (a)-[:WITH_CARD]->(c:Card)
+      MATCH (fr:FraudReport)-[:REPORTS]->(:Authorization)-[:WITH_CARD]->(c)
+      RETURN DISTINCT c.id AS card, fr.id AS fraud_report, fr.reported_at AS reported_at
+      LIMIT 50
+
+  - id: CQ-94
+    domain: risk
+    question: Which merchants share an acquirer and at least two devices with this flagged merchant?
+    walks: [Merchant.acquired_by, Device.seen_at]
+    answered_in: neptune
+    query: |
+      MATCH (flagged:Merchant {id: $merchant})-[:ACQUIRED_BY]->(:Acquirer)<-[:ACQUIRED_BY]-(other:Merchant)
+      MATCH (flagged)<-[:SEEN_AT]-(d:Device)-[:SEEN_AT]->(other)
+      WITH other, count(DISTINCT d) AS shared_devices
+      WHERE shared_devices >= 2
+      RETURN other.id AS merchant, shared_devices
+      ORDER BY shared_devices DESC
+      LIMIT 50
+
+  - id: CQ-95
+    domain: risk
+    question: Which BIN ranges had the most fraud reports this month?
+    walks: [FraudReport.reports, Authorization.with_card, Card.in_bin_range]
+    answered_in: neptune
+    query: |
+      MATCH (fr:FraudReport)-[:REPORTS]->(:Authorization)-[:WITH_CARD]->(:Card)-[:IN_BIN_RANGE]->(b:BinRange)
+      WHERE fr.reported_at >= $month_start
+      RETURN b.prefix AS bin, count(DISTINCT fr) AS fraud_reports
+      ORDER BY fraud_reports DESC
+      LIMIT 20
+
+  - id: CQ-96
+    domain: risk
+    question: Which issuers report fraud on this merchant's transactions, and how often?
+    walks: [FraudReport.reports, Authorization.at_merchant, Authorization.with_card, Card.in_bin_range, BinRange.assigned_to]
+    answered_in: neptune
+    query: |
+      MATCH (fr:FraudReport)-[:REPORTS]->(a:Authorization)-[:AT_MERCHANT]->(:Merchant {id: $merchant})
+      MATCH (a)-[:WITH_CARD]->(:Card)-[:IN_BIN_RANGE]->(:BinRange)-[:ASSIGNED_TO]->(i:Issuer)
+      RETURN i.id AS issuer, count(DISTINCT fr) AS fraud_reports
+      ORDER BY fraud_reports DESC
+      LIMIT 20
+
+  - id: CQ-97
+    domain: risk
+    question: Which cardholders have fraud reports at more than three merchants?
+    walks: [FraudReport.reports, Authorization.with_card, Card.held_by, Authorization.at_merchant]
+    answered_in: neptune
+    query: |
+      MATCH (:FraudReport)-[:REPORTS]->(a:Authorization)-[:WITH_CARD]->(:Card)-[:HELD_BY]->(ch:Cardholder)
+      MATCH (a)-[:AT_MERCHANT]->(m:Merchant)
+      WITH ch, count(DISTINCT m) AS merchants
+      WHERE merchants > 3
+      RETURN ch.id AS cardholder, merchants
+      ORDER BY merchants DESC
+      LIMIT 50
+
+  - id: CQ-98
+    domain: risk
+    question: Which devices first appeared at this merchant this week and were already seen at five or more other merchants?
+    walks: [Device.seen_at]
+    answered_in: neptune
+    query: |
+      MATCH (d:Device)-[s:SEEN_AT]->(here:Merchant {id: $merchant})
+      WHERE s.first_seen >= $week_start
+      MATCH (d)-[:SEEN_AT]->(other:Merchant)
+      WHERE other <> here
+      WITH d, count(DISTINCT other) AS merchants
+      WHERE merchants >= 5
+      RETURN d.id AS device, merchants
+      ORDER BY merchants DESC
+      LIMIT 50
+
+  - id: CQ-99
+    domain: risk
+    question: Which merchants are the common point of purchase for cards reported as fraud this month?
+    walks: [FraudReport.reports, Authorization.with_card, Authorization.at_merchant]
+    answered_in: snowflake
+    query: |
+      WITH reported AS (
+        SELECT a.card_id, MIN(f.reported_at) AS first_report              -- Authorization.with_card
+        FROM fct_fraud_report f
+        JOIN fct_authorization a ON a.authorization_id = f.authorization_id   -- FraudReport.reports
+        WHERE f.reported_at >= DATE_TRUNC('month', CURRENT_DATE)
+        GROUP BY 1
+      )
+      SELECT a.merchant_id,                                                 -- Authorization.at_merchant
+             COUNT(DISTINCT a.card_id) AS reported_cards_seen
+      FROM fct_authorization a
+      JOIN reported r ON r.card_id = a.card_id                              -- Authorization.with_card
+      WHERE a.authorized_at BETWEEN DATEADD('day', -60, r.first_report) AND r.first_report
+      GROUP BY 1
+      ORDER BY reported_cards_seen DESC
+      LIMIT 20;
+
+  - id: CQ-100
+    domain: risk
+    question: What is this merchant's VAMP-style ratio this month, fraud reports plus disputes over settled transactions?
+    walks: [FraudReport.reports, Chargeback.disputes, Capture.captures, Authorization.at_merchant, Settlement.settles]
+    answered_in: snowflake
+    query: |
+      WITH frauds AS (
+        SELECT COUNT(*) AS n
+        FROM fct_fraud_report f
+        JOIN fct_authorization a ON a.authorization_id = f.authorization_id -- FraudReport.reports
+        WHERE a.merchant_id = :merchant_id                                  -- Authorization.at_merchant
+          AND f.reported_at >= DATE_TRUNC('month', CURRENT_DATE)
+      ),
+      disputes AS (
+        SELECT COUNT(*) AS n
+        FROM fct_chargeback cb
+        JOIN fct_capture c ON c.capture_id = cb.capture_id                  -- Chargeback.disputes
+        JOIN fct_authorization a ON a.authorization_id = c.authorization_id -- Capture.captures
+        WHERE a.merchant_id = :merchant_id                                  -- Authorization.at_merchant
+          AND cb.opened_at >= DATE_TRUNC('month', CURRENT_DATE)
+      ),
+      settled AS (
+        SELECT COUNT(DISTINCT s.capture_id) AS n
+        FROM fct_settlement_item s
+        JOIN fct_capture c ON c.capture_id = s.capture_id                   -- Settlement.settles
+        JOIN fct_authorization a ON a.authorization_id = c.authorization_id -- Capture.captures
+        WHERE a.merchant_id = :merchant_id                                  -- Authorization.at_merchant
+          AND s.settled_at >= DATE_TRUNC('month', CURRENT_DATE)
+      )
+      SELECT frauds.n AS fraud_reports, disputes.n AS disputes, settled.n AS settled_transactions,
+             (frauds.n + disputes.n) / NULLIF(settled.n, 0) AS ratio
+      FROM frauds, disputes, settled
+      LIMIT 1;
+
+  - id: CQ-101
+    domain: risk
+    question: Which merchants' fraud reports this week jumped against their eight-week average?
+    walks: [FraudReport.reports, Authorization.at_merchant]
+    answered_in: snowflake
+    query: |
+      WITH weekly AS (
+        SELECT a.merchant_id,                                               -- Authorization.at_merchant
+               DATE_TRUNC('week', f.reported_at) AS week, COUNT(*) AS reports
+        FROM fct_fraud_report f
+        JOIN fct_authorization a ON a.authorization_id = f.authorization_id -- FraudReport.reports
+        WHERE f.reported_at >= DATEADD('week', -8, DATE_TRUNC('week', CURRENT_DATE))
+        GROUP BY 1, 2
+      )
+      SELECT merchant_id,
+             SUM(IFF(week = DATE_TRUNC('week', CURRENT_DATE), reports, 0)) AS this_week,
+             SUM(IFF(week < DATE_TRUNC('week', CURRENT_DATE), reports, 0)) / 8 AS weekly_average
+      FROM weekly
+      GROUP BY merchant_id
+      HAVING this_week > 3 * weekly_average
+      ORDER BY this_week DESC
+      LIMIT 50;
+
+  - id: CQ-102
+    domain: risk
+    question: Which devices tried more than five different cards within an hour yesterday?
+    walks: [Authorization.from_device, Authorization.with_card]
+    answered_in: snowflake
+    query: |
+      SELECT a.device_id,                                         -- Authorization.from_device
+             DATE_TRUNC('hour', a.authorized_at) AS hour,
+             COUNT(DISTINCT a.card_id) AS cards                   -- Authorization.with_card
+      FROM fct_authorization a
+      WHERE a.authorized_at >= DATEADD('day', -1, CURRENT_DATE) AND a.authorized_at < CURRENT_DATE
+      GROUP BY 1, 2
+      HAVING COUNT(DISTINCT a.card_id) > 5
+      ORDER BY cards DESC
+      LIMIT 100;
+
+  - id: CQ-103
+    domain: risk
+    question: Which merchants had a burst of small card-not-present declines in the last day, a sign of card testing?
+    walks: [Authorization.at_merchant, Authorization.has_response]
+    answered_in: snowflake
+    query: |
+      SELECT a.merchant_id,                                       -- Authorization.at_merchant
+             COUNT(*) AS small_declines,
+             COUNT(DISTINCT a.card_id) AS cards
+      FROM fct_authorization a
+      WHERE a.channel = 'card_not_present'
+        AND a.response_code <> '00'                               -- Authorization.has_response
+        AND a.amount < 2
+        AND a.authorized_at >= DATEADD('day', -1, CURRENT_TIMESTAMP)
+      GROUP BY 1
+      HAVING COUNT(*) >= 50
+      ORDER BY small_declines DESC
+      LIMIT 50;
+
+  - id: CQ-104
+    domain: risk
+    question: Which acquirers had the highest fraud-report rate across their merchants this quarter?
+    walks: [FraudReport.reports, Authorization.at_merchant, Merchant.acquired_by]
+    answered_in: snowflake
+    query: |
+      SELECT m.acquirer_id,                                                 -- Merchant.acquired_by
+             COUNT(DISTINCT a.authorization_id) AS authorizations,
+             COUNT(DISTINCT f.report_id) AS fraud_reports,
+             fraud_reports / NULLIF(authorizations, 0) AS fraud_rate
+      FROM fct_authorization a
+      JOIN dim_merchant m ON m.merchant_id = a.merchant_id                  -- Authorization.at_merchant
+      LEFT JOIN fct_fraud_report f ON f.authorization_id = a.authorization_id   -- FraudReport.reports
+      WHERE a.authorized_at >= DATE_TRUNC('quarter', CURRENT_DATE)
+      GROUP BY 1
+      ORDER BY fraud_rate DESC
+      LIMIT 20;
+
+  - id: CQ-105
+    domain: risk
+    question: Which organizations act as more than one merchant, and do any of those merchants have fraud reports?
+    walks: [Organization.acts_as, FraudReport.reports, Authorization.at_merchant]
+    answered_in: neptune
+    query: |
+      MATCH (o:Organization)-[:ACTS_AS]->(m:Merchant)
+      WITH o, collect(m) AS merchants
+      WHERE size(merchants) > 1
+      UNWIND merchants AS m
+      OPTIONAL MATCH (fr:FraudReport)-[:REPORTS]->(:Authorization)-[:AT_MERCHANT]->(m)
+      RETURN o.id AS organization, m.id AS merchant, count(fr) AS fraud_reports
+      LIMIT 100
+
+  - id: CQ-106
+    domain: risk
+    question: Which documents mention this merchant, such as case notes or network rulings?
+    walks: [Chunk.mentions, Chunk.part_of]
+    answered_in: neptune
+    query: |
+      MATCH (k:Chunk)-[:MENTIONS]->(:Merchant {id: $merchant})
+      MATCH (k)-[:PART_OF]->(doc:Document)
+      RETURN doc.id AS document, doc.kind AS kind, count(k) AS passages
+      ORDER BY passages DESC
+      LIMIT 20
+
+  - id: CQ-107
+    domain: risk
+    question: Which fraud-reported authorizations came from a device another cardholder also used?
+    walks: [FraudReport.reports, Authorization.from_device, Authorization.with_card, Card.held_by]
+    answered_in: neptune
+    query: |
+      MATCH (:FraudReport)-[:REPORTS]->(a:Authorization)-[:FROM_DEVICE]->(d:Device)
+      MATCH (a)-[:WITH_CARD]->(:Card)-[:HELD_BY]->(owner:Cardholder)
+      MATCH (other:Authorization)-[:FROM_DEVICE]->(d)
+      MATCH (other)-[:WITH_CARD]->(:Card)-[:HELD_BY]->(someone:Cardholder)
+      WHERE someone <> owner
+      RETURN DISTINCT a.id AS authorization, d.id AS device, someone.id AS other_cardholder
+      LIMIT 50
+
+  - id: CQ-108
+    domain: risk
+    question: How many days pass between a fraudulent authorization and its fraud report, by issuer, this quarter?
+    walks: [FraudReport.reports, Authorization.with_card, Card.in_bin_range, BinRange.assigned_to]
+    answered_in: snowflake
+    query: |
+      SELECT b.issuer_id,                                                   -- BinRange.assigned_to
+             COUNT(*) AS fraud_reports,
+             MEDIAN(DATEDIFF('day', a.authorized_at, f.reported_at)) AS median_days
+      FROM fct_fraud_report f
+      JOIN fct_authorization a ON a.authorization_id = f.authorization_id   -- FraudReport.reports
+      JOIN dim_card c ON c.card_id = a.card_id                              -- Authorization.with_card
+      JOIN dim_bin_range b ON b.bin_id = c.bin_id                           -- Card.in_bin_range
+      WHERE f.reported_at >= DATE_TRUNC('quarter', CURRENT_DATE)
+      GROUP BY 1
+      ORDER BY median_days DESC
+      LIMIT 50;
+
+  - id: CQ-109
+    domain: risk
+    question: Which cards from this BIN range were reported as fraud at the same merchant?
+    walks: [Card.in_bin_range, Authorization.with_card, FraudReport.reports, Authorization.at_merchant]
+    answered_in: neptune
+    query: |
+      MATCH (c:Card)-[:IN_BIN_RANGE]->(:BinRange {id: $bin})
+      MATCH (a:Authorization)-[:WITH_CARD]->(c)
+      MATCH (:FraudReport)-[:REPORTS]->(a)
+      MATCH (a)-[:AT_MERCHANT]->(m:Merchant)
+      WITH m, count(DISTINCT c) AS cards
+      WHERE cards > 1
+      RETURN m.id AS merchant, cards
+      ORDER BY cards DESC
+      LIMIT 50
+
+  - id: CQ-110
+    domain: risk
+    question: Which cards were used from more than three devices in the last 24 hours?
+    walks: [Authorization.with_card, Authorization.from_device]
+    answered_in: snowflake
+    query: |
+      SELECT a.card_id,                                           -- Authorization.with_card
+             COUNT(DISTINCT a.device_id) AS devices               -- Authorization.from_device
+      FROM fct_authorization a
+      WHERE a.authorized_at >= DATEADD('hour', -24, CURRENT_TIMESTAMP)
+      GROUP BY 1
+      HAVING COUNT(DISTINCT a.device_id) > 3
+      ORDER BY devices DESC
+      LIMIT 100;
+
+  - id: CQ-111
+    domain: risk
+    question: Which fraud chargebacks came from a device also seen at a merchant with fraud reports?
+    walks: [Chargeback.disputes, Capture.captures, Authorization.from_device, Chargeback.has_reason, Device.seen_at, Authorization.at_merchant, FraudReport.reports]
+    answered_in: neptune
+    query: |
+      MATCH (cb:Chargeback)-[:DISPUTES]->(:Capture)-[:CAPTURES]->(:Authorization)-[:FROM_DEVICE]->(d:Device)
+      MATCH (cb)-[:HAS_REASON]->(:ReasonCode {id: $fraud_reason})
+      MATCH (d)-[:SEEN_AT]->(m:Merchant)<-[:AT_MERCHANT]-(:Authorization)<-[:REPORTS]-(:FraudReport)
+      RETURN DISTINCT cb.id AS chargeback, d.id AS device, m.id AS merchant
+      LIMIT 50
+
+  - id: CQ-112
+    domain: risk
+    question: Which merchants' fraud reports, as a share of settled transactions, rose above their six-month average this month?
+    walks: [FraudReport.reports, Authorization.at_merchant, Settlement.settles, Capture.captures]
+    answered_in: snowflake
+    query: |
+      WITH frauds AS (
+        SELECT a.merchant_id, DATE_TRUNC('month', f.reported_at) AS month, COUNT(*) AS n   -- Authorization.at_merchant
+        FROM fct_fraud_report f
+        JOIN fct_authorization a ON a.authorization_id = f.authorization_id -- FraudReport.reports
+        WHERE f.reported_at >= DATEADD('month', -6, DATE_TRUNC('month', CURRENT_DATE))
+        GROUP BY 1, 2
+      ),
+      settled AS (
+        SELECT a.merchant_id, DATE_TRUNC('month', s.settled_at) AS month, COUNT(*) AS n   -- Authorization.at_merchant
+        FROM fct_settlement_item s
+        JOIN fct_capture c ON c.capture_id = s.capture_id                   -- Settlement.settles
+        JOIN fct_authorization a ON a.authorization_id = c.authorization_id -- Capture.captures
+        WHERE s.settled_at >= DATEADD('month', -6, DATE_TRUNC('month', CURRENT_DATE))
+        GROUP BY 1, 2
+      ),
+      rates AS (
+        SELECT settled.merchant_id, settled.month, COALESCE(frauds.n, 0) / settled.n AS rate
+        FROM settled
+        LEFT JOIN frauds ON frauds.merchant_id = settled.merchant_id AND frauds.month = settled.month
+      )
+      SELECT merchant_id,
+             MAX(IFF(month = DATE_TRUNC('month', CURRENT_DATE), rate, NULL)) AS this_month,
+             AVG(IFF(month < DATE_TRUNC('month', CURRENT_DATE), rate, NULL)) AS six_month_average
+      FROM rates
+      GROUP BY merchant_id
+      HAVING this_month > six_month_average
+      ORDER BY this_month - six_month_average DESC
+      LIMIT 50;
+
+  - id: CQ-113
+    domain: risk
+    question: What kind of fraud did the issuer report, such as lost, stolen, counterfeit or card not present?
+    answered_in: neptune
+    gap: >-
+      A fraud report has no fraud type. Visa's TC40 reports and Mastercard's Fraud and Loss
+      Database (formerly SAFE) both carry one.
+
+  - id: CQ-114
+    domain: risk
+    question: Which merchants did their acquirer rate as high risk when it signed them up?
+    answered_in: neptune
+    gap: >-
+      No merchant risk rating or underwriting decision is modelled.
+
+  - id: CQ-115
+    domain: risk
+    question: Which authorizations scored above our fraud model's threshold but were approved anyway?
+    answered_in: snowflake
+    gap: >-
+      Fraud scores aren't modelled on authorizations.
+
+  - id: CQ-116
+    domain: risk
+    question: Which merchants are payment facilitators, and which sub-merchants sit under them?
+    answered_in: neptune
+    gap: >-
+      There's no merchant hierarchy: payment facilitators and their sub-merchants aren't
+      modelled.
+
+  - id: CQ-117
+    domain: risk
+    question: Which merchants changed their name or merchant category code recently?
+    answered_in: neptune
+    gap: >-
+      Merchant details are overwritten, not versioned. Decision 7 models events, but a change
+      to a merchant has no event.
+
+  - id: CQ-118
+    domain: risk
+    question: Which IP addresses, emails or shipping addresses link these fraud reports?
+    answered_in: neptune
+    gap: >-
+      Only devices link authorizations. IP addresses, emails and shipping addresses aren't
+      modelled.
+
+  - id: CQ-119
+    domain: risk
+    question: Which cards were exposed in this data breach, and which have been used since?
+    answered_in: neptune
+    gap: >-
+      Data compromise events aren't modelled, so cards can't be linked to a breach.
+
+  - id: CQ-120
+    domain: risk
+    question: Which cards on this merchant's authorizations had already been blocked by their issuer?
+    answered_in: snowflake
+    gap: >-
+      Card status changes, such as blocked, reissued or closed, aren't modelled as events.

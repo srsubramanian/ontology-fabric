@@ -45,7 +45,8 @@ function QuestionList({ questions, onQuestion }: { questions: Question[]; onQues
     <div className="qlist">
       {questions.map((q) => (
         <button key={q.id} type="button" className="qitem" data-question={q.id} onClick={() => onQuestion(q.id)}>
-          <span className="qmeta">{q.id} · {q.domain}<i style={vars({ '--c': ANSWERED[q.answeredIn].color })}>{ANSWERED[q.answeredIn].name}</i></span>
+          <span className="qmeta">{q.id} · {q.domain}
+            {q.gap ? <i className="gapbadge">gap</i> : <i style={vars({ '--c': ANSWERED[q.answeredIn].color })}>{ANSWERED[q.answeredIn].name}</i>}</span>
           {q.question}
         </button>
       ))}
@@ -53,22 +54,33 @@ function QuestionList({ questions, onQuestion }: { questions: Question[]; onQues
   );
 }
 
+/** The domains, in the order the owning teams are listed. */
+const DOMAINS = ['disputes', 'authorization', 'settlement', 'risk'];
+
 function Start({ model, onQuestion }: { model: Model } & Nav) {
   const concrete = Object.values(model.classes).filter((c) => !c.abstract);
   const mapped = concrete.filter((c) => c.mappings.length).length;
+  const answered = model.questions.filter((q) => !q.gap).length;
+  const domains = [...DOMAINS, ...new Set(model.questions.map((q) => q.domain))].filter((d, i, all) => all.indexOf(d) === i);
   return (
     <>
       <h2 className="dtitle">Explore the draft</h2>
       <p className="muted">Pick a class on the map, or a question the ontology must answer. Search finds a class by name or alias.</p>
       <Section title="Coverage, measured (decision 9)">
         <div className="cover">
-          <div><b>{model.questions.length} of {model.questions.length}</b><span>competency questions walk the schema</span></div>
+          <div><b>{answered} of {model.questions.length}</b><span>competency questions the schema answers</span></div>
           <div><b>{mapped} of {concrete.length}</b><span>classes mapped to a standard</span></div>
         </div>
       </Section>
-      <Section title="Competency questions">
-        <QuestionList questions={model.questions} onQuestion={onQuestion} />
-      </Section>
+      {domains.map((d) => {
+        const qs = model.questions.filter((q) => q.domain === d);
+        if (!qs.length) return null;
+        return (
+          <Section key={d} title={`Competency questions: ${d} · ${qs.filter((q) => !q.gap).length} of ${qs.length} answered`}>
+            <QuestionList questions={qs} onQuestion={onQuestion} />
+          </Section>
+        );
+      })}
     </>
   );
 }
@@ -222,9 +234,16 @@ function QuestionDetails({ q, onPick, onHome, trace }: { q: Question; trace: Tra
       <button type="button" className="back" onClick={onHome}>All questions</button>
       <p className="qmeta">{q.id} · {q.domain}</p>
       <h2 className="dtitle q">{q.question}</h2>
-      <Section title="Answered in">
+      {q.gap && (
+        <Section title="Not answerable yet">
+          <p>{q.gap}</p>
+          <p className="muted">It counts against coverage until the schema can walk it. Closing the gap is an ontology change, reviewed by the owning team (decision 10).</p>
+        </Section>
+      )}
+      <Section title={q.gap ? 'Would be answered in' : 'Answered in'}>
         <p><span className="store" style={vars({ '--c': store.color })}>{store.name}</span> {store.why}</p>
       </Section>
+      {!q.gap && <>
       <Section title="The walk">
         <div className="tracer">
           <button type="button" className="vbtn go" onClick={onPlay} disabled={playing}>{playing ? 'Walking…' : 'Play the walk'}</button>
@@ -246,6 +265,7 @@ function QuestionDetails({ q, onPick, onHome, trace }: { q: Question; trace: Tra
         <TracedQuery query={q.query} lang={q.language} lit={lit} />
         <p className="muted">Illustrative, written against the draft schema. <code>tools/check_ontology.py</code> checks it the way decision 13 checks generated queries: labels and directions the ontology has, read-only, and a LIMIT.</p>
       </Section>
+      </>}
     </>
   );
 }
