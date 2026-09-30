@@ -1,6 +1,7 @@
 import { inView } from 'motion/react';
 import { useEffect, useRef } from 'react';
 import { anim, dl, drawIn, hideAll } from '../shared/anim';
+import { Block } from '../shared/Block';
 
 /** Watch list: what changed around this build over the past year, and what's coming. */
 export function WatchList() {
@@ -15,7 +16,7 @@ export function WatchList() {
   }, { amount: 0.3 }), []);
 
   return (
-    <section className="block" id="watch" aria-labelledby="watchh" ref={root}>
+    <Block className="block" id="watch" aria-labelledby="watchh" ref={root}>
       <h3 className="sech" id="watchh">Watch list</h3>
       <p className="intro">What changed around this build over the past year, and what to keep an eye on. Checked in September 2026.</p>
       <div className="xwrap"><svg id="wtl" className="xsvg" viewBox="0 0 760 200" role="img" aria-label="Timeline from December 2025 to November 2026 of changes relevant to the platform" ref={wtl}>
@@ -35,6 +36,6 @@ export function WatchList() {
         <div className="wcard"><span className="wtag due">14 Nov 2026</span><b>ISO 20022 structured addresses</b><span>If cross-border payments are in scope, give Party a structured PostalAddress with town and country now.</span></div>
         <div className="wcard"><span className="wtag">not yet</span><b>GQL in Neptune</b><span>No announcement found. openCypher is converging on GQL, so today’s queries should carry over.</span></div>
       </div>
-    </section>
+    </Block>
   );
 }

@@ -1,7 +1,9 @@
+import { Block } from '../shared/Block';
+
 /** Build order: graph first, then search, then agents, each phase with a test that says it's done. */
 export function BuildOrder() {
   return (
-    <section className="block" aria-labelledby="phh">
+    <Block className="block" aria-labelledby="phh">
       <h3 className="sech" id="phh">Build order</h3>
       <p className="intro">Get the graph right before adding search, and search right before adding agents. Each phase has a test that tells you it's done.</p>
       <ol className="phases">
@@ -11,6 +13,6 @@ export function BuildOrder() {
         <li><div><h3>Retrieval service and agents</h3><p>Start from AWS Labs’ BYOKG-RAG, put the tools behind AgentCore Gateway and Policy, and add ontology-checked Cypher where it falls short. Collect real questions from dispute and operations teams as an evaluation set before tuning anything.</p><p className="done"><b>Done when</b> the evaluation set passes at a threshold those teams agreed to.</p></div></li>
         <li><div><h3>Extend</h3><p>Run code extraction across repositories at scale, hand domain modules to their owning teams, publish ontology releases, and load Neptune Analytics snapshots for graph algorithms such as fraud-ring detection.</p><p className="done"><b>Done when</b> another team builds on a pinned ontology version without asking you what a class means.</p></div></li>
       </ol>
-    </section>
+    </Block>
   );
 }

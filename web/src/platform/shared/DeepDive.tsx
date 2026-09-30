@@ -2,6 +2,7 @@ import { inView } from 'motion/react';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { anim, wait } from './anim';
 import { Keys, Stepper } from './Stepper';
+import { Block } from './Block';
 
 // The deep dive every chapter from 2 on opens with: numbered steps, the step's key points,
 // and one panel per step. Showing a step stops anything still playing, then plays the step.
@@ -50,7 +51,7 @@ export function DeepDive({ api, id, title, intro, steps, next, run, children }: 
 
   const s = steps[sel.step - 1];
   return (
-    <section className="block dd" id={id} data-next={next.href} data-next-label={next.label} aria-labelledby={id + 'h'} ref={(el) => { root.current = el; api.root = el; }}>
+    <Block className="block dd" id={id} data-next={next.href} data-next-label={next.label} aria-labelledby={id + 'h'} ref={(el) => { root.current = el; api.root = el; }}>
       <h3 className="sech" id={id + 'h'}>{title}</h3>
       <p className="intro">{intro}</p>
       <Stepper className="stepper xsteps" label="Deep dive steps" titles={steps.map((x) => x.t)} cur={sel.step} onPick={show} />
@@ -59,7 +60,7 @@ export function DeepDive({ api, id, title, intro, steps, next, run, children }: 
           next={sel.step < steps.length ? { label: 'Next: ' + steps[sel.step].t, onClick: () => show(sel.step + 1) } : next} />
         <div className="sviz"><Cur.Provider value={sel.step}>{children}</Cur.Provider></div>
       </div>
-    </section>
+    </Block>
   );
 }
 

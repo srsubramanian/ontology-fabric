@@ -4,6 +4,7 @@ import { reduce } from '../../kit/motion';
 import { anim, dl, wait } from '../shared/anim';
 import { linesHtml } from '../shared/lines';
 import { Stepper } from '../shared/Stepper';
+import { Block } from '../shared/Block';
 
 // Turtle or LinkML, side by side: the same slice of the ontology written both ways.
 
@@ -130,7 +131,7 @@ export function Authoring() {
 
   const h = html[sel.i];
   return (
-    <section className="block" id="authoring" aria-labelledby="authh" ref={root}>
+    <Block className="block" id="authoring" aria-labelledby="authh" ref={root}>
       <h3 className="sech" id="authh">Turtle or LinkML, side by side</h3>
       <p className="intro">The same slice of the payments ontology, written both ways. Pick a step, then watch the matching lines light up on both sides.</p>
       <Stepper id="cmpSteps" label="Comparison steps" titles={STEPS.map((x) => x.t)} cur={sel.i + 1} onPick={(n) => show(n - 1)} />
@@ -153,6 +154,6 @@ export function Authoring() {
         <div className="vnote"><b>Either way,</b> we still write a small generator for the Neptune loader files and OpenSearch mappings.</div>
         <div className="vrec"><b>Our suggestion</b><span>Start in LinkML and publish the generated OWL as the product. If you need OWL axioms LinkML can’t express, keep a small hand-written Turtle file and merge it in CI with robot merge.</span></div>
       </div>
-    </section>
+    </Block>
   );
 }

@@ -2,6 +2,7 @@ import { inView } from 'motion/react';
 import { useEffect, useRef, type CSSProperties } from 'react';
 import { reduce } from '../../kit/motion';
 import { anim } from '../shared/anim';
+import { Block } from '../shared/Block';
 
 /** The three OpenSearch indexes, and the two storage tiers their vectors can use. */
 export function Indexes() {
@@ -15,7 +16,7 @@ export function Indexes() {
   }, { amount: 0.4 }), []);
 
   return (
-    <section className="block" aria-labelledby="ixh">
+    <Block className="block" aria-labelledby="ixh">
       <h3 className="sech" id="ixh">OpenSearch indexes</h3>
       <p className="intro">Three indexes, all generated from the ontology and all rebuildable. Each index name is an alias that points at a versioned index, such as entities_v1_4.</p>
       <div className="indexes">
@@ -74,6 +75,6 @@ export function Indexes() {
       <p className="note">Bars are illustrative. For development and bursty workloads, the rebuilt OpenSearch Serverless can also scale to zero.</p>
 
 
-    </section>
+    </Block>
   );
 }
