@@ -64,3 +64,7 @@ Settled unless a later entry says otherwise. Newest changes are at the bottom of
 
 19. **How code becomes ontology proposals:** tree-sitter extracts facts, Claude maps them to the ontology with a confidence score, and anything under 0.9 goes to a person. Gaps become ontology pull requests.
 20. **Reviews can wait for days, so runs must survive restarts.** Which durable execution engine to use is still open (see `open-questions.md`).
+
+## The pages
+
+21. **The learning pages move to React, one page at a time** (Vite, React 19, TypeScript, `motion/react`). Each page still builds into one self-contained HTML file in `site/`, so publishing and the smoke test don't change. Shared parts live in `web/src/kit/`. The retrieval page moved first, with every view pixel-identical to the hand-written version. The platform page follows chapter by chapter; the class explorer and question tracer are built in React from the start.

@@ -39,6 +39,7 @@ Reading progress on the platform page is stored in the browser under `pkl-progre
 5. **The September 2026 research check.** The direction held. Updates added: the MCP 2026-07-28 spec, AgentCore Policy, a read-only IAM role, the S3 Vectors tier, BYOKG-RAG, "what lives where", A2A, durable execution and a watch list.
 6. **The standards-first plan.** Bootstrap about 80% of the ontology from ISO 20022 and FIBO, then hand ownership to teams through layers and review windows, so the project isn't blocked waiting on 13 teams.
 7. **Snowflake joins retrieval** as the warehouse lane, with metrics defined once in the ontology and computed in SQL.
+8. **The pages move to React.** The single-file platform page was getting hard to extend, and the backlog (class explorer, question tracer, pages generated from LinkML) needs components and data. The retrieval page was ported first to `web/`; it still builds into one HTML file, and every view matches the hand-written version pixel for pixel.
 
 ## Clarifications worth keeping
 

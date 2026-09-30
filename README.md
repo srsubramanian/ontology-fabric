@@ -4,10 +4,23 @@ Learning pages and design decisions for Ontology Fabric, a payments knowledge la
 
 ## Look at the pages
 
-Open these in a browser. They load their libraries from CDNs, so you need to be online.
+Open these in a browser. You need to be online for the fonts, and for the platform page's libraries, which load from a CDN.
 
 - `site/platform.html`: the platform map and seven chapters
 - `site/retrieval.html`: how a question becomes an answer, across all three stores
+
+## Change a React page
+
+`site/retrieval.html` is built from `web/`, so edit the source there (you need Node 20.19 or later):
+
+```bash
+cd web
+npm install
+npm run dev      # live preview at http://localhost:5173/retrieval.html
+npm run check    # typecheck, then rebuild site/retrieval.html
+```
+
+Commit the rebuilt `site/retrieval.html` together with its source.
 
 ## Check the pages after a change
 
