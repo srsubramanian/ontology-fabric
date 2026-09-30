@@ -4,8 +4,9 @@ Ontology Fabric is the project name, chosen at the end of the claude.ai conversa
 
 - Platform overview: https://claude.ai/artifact/A5HhgTYfgDiRmbzBhz7gRA
 - Retrieval walkthrough: https://claude.ai/artifact/Sd5jT4CmwRLyvoMY3QUQSk
+- Class explorer: https://claude.ai/artifact/BqDPHaioHftbPxMQobyz74
 
-The files in `site/` are the same pages, with the links between them changed to relative paths.
+The files in `site/` are the same pages, with the links between them changed to relative paths. The published platform and retrieval copies predate the React port, so they don't link to the class explorer yet.
 
 ## How the pages are organised
 
