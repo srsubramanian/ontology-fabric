@@ -40,6 +40,7 @@ What changed around this build, and what the pages rely on. Every finding below 
 - **S3 Vectors has been generally available since 2 December 2025**, with up to 2 billion vectors per index. https://aws.amazon.com/about-aws/whats-new/2025/12/amazon-s3-vectors-generally-available/
 - **Snowflake**:
   - The Snowflake-managed MCP server has been GA since 4 November 2025. It exposes Cortex Analyst (over semantic views), Cortex Search and SQL execution as tools, each call running under a specific Snowflake role. Preview notes: https://docs.snowflake.com/release-notes/2025/other/2025-10-02-mcp-server
+  - On the managed MCP server, a Cortex Analyst tool generates SQL and returns the statement to the client rather than running it. A separate SQL execution tool runs statements, and its `read_only` setting (default `true`) allows only SELECT. Each call runs under the connecting user's default role, and each tool needs its own grant. Checked 30 September 2026: https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-mcp
   - Cortex Agents and MCP servers inside Snowflake Native Apps went GA on 7 August 2026: https://docs.snowflake.com/en/release-notes/2026/other/2026-08-07-native-apps-agents-mcp-ga
   - Semantic views can be queried with standard SQL (GA 2 March 2026), but they only see Snowflake data: https://atlan.com/know/snowflake/snowflake-semantic-views/
 - **Embeddings:**

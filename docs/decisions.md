@@ -8,7 +8,7 @@ Settled unless a later entry says otherwise. Newest changes are at the bottom of
 2. **High-volume events stay where they are.** Every authorization and every settlement file stays in the lake or Snowflake, linked by ID. A record is pulled into Neptune when a question needs to walk through it, for example when a dispute touches an authorization.
 3. **OpenSearch holds three derived, rebuildable indexes: entities, chunks and ontology.** Each sits behind an alias pointing at a versioned index, such as `entities_v1_6`. A release builds new indexes, runs the competency questions against them, then swaps all aliases in one atomic call. Entities and ontology use the fast in-memory tier. Chunks can use the cheaper S3 Vectors engine.
 4. **One ID rule works across all stores**, for example `m:{merchant_id}`. The Neptune node ID, the OpenSearch `_id` and `neptune_id` field, and the Snowflake key all line up.
-5. **Snowflake answers "how much" and "how often".** Metrics are defined once in the ontology and generated into Snowflake semantic views. Semantic views only see Snowflake data, so joins across stores happen in the retrieval service, by ID.
+5. **Snowflake answers "how much" and "how often".** Metrics are defined once in the ontology and generated into Snowflake semantic views. Semantic views only see Snowflake data, so joins across stores happen in the retrieval service, by ID. The service runs a reviewed SQL template when one fits, through a connector. Otherwise Cortex Analyst, reached through the Snowflake-managed MCP server, writes SQL from the semantic views and hands it back; our validator checks it (decision 13) before the read-only SQL tool runs it, under the caller's Snowflake role.
 
 ## Ontology
 

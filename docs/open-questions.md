@@ -11,8 +11,7 @@
    While there, bring chapter 1's building-blocks deep dive in line with decision 6: its "Four forms" step still says only the Turtle and SHACL are written by hand, where with LinkML only the YAML is.
 2. **Pick a durable execution engine** for the extraction pipeline's human reviews: Temporal's LangGraph plugin (preview), another orchestrator, or LangGraph with a Postgres checkpointer plus restart handling.
 3. **Write the "what lives where" rules for each domain.** Disputes are settled. Authorization, settlement and fees still need rules for when a record is pulled into Neptune.
-4. **Decide how Snowflake is called:** through the Snowflake-managed MCP server (Cortex Analyst over semantic views), or through a connector running reviewed SQL templates. The latter is what the retrieval page shows.
-5. **Decide whether to add the ontology's "actions"** (binding ontology terms to MCP tools) in a later phase.
+4. **Decide whether to add the ontology's "actions"** (binding ontology terms to MCP tools) in a later phase.
 
 ## Next steps for the prototype
 
@@ -21,7 +20,7 @@ Follow the build order in Chapter 7 of `site/platform.html`, with the changes re
 1. **Ontology core.** Build LinkML for 15 to 25 classes, bootstrapped from ISO 20022 card messages and FIBO parties and agreements. Add 30 to 50 competency questions per domain as tests, and a generator for Neptune headers and OpenSearch mappings. Start from the draft in `ontology/`: it already passes `linkml-lint`, generates OWL and SHACL, and feeds the class explorer. Only 2 of its 21 concrete classes are mapped to a standard so far; ISO 20022 mappings are still to do. Review the draft's own modeling choices, which the pages don't settle: a card reaches its issuer through its BIN range, a chunk mentions only reason codes, and the owner and "where it lives" of classes the pages never covered. When mapping to FIBO, pin a quarterly release rather than master (decision 9).
 2. **Graph first.** Load one month of disputes and the parties, cards and events they touch. Answer lineage questions by hand in Cypher.
 3. **Search.** Build the three indexes behind aliases, with hybrid search and the ID join.
-4. **Retrieval and agents.** Start from BYOKG-RAG, put the tools behind AgentCore Gateway and Policy, and add the Snowflake lane with VAMP-style metric templates.
+4. **Retrieval and agents.** Start from BYOKG-RAG, put the tools behind AgentCore Gateway and Policy, and add the Snowflake lane: VAMP-style metric templates first, then Cortex Analyst behind the validator for questions no template fits (decision 5).
 5. **The change loop.** Set up the proposal bot, the three review lanes and release trains.
 
 ## Backlog for the pages
