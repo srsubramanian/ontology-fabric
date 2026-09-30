@@ -27,6 +27,8 @@ Settled unless a later entry says otherwise. Newest changes are at the bottom of
    - Give each relationship one canonical direction.
    - Keep hierarchies to 3 or 4 levels.
    - Organizations get roles rather than duplicate nodes. Role classes take plain names (`Issuer`, `Acquirer`, `Merchant`, `Cardholder`) under an abstract `PartyRole`, and a party reaches each role through `ACTS_AS`.
+   - A card reaches its issuer through its BIN range (`Card IN_BIN_RANGE BinRange ASSIGNED_TO Issuer`), never a direct link, so a portfolio moving to another issuer is one edge change.
+   - A chunk `MENTIONS` any entity it names, such as a merchant, a reason code or a dispute. In LinkML its range is `linkml:Any`. Who may see the chunk is still decided by its classification in OpenSearch.
 8. **SHACL 1.0 core gates every load.** Missing required links reject the record. SHACL 1.2 and RDF 1.2 are still drafts, so wait for them.
 9. **Bootstrap from industry standards, then hand ownership to teams.** This direction is agreed; updating the platform page to show it is still open.
    - Sources: ISO 20022 card and payment messages, FIBO for parties and agreements, and ISO code lists.

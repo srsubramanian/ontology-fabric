@@ -322,13 +322,21 @@ classes:
   Chunk:
     description: >-
       A passage of a document. Its text and embedding live in OpenSearch; the
-      stub in Neptune links it to the codes it mentions.
+      stub in Neptune links it to the entities it mentions.
     slots: [id, part_of, mentions]
     annotations:
       owner: core
       lives_in: search
       id_rule: "{doc_slug}#{chunk}"
       example: "visa-vamp-2026#c04"
+
+  # ---------- Open ranges ----------
+
+  Any:
+    class_uri: linkml:Any
+    description: >-
+      Any entity with an ID. A relationship whose range is Any can point at a
+      node of any class, as a chunk's MENTIONS does. Not a node itself.
 
 slots:
 
@@ -446,8 +454,10 @@ slots:
     description: The document a chunk comes from.
     range: Document
   mentions:
-    description: Codes a chunk mentions, so its text links to the graph.
-    range: ReasonCode
+    description: >-
+      Anything a chunk names, such as a merchant, a reason code or a dispute,
+      so its text links to the graph.
+    range: Any
     multivalued: true
 
 enums:

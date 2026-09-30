@@ -44,8 +44,11 @@ type Port = [Side, number];
 /** Where a label sits along its line (0 to 1), and on which side. By default: the middle, above a horizontal line, else to the right. */
 type Label = { at?: number; side?: 'left' | 'right' | 'above' };
 
-/** Where each relationship leaves its class and arrives at its target, as a side and a fraction along it. */
-const PORTS: Record<string, { from: Port; to: Port; label?: Label }> = {
+/**
+ * Where each relationship leaves its class and arrives at its target, as a side and a fraction along it.
+ * A relationship open to any class has no target box: it ends in a short stub of the given length and direction.
+ */
+const PORTS: Record<string, { from: Port; to?: Port; stub?: [number, number]; label?: Label }> = {
   'Party.acts_as': { from: ['top', 0.21875], to: ['bottom', 0.5] },
   'Merchant.acquired_by': { from: ['bottom', 0.5], to: ['top', 0.5] },
   'Card.held_by': { from: ['left', 0.5], to: ['right', 0.5] },
@@ -64,7 +67,7 @@ const PORTS: Record<string, { from: Port; to: Port; label?: Label }> = {
   'DisputeEvent.has_reason': { from: ['top', 0.44], to: ['bottom', 0.428], label: { side: 'left' } },
   'Representment.has_evidence': { from: ['left', 0.2], to: ['bottom', 0.88], label: { side: 'left' } },
   'Chunk.part_of': { from: ['bottom', 0.09], to: ['top', 0.81] },
-  'Chunk.mentions': { from: ['bottom', 0.91], to: ['top', 0.19] },
+  'Chunk.mentions': { from: ['right', 0.5], stub: [58, 0] },
 };
 
 function at(b: Box, [side, f]: Port): [number, number] {
@@ -80,6 +83,8 @@ export type EdgeGeometry = {
   d: string; label: [number, number]; anchor: 'start' | 'middle' | 'end';
   /** The arrowhead: a triangle whose tip touches the target. */
   head: string;
+  /** For a relationship open to any class: where the words saying so start. */
+  open?: [number, number];
 };
 
 function arrowhead([x, y]: [number, number], [dx, dy]: [number, number]): string {
@@ -88,8 +93,11 @@ function arrowhead([x, y]: [number, number], [dx, dy]: [number, number]): string
   return `${x},${y} ${bx - uy * 3.6},${by + ux * 3.6} ${bx + uy * 3.6},${by - ux * 3.6}`;
 }
 
-/** The path for one relationship, and where its label sits. A relationship from a class to itself is a small loop. */
-export function edgeGeometry(id: string, from: Box, to: Box): EdgeGeometry {
+/**
+ * The path for one relationship, and where its label sits. A relationship from a class to itself is a small loop,
+ * and one open to any class (no `to` box) is a short stub.
+ */
+export function edgeGeometry(id: string, from: Box, to?: Box): EdgeGeometry {
   if (from === to) {
     const x1 = from.x + from.w - 42, x2 = from.x + from.w - 14, y = from.y;
     return {
@@ -99,6 +107,15 @@ export function edgeGeometry(id: string, from: Box, to: Box): EdgeGeometry {
   }
   const ports = PORTS[id];
   if (!ports) throw new Error(`No layout for relationship ${id}`);
+  if (!to) {
+    if (!ports.stub) throw new Error(`${id} is open to any class, so its layout needs a stub`);
+    const [x1, y1] = at(from, ports.from), [x2, y2] = [x1 + ports.stub[0], y1 + ports.stub[1]];
+    return {
+      d: `M${x1},${y1} L${x2},${y2}`, label: [x1 + 5, y1 - 6], anchor: 'start',
+      head: arrowhead([x2, y2], [x2 - x1, y2 - y1]), open: [x2 + 5, y2 + 3.5],
+    };
+  }
+  if (!ports.to) throw new Error(`No target port for relationship ${id}`);
   const [x1, y1] = at(from, ports.from), [x2, y2] = at(to, ports.to);
   const t = ports.label?.at ?? 0.5;
   const lx = x1 + (x2 - x1) * t, ly = y1 + (y2 - y1) * t;

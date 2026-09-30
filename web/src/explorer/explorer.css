@@ -53,6 +53,8 @@ h1{max-width:30ch; font-size:clamp(1.9rem,3.4vw,2.7rem); margin-bottom:10px}
 .cr{transition:opacity .25s}
 .cr.faded{opacity:.14}
 .cr.faded .cl{opacity:0}
+.cany{font-size:10.5px; font-style:italic; fill:var(--muted)}
+.cr.faded .cany{opacity:.35}
 .cr.hl .ce{stroke:var(--onto); stroke-width:2.4}
 .cr.hl .ch{fill:var(--onto)}
 .cr.hl .cl{fill:var(--onto); font-size:10px}

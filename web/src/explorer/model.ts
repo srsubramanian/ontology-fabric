@@ -8,7 +8,7 @@ export type RawSlot = {
   identifier?: boolean; pattern?: string;
 };
 export type RawClass = {
-  is_a?: string; abstract?: boolean; description?: string; title?: string; aliases?: string[];
+  is_a?: string; abstract?: boolean; class_uri?: string; description?: string; title?: string; aliases?: string[];
   slots?: string[]; slot_usage?: Record<string, RawSlot>; close_mappings?: string[];
   annotations?: Record<string, string>;
 };
@@ -37,7 +37,12 @@ export type Slot = {
 export type Relationship = {
   id: string; slot: string; type: string; from: string; to: string;
   description?: string; multivalued: boolean;
+  /** True when the range is linkml:Any, so the relationship can point at a node of any class. */
+  open: boolean;
 };
+
+/** LinkML's way to say "any class". Such a class is a range, never a node, so the explorer doesn't list it. */
+const ANY = 'linkml:Any';
 
 export type ClassInfo = {
   name: string; curie: string; abstract: boolean; description: string; aliases: string[];
@@ -108,6 +113,7 @@ function expand(schema: RawSchema, curie: string): string | undefined {
 export function buildModel(schema: RawSchema, questions: RawQuestions): Model {
   const classes: Record<string, ClassInfo> = {};
   for (const [name, raw] of Object.entries(schema.classes)) {
+    if (raw.class_uri === ANY) continue;
     const a = raw.annotations ?? {};
     if (!LIVES_IN.includes(a.lives_in as LivesIn)) throw new Error(`${name}: lives_in must be one of ${LIVES_IN.join(', ')}`);
     const chain = ancestors(schema, name);
@@ -133,7 +139,7 @@ export function buildModel(schema: RawSchema, questions: RawQuestions): Model {
       if (!def?.range || !(def.range in schema.classes)) continue;
       relationships.push({
         id: `${name}.${slot}`, slot, type: slot.toUpperCase(), from: name, to: def.range,
-        description: def.description, multivalued: !!def.multivalued,
+        description: def.description, multivalued: !!def.multivalued, open: schema.classes[def.range].class_uri === ANY,
       });
     }
   }

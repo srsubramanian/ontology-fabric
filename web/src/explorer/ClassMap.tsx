@@ -89,6 +89,10 @@ export function ClassMap({ model, lens, lit, litEdges, selected, focusKey, stagg
               <motion.polygon className="ch" points={g.head} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={late} />
               <motion.text className="cl" x={g.label[0]} y={g.label[1]} textAnchor={g.anchor}
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={late}>{r.type}</motion.text>
+              {g.open && (
+                <motion.text className="cany" x={g.open[0]} y={g.open[1]}
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={late}>any entity</motion.text>
+              )}
             </g>
           );
         })}
