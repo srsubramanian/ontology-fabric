@@ -3,11 +3,11 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type K
 import { flushSync } from 'react-dom';
 import { reduce } from '../../kit/motion';
 import { rounded } from '../../kit/svg';
-import { anim, dl, packet, wait } from './anim';
+import { anim, dl, packet, wait } from '../shared/anim';
 import { model } from '../../explorer/data';
-import { linesHtml } from './lines';
+import { linesHtml } from '../shared/lines';
 import { Ownership } from './Ownership';
-import { Keys, Stepper } from './Stepper';
+import { Keys, Stepper } from '../shared/Stepper';
 
 // How version 1 gets made, standards first (decision 9): the overview map, one panel per step,
 // then who owns it and how it's authored.

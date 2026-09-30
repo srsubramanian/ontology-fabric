@@ -1,12 +1,13 @@
-// The platform overview. Chapter 1 is React (ch1/). The other chapters are still the
+// The platform overview. Chapters 1 and 2 are React (ch1/, ch2/). The others are still the
 // hand-written page, moved here as it was: the markup in platform.html, the styles in
 // platform.css and each original script under legacy/, run in the original order.
 // Chapters move to React one at a time (decision 21).
 import './platform.css';
 import './globals';
 import './ch1/mount';
+import './ch2/mount';
 import './legacy/01-map.js';
-import './legacy/02-nav-evolve.js';
+import './legacy/02-nav.js';
 import './legacy/03-loop.js';
 import './legacy/04-code.js';
 import './legacy/05-path.js';

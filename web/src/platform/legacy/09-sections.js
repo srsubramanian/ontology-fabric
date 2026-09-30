@@ -17,31 +17,6 @@
     });
   }
 
-  // ---------- Chapter 2: what lives where ----------
-  const pool = document.getElementById('wlPool');
-  if (pool){
-    const chips = Array.from(pool.children);
-    const drops = {}; document.querySelectorAll('.wldrop').forEach(d => drops[d.dataset.bin] = d);
-    const note = document.getElementById('wlNote');
-    let sorted = false, run = 0;
-    function flip(elm, dest){
-      const a = elm.getBoundingClientRect(); dest.appendChild(elm); const b = elm.getBoundingClientRect();
-      return anim(elm, { x:[a.left - b.left, 0], y:[a.top - b.top, 0] }, { duration:0.55, ease:[0.22,1,0.36,1] });
-    }
-    function reset(){ run++; sorted = false; pool.classList.remove('empty'); chips.forEach(c => { pool.appendChild(c); c.style.transform = ''; }); if (M && !reduce) note.style.opacity = 0; }
-    async function sort(){
-      if (sorted) return; sorted = true; const my = ++run;
-      for (const c of chips){ if (my !== run) return; flip(c, drops[c.dataset.to]); await wait(230); }
-      await wait(400); if (my !== run) return;
-      pool.classList.add('empty');
-      anim(note, { opacity:[0,1], y:[8,0] }, { duration:0.4 });
-    }
-    if (M && !reduce) note.style.opacity = 0;
-    document.getElementById('wlSort').addEventListener('click', () => { reset(); requestAnimationFrame(sort); });
-    document.getElementById('wlReset').addEventListener('click', reset);
-    onView(document.getElementById('where'), () => { if (!sorted) setTimeout(sort, 400); }, 0.3);
-  }
-
   // ---------- Chapter 4: build or reuse ----------
   const rmap = document.getElementById('rmap');
   if (rmap){

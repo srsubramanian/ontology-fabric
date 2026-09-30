@@ -16,16 +16,6 @@
 
   const P = window.Prism;
   if (P && P.languages){
-    P.languages.tsq = {
-      'comment': /;.*/,
-      'string': /"[^"]*"/,
-      'variable': /@[\w.]+/,
-      'function': /#[\w?!-]+/,
-      'property': /\b[a-z_]+(?=:)/,
-      'keyword': /(\()[a-z_]+/,
-      'punctuation': /[()\[\]:]/
-    };
-    P.languages.tsq.keyword = { pattern: /(\()[a-z_]+/, lookbehind: true };
     P.languages.mcphttp = P.languages.extend('json', {});
     P.languages.insertBefore('mcphttp', 'property', {
       'request-line': { pattern: /^(?:POST|GET)\s+\S+\s+HTTP\/[\d.]+$/m, inside: { 'keyword': /^\w+/ } },
@@ -95,79 +85,6 @@
     if (api) api.stops.push(stop);
     return { set, play, stop };
   }
-
-  /* ================= Chapter 2 ================= */
-  (function(){
-    const JAVA = [
-      '@Entity',
-      '@Table(name = "dispute_record")',
-      'public class TxnDsptRec {',
-      '    @Id private String disputeId;',
-      '    @ManyToOne private CaptureRec capture;',
-      '    private String reasonCd;',
-      '    @Enumerated(EnumType.STRING)',
-      '    private DisputeState state;',
-      '}',
-      '',
-      'public enum DisputeState {',
-      '    OPEN, REPRESENTED, PRE_ARBITRATION, CLOSED',
-      '}'
-    ].join('\n');
-    const TSQ = [
-      '(class_declaration',
-      '  (modifiers (marker_annotation',
-      '    name: (identifier) @ann (#eq? @ann "Entity")))',
-      '  name: (identifier) @entity.name)'
-    ].join('\n');
-    const YAML = [
-      'TxnDsptRec:',
-      '  class: Chargeback',
-      '  id: "cb:{disputeId}"',
-      '  links:',
-      '    capture: DISPUTES',
-      '  fields:',
-      '    reasonCd: HAS_REASON'
-    ].join('\n');
-    const box = document.getElementById('x2box'); if (!box) return;
-    render(document.getElementById('x2code'), JAVA, 'java');
-    render(document.getElementById('x2q'), TSQ, 'tsq');
-    render(document.getElementById('x2yaml'), YAML, 'yaml');
-    let tour;
-    const api = DD('dd2', [
-      { t:'The code', k:['Real code from the disputes service','Names like TxnDsptRec hide the meaning','The pipeline reads structure, not just text'] },
-      { t:'Syntax tree', k:['tree-sitter turns source code into a tree','A query picks out classes, fields and annotations','The same approach works across languages'] },
-      { t:'Facts', k:['Structure is extracted exactly, with no LLM','Links come from annotations like @ManyToOne','Enums become candidate states or code lists'] },
-      { t:'Mapping', k:['Claude reads the facts and the ontology','Every mapping carries a confidence and evidence','Low confidence waits for a person'] },
-      { t:'Two outputs', k:['Reviewed mappings drive the loaders','Gaps become ontology pull requests','Neither changes meaning on its own'] }
-    ], {
-      1: () => { tour.play(); },
-      2: () => {
-        const svg = document.getElementById('x2tree');
-        const tn = svg.querySelectorAll('.tn'); hideAll(tn); svg.querySelectorAll('.tn').forEach(g => g.classList.remove('hit'));
-        [0, 1, 2].forEach(lv => anim(svg.querySelectorAll('.tn[data-lv="' + lv + '"]'), { opacity:[0,1], y:[-8,0] }, { duration:0.35, delay: dl(0.1 + lv * 0.6, 0.08) }));
-        drawIn(svg.querySelectorAll('.tl'), 0.35);
-        setTimeout(() => { if (api.cur !== 2) return; svg.querySelectorAll('.hitme').forEach(g => g.classList.add('hit')); anim(svg.querySelectorAll('.hitme'), { scale:[1, 1.05, 1] }, { duration:0.5 }); }, reduce ? 0 : 2200);
-      },
-      3: () => { const rows = document.querySelectorAll('#x2facts tbody tr'); hideAll(rows); anim(rows, { opacity:[0,1], x:[-12,0] }, { duration:0.35, delay: dl(0.1, 0.25) }); },
-      4: () => {
-        const svg = document.getElementById('x2map');
-        hideAll(svg.querySelectorAll('.mapn, .mapo, .mbadge'));
-        anim(svg.querySelectorAll('.mapn'), { opacity:[0,1], x:[-10,0] }, { duration:0.3, delay: dl(0, 0.1) });
-        anim(svg.querySelectorAll('.mapo'), { opacity:[0,1], x:[10,0] }, { duration:0.3, delay: dl(0.4, 0.1) });
-        drawIn(svg.querySelectorAll('.mline'), 0.9);
-        anim(svg.querySelectorAll('.mbadge'), { opacity:[0,1], scale:[0.5,1] }, { duration:0.3, delay: dl(1.3, 0.15) });
-      },
-      5: () => { const c = document.querySelectorAll('#dd2 .ocard'); hideAll(c); anim(c, { opacity:[0,1], y:[12,0] }, { duration:0.4, delay: dl(0.1, 0.3) }); }
-    });
-    tour = Tour(box, [
-      [0, 1, '@Entity and @Table: this class is stored in the dispute_record table.'],
-      [4, 4, '@ManyToOne: each dispute points at exactly one capture.'],
-      [5, 5, 'A plain string field. The name hints at a reason code, nothing more.'],
-      [6, 7, 'The state field only accepts values from an enum.'],
-      [10, 12, 'The enum lists four dispute states. One of them is new to the ontology.']
-    ], document.getElementById('x2cap'), api);
-    document.getElementById('x2play').addEventListener('click', () => tour.play());
-  })();
 
   /* ================= Chapter 3 ================= */
   (function(){

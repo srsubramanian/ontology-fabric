@@ -1,9 +1,9 @@
 import { inView } from 'motion/react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { reduce } from '../../kit/motion';
-import { anim, dl, wait } from './anim';
-import { linesHtml } from './lines';
-import { Stepper } from './Stepper';
+import { anim, dl, wait } from '../shared/anim';
+import { linesHtml } from '../shared/lines';
+import { Stepper } from '../shared/Stepper';
 
 // Turtle or LinkML, side by side: the same slice of the ontology written both ways.
 

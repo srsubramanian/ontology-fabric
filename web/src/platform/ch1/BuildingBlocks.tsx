@@ -2,10 +2,10 @@ import { inView } from 'motion/react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { flushSync } from 'react-dom';
 import { reduce } from '../../kit/motion';
-import { anim, dl, drawIn, hideAll, wait } from './anim';
+import { anim, dl, drawIn, hideAll, wait } from '../shared/anim';
 import payments from '../../../../ontology/payments.yaml?raw';
-import { linesHtml } from './lines';
-import { Keys, Stepper } from './Stepper';
+import { linesHtml } from '../shared/lines';
+import { Keys, Stepper } from '../shared/Stepper';
 
 // Deep dive: the building blocks, followed through one payment (Maya's order at Harbor Grill).
 

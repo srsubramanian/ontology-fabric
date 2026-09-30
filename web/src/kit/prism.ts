@@ -6,7 +6,7 @@ import 'prismjs/components/prism-yaml';
 import 'prismjs/components/prism-sql';
 
 // Custom grammars (docs/style-guide.md). Those only the platform page's unported chapters use
-// (opensearch, tsq, cedar) still live in web/src/platform/legacy/ and move here as their
+// (opensearch, cedar) still live in web/src/platform/legacy/ and move here as their
 // chapters are ported.
 
 /** An HTTP request line and headers, then a JSON body: an MCP call on the wire. */
@@ -23,6 +23,12 @@ Prism.languages.walktext = {
   check: { pattern: /^pass\b/m, alias: 'string' },
   label: { pattern: /(^|\s):[A-Z]\w+/m, lookbehind: true, alias: 'class-name' },
   id: { pattern: /\b(?:rc|m|proc):[\w.:-]+|\b[\w-]+#c\d+/, alias: 'variable' },
+};
+
+/** A tree-sitter query: captures, predicates, fields and node types. */
+Prism.languages.tsq = {
+  comment: /;.*/, string: /"[^"]*"/, variable: /@[\w.]+/, function: /#[\w?!-]+/,
+  property: /\b[a-z_]+(?=:)/, keyword: { pattern: /(\()[a-z_]+/, lookbehind: true }, punctuation: /[()\[\]:]/,
 };
 
 /** A file tree drawn with box characters, with a note after two or more spaces. */
