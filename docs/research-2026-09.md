@@ -37,6 +37,14 @@ What changed around this build, and what the pages rely on. Every finding below 
   - Reciprocal rank fusion is available through the score-ranker processor. https://docs.opensearch.org/latest/vector-search/ai-search/hybrid-search/rrf/
   - An `s3vector` engine can back `knn_vector` fields on managed domains running OpenSearch 2.19 or later, keeping hybrid search, filters and aggregations. https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors-opensearch.html
   - The next generation of OpenSearch Serverless went GA in May 2026 and can scale to zero. https://aws.amazon.com/about-aws/whats-new/2026/05/amazon-opensearch-serverless-next-generation-generally-available/
+- **Neptune's openCypher load format** (checked 2026-09-30), which `tools/generate.py` writes headers for:
+  - Node files need `:ID`. `:LABEL` holds several labels separated by `;`, which is how a node gets its whole label chain.
+  - Relationship files need `:START_ID`, `:END_ID` and `:TYPE`. `:ID` is required too while `userProvidedEdgeIds` is true, the default.
+  - Property columns are `name:Type`. The types are Bool, Byte, Short, Int, Long, Float, Double, String and DateTime; no decimal type or list columns are documented.
+  - https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-format-opencypher.html
+- **OpenSearch vector fields** (checked 2026-09-30):
+  - OpenSearch names the cosine space `cosinesimil`; `cosine` isn't in its list of space types. https://docs.opensearch.org/latest/mappings/supported-field-types/knn-spaces/
+  - The `s3vector` engine is set with `"method": {"engine": "s3vector"}` and needs `"index": {"knn": true}`. It supports `l2` and `cosinesimil`, and up to 4,096 dimensions. It requires OpenSearch 2.19 or later, on OpenSearch Optimized instances. https://docs.aws.amazon.com/opensearch-service/latest/developerguide/s3-vector-opensearch-integration-engine.html
 - **S3 Vectors has been generally available since 2 December 2025**, with up to 2 billion vectors per index. https://aws.amazon.com/about-aws/whats-new/2025/12/amazon-s3-vectors-generally-available/
 - **Snowflake**:
   - The Snowflake-managed MCP server has been GA since 4 November 2025. It exposes Cortex Analyst (over semantic views), Cortex Search and SQL execution as tools, each call running under a specific Snowflake role. Preview notes: https://docs.snowflake.com/release-notes/2025/other/2025-10-02-mcp-server

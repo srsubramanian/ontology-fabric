@@ -1,0 +1,62 @@
+{
+  "settings": {
+    "index": {
+      "knn": true
+    }
+  },
+  "mappings": {
+    "properties": {
+      "neptune_id": {
+        "type": "keyword"
+      },
+      "class": {
+        "type": "keyword"
+      },
+      "labels": {
+        "type": "keyword"
+      },
+      "classification": {
+        "type": "keyword"
+      },
+      "ontology_version": {
+        "type": "keyword"
+      },
+      "code": {
+        "type": "keyword"
+      },
+      "mcc": {
+        "type": "keyword"
+      },
+      "name": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "network": {
+        "type": "keyword"
+      },
+      "opened_at": {
+        "type": "date"
+      },
+      "prefix": {
+        "type": "keyword"
+      },
+      "reported_at": {
+        "type": "date"
+      },
+      "embedding": {
+        "type": "knn_vector",
+        "dimension": 1024,
+        "space_type": "cosinesimil",
+        "method": {
+          "name": "hnsw",
+          "engine": "faiss"
+        }
+      }
+    }
+  }
+}

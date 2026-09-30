@@ -20,6 +20,8 @@ Settled unless a later entry says otherwise. Newest changes are at the bottom of
    - Snowflake semantic views;
    - documentation.
 
+   The generator is `tools/generate.py`, writing `generated/`. It also writes SHACL shapes (decision 8) and the OpenSearch ontology index's documents. CI fails when a committed file no longer matches the source. Snowflake semantic views wait until metrics are defined in the ontology.
+
    If you need OWL features LinkML can't express, keep a small hand-written Turtle file and merge it in CI with `robot merge`.
 7. **Modeling rules:**
    - Model events, not status fields.

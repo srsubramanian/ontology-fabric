@@ -16,6 +16,10 @@
 #   id_rule      the one ID used in every store (decision 4)
 #   example      an instance from the pages' running examples, where one exists
 #   no_standard  why a concrete class has no close_mappings
+#   search_index which OpenSearch index holds a search class's documents
+#
+# And on relationships, read by tools/generate.py:
+#   edge_properties  properties the edge carries, as name:NeptuneType
 #
 # Check it with: linkml-lint --config ontology/.linkmllint.yaml ontology/payments.yaml
 
@@ -374,6 +378,7 @@ classes:
       owner: core
       lives_in: search
       id_rule: "{doc_slug}#{chunk}"
+      search_index: chunks
       no_standard: >-
         A passage of an indexed document is this platform's own idea.
       example: "visa-vamp-2026#c04"
@@ -472,6 +477,8 @@ slots:
       (decision 2).
     range: Merchant
     multivalued: true
+    annotations:
+      edge_properties: "auths:Long, first_seen:DateTime, last_seen:DateTime"
   has_response:
     description: The issuer's answer to an authorization.
     range: ResponseCode

@@ -1,1 +1,6 @@
 linkml==1.11.1
+# tools/generate.py's output depends on these, so CI must match what generated/ was made with.
+linkml-runtime==1.11.1
+rdflib==7.6.0
+Jinja2==3.1.6
+pydantic==2.13.5

@@ -1,0 +1,43 @@
+{
+  "settings": {
+    "index": {
+      "knn": true
+    }
+  },
+  "mappings": {
+    "properties": {
+      "neptune_id": {
+        "type": "keyword"
+      },
+      "class": {
+        "type": "keyword"
+      },
+      "labels": {
+        "type": "keyword"
+      },
+      "classification": {
+        "type": "keyword"
+      },
+      "ontology_version": {
+        "type": "keyword"
+      },
+      "mentions": {
+        "type": "keyword"
+      },
+      "part_of": {
+        "type": "keyword"
+      },
+      "text": {
+        "type": "text"
+      },
+      "embedding": {
+        "type": "knn_vector",
+        "dimension": 1024,
+        "space_type": "cosinesimil",
+        "method": {
+          "engine": "s3vector"
+        }
+      }
+    }
+  }
+}
