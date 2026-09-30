@@ -1,9 +1,10 @@
+// The kit first: it puts Prism in manual mode before Prism loads, and adds the custom grammars.
+import '../../kit/prism';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-clike';
 import 'prismjs/components/prism-java';
 import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-turtle';
-import '../../kit/prism';
 
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 

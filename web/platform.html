@@ -95,64 +95,7 @@
 
 <section class="chapter" id="ch6" data-ch="6" style="--c:var(--onto)" aria-labelledby="ch6h"><!-- Rendered by src/platform/ch6/ in React --></section>
 
-<section class="chapter" id="ch7" data-ch="7" style="--c:var(--ink)" aria-labelledby="ch7h">
-  <header class="chhead">
-    <div class="chn" aria-hidden="true">7</div>
-    <div><h2 id="ch7h">Build it</h2><p class="chidea">Graph first, then search, then agents, with a handful of decisions settled early.</p><div class="chacts"></div></div>
-    <figure class="minibox"><svg class="mini" data-ch="7" viewBox="10 26 1070 464" role="img" aria-label="Where chapter 7 sits in the platform"></svg><figcaption>Where this sits in the platform</figcaption></figure>
-  </header>
-<section class="block" aria-labelledby="phh">
-  <h3 class="sech" id="phh">Build order</h3>
-  <p class="intro">Get the graph right before adding search, and search right before adding agents. Each phase has a test that tells you it's done.</p>
-  <ol class="phases">
-    <li><div><h3>Ontology core and generator</h3><p>Draft 15 to 25 core classes from ISO 20022 card messages, FIBO parties and agreements, and ISO code lists, then measure how many competency questions they answer. Build the SHACL gate and a generator that emits Neptune CSV headers, the extraction schema and OpenSearch mappings. <a href="#v1">See how v1 is made.</a></p><p class="done"><b>Done when</b> renaming a class in the LinkML source regenerates every artifact, CI fails if a committed artifact is stale, and every build prints both coverage numbers.</p></div></li>
-    <li><div><h3>Graph first</h3><p>Load one month of disputes into Neptune with deterministic IDs, plus the parties, cards and events they touch. Leave the full authorization stream in the lake. Answer chargeback lineage questions by hand in Cypher before any LLM is involved.</p><p class="done"><b>Done when</b> reloading the same month changes nothing, and the lineage queries return what your dispute team expects.</p></div></li>
-    <li><div><h3>Search layer</h3><p>Deploy the stream poller and the entities index, then the chunks index for network rules and runbooks. Build hybrid search that returns Neptune IDs.</p><p class="done"><b>Done when</b> misspelled merchant names and bare codes resolve to the right Neptune IDs.</p></div></li>
-    <li><div><h3>Retrieval service and agents</h3><p>Start from AWS Labs’ BYOKG-RAG, put the tools behind AgentCore Gateway and Policy, and add ontology-checked Cypher where it falls short. Collect real questions from dispute and operations teams as an evaluation set before tuning anything.</p><p class="done"><b>Done when</b> the evaluation set passes at a threshold those teams agreed to.</p></div></li>
-    <li><div><h3>Extend</h3><p>Run code extraction across repositories at scale, hand domain modules to their owning teams, publish ontology releases, and load Neptune Analytics snapshots for graph algorithms such as fraud-ring detection.</p><p class="done"><b>Done when</b> another team builds on a pinned ontology version without asking you what a class means.</p></div></li>
-  </ol>
-</section>
-
-<section class="block" aria-labelledby="dech">
-  <h3 class="sech" id="dech">Decide these early</h3>
-  <p class="intro">Each of these is cheap to settle now and expensive to change after data is loaded.</p>
-  <div class="decide">
-    <article style="--c:var(--query)"><h3>Join in the service, not in the query</h3><p>Neptune's built-in OpenSearch full-text search works from Gremlin and SPARQL queries, not openCypher. Your retrieval service searches OpenSearch first, then passes the IDs into Cypher as parameters.</p></article>
-    <article style="--c:var(--search)"><h3>Fork the replication poller</h3><p>AWS's Neptune-to-OpenSearch stack writes a document shape designed for that full-text search feature. Since you won't query it from openCypher, change the poller to write your entities documents instead.</p></article>
-    <article style="--c:var(--ink)"><h3>Pin one embedding model</h3><p>Entities, chunks and ontology definitions must share it. Switching models means rebuilding all three indexes, so treat it like an ontology major version.</p></article>
-    <article style="--c:var(--onto)"><h3>Version both stores together</h3><p>Stamp ontology_version on nodes and documents. New release, new indexes, alias swap. Pair it with a Neptune snapshot so a rollback covers both stores.</p></article>
-    <article style="--c:var(--graph)"><h3>Enforce access in layers</h3><p>Neptune has no row-level security. Put the rules in AgentCore Policy at the gateway, give the query role read-only IAM access, and tag OpenSearch documents with a classification the service filters on.</p></article>
-    <article style="--c:var(--graph)"><h3>Decide what lives in Neptune</h3><p>Materialize what questions walk through or reason over. Leave high-volume authorizations in the lake, linked by ID, and pull a record in when a dispute or fraud report touches it. For wider risk walks, load daily summary edges from Snowflake, such as a device seen at a merchant.</p></article>
-    <article style="--c:var(--query)"><h3>Make long waits survive crashes</h3><p>LangGraph checkpoints save state, but a run lives in one process. Run the pipeline on Lambda durable functions instead: each step is checkpointed and retried, and a wait for a reviewer can last up to a year at no compute cost.</p></article>
-    <article style="--c:var(--graph)"><h3>Own the graph instead of using managed GraphRAG</h3><p>Bedrock Knowledge Bases GraphRAG builds its own graph in Neptune Analytics with its own entity extraction. Because your ontology is the product, you build and govern the graph; bring in Neptune Analytics later for algorithms.</p></article>
-  </div>
-</section>
-
-<section class="block" id="watch" aria-labelledby="watchh">
-  <h3 class="sech" id="watchh">Watch list</h3>
-  <p class="intro">What changed around this build over the past year, and what to keep an eye on. Checked in September 2026.</p>
-  <div class="xwrap"><svg id="wtl" class="xsvg" viewBox="0 0 760 200" role="img" aria-label="Timeline from December 2025 to November 2026 of changes relevant to the platform">
-    <path class="gmain" d="M30,100 L610,100"/>
-    <path class="wfut" d="M610,100 L730,100"/>
-    <g class="wev"><circle cx="60" cy="100" r="8"/><text class="evt" x="40" y="42">Dec 2025</text><text class="evs" x="40" y="60">MCP to Linux Foundation</text><text class="evs" x="40" y="76">S3 Vectors GA</text></g>
-    <g class="wev"><circle cx="200" cy="100" r="8"/><text class="evt" x="200" y="136" text-anchor="middle">Mar 2026</text><text class="evs" x="200" y="154" text-anchor="middle">AgentCore Policy GA</text><text class="evs" x="200" y="170" text-anchor="middle">Neptune reads S3</text></g>
-    <g class="wev"><circle cx="300" cy="100" r="8"/><text class="evt" x="300" y="42" text-anchor="middle">May 2026</text><text class="evs" x="300" y="60" text-anchor="middle">OpenSearch Serverless</text><text class="evs" x="300" y="76" text-anchor="middle">rebuilt, scales to zero</text></g>
-    <g class="wev"><circle cx="430" cy="100" r="8"/><text class="evt" x="430" y="136" text-anchor="middle">Jul 28, 2026</text><text class="evs" x="430" y="154" text-anchor="middle">MCP 2026-07-28 spec</text><text class="evs" x="430" y="170" text-anchor="middle">stateless calls</text></g>
-    <g class="wev"><circle cx="500" cy="100" r="8"/><text class="evt" x="500" y="42" text-anchor="middle">Aug 2026</text><text class="evs" x="500" y="60" text-anchor="middle">A2A joins MCP</text><text class="evs" x="500" y="76" text-anchor="middle">at the same foundation</text></g>
-    <g class="wev fut"><circle cx="690" cy="100" r="9"/><text class="evt" x="730" y="136" text-anchor="end">Nov 14, 2026</text><text class="evs" x="730" y="154" text-anchor="end">ISO 20022 addresses</text><text class="evs" x="730" y="170" text-anchor="end">must be structured</text></g>
-    <text class="evs" x="620" y="92">coming up</text>
-  </svg></div>
-  <div class="wcards">
-    <div class="wcard"><span class="wtag">draft</span><b>SHACL 1.2 and RDF 1.2</b><span>SHACL 1.2 is a Working Draft; RDF 1.2 is a Candidate Recommendation. Keep using SHACL 1.0 core; revisit when SHACL Rules is final, since it could replace custom inference.</span></div>
-    <div class="wcard"><span class="wtag">trend</span><b>Ontologies with rules and actions</b><span>Platforms now model actions next to entities. Planned for a later phase: action types in the ontology become MCP tools that call the owning system, behind policy and human approval. Version 1 stays read-only.</span></div>
-    <div class="wcard"><span class="wtag due">14 Nov 2026</span><b>ISO 20022 structured addresses</b><span>If cross-border payments are in scope, give Party a structured PostalAddress with town and country now.</span></div>
-    <div class="wcard"><span class="wtag">not yet</span><b>GQL in Neptune</b><span>No announcement found. openCypher is converging on GQL, so today’s queries should carry over.</span></div>
-  </div>
-</section>
-
-  <div class="check" data-ch="7"></div>
-  <div class="chnext" data-ch="7"></div>
-</section>
+<section class="chapter" id="ch7" data-ch="7" style="--c:var(--ink)" aria-labelledby="ch7h"><!-- Rendered by src/platform/ch7/ in React --></section>
 
 <footer>
   A learning sketch of a payments knowledge layer, built from public documentation for Neptune, OpenSearch and Bedrock as of September 2026. Check the Neptune release notes before building around the openCypher full-text search gap, since AWS may close it.
