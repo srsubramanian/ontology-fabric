@@ -2,8 +2,8 @@
 
 ## Visual
 
-- **Diagrams are custom, hand-drawn SVG, animated with Motion 13.4.4** (`cdn.jsdelivr.net/npm/motion@13.4.4/dist/motion.js`). Don't use Mermaid or ELK layouts; the owner tried and rejected both.
-- **Code uses Prism 1.30.0 components** from jsDelivr, with `window.Prism.manual = true`. Custom grammars already defined include `opensearch`, `mcphttp`, `walktext`, `tsq`, `cli`, `cedar`, `diffx` and `csvx`. Reuse them before writing new ones.
+- **Diagrams are custom, hand-drawn SVG, animated with Motion 13.4.4.** Pages in `web/` use `motion/react` from npm; the hand-written platform page loads `cdn.jsdelivr.net/npm/motion@13.4.4/dist/motion.js`. Don't use Mermaid or ELK layouts; the owner tried and rejected both.
+- **Code uses Prism 1.30.0 components** in manual mode: from npm through `web/src/kit/prism.ts`, or from jsDelivr with `window.Prism.manual = true`. Custom grammars already defined include `opensearch`, `mcphttp`, `walktext`, `tsq`, `cli`, `cedar`, `diffx` and `csvx`. `mcphttp` is in the kit; the rest are still in `site/platform.html` and move to the kit when it's ported. Reuse them before writing new ones.
 - **Fonts:** Schibsted Grotesk for text, JetBrains Mono for code and IDs.
 - **Colours carry meaning.** Keep them consistent:
 
@@ -16,7 +16,7 @@
   | `--wh` (cyan, retrieval page) | Snowflake |
   | `--bad` (red) | Failures |
 
-- **Every colour has light and dark values.** Define both, test both, and never hard-code a colour outside the tokens.
+- **Every colour has light and dark values.** Define both, test both, and never hard-code a colour outside the tokens. Shared tokens live in `web/src/kit/tokens.css`.
 
 ## Page structure
 
@@ -24,7 +24,7 @@
   - Platform page: `#map`, `#chN` and `#chN:K`.
   - Retrieval page: `#map` and `#s1` to `#s11`.
 - **Chapters split into sub-pages**, with underlined tabs and Previous/Next buttons. Arrow keys move between sub-pages.
-- **A view's animation runs when it's shown** (or when it scrolls into view with Motion's `inView`), and always has a replay button.
+- **A view's animation runs when it's shown** (or when it scrolls into view with Motion's `inView`), and always has a replay button. In `web/`, a view mounts when shown, which starts its `useTimeline` steps; the replay button remounts the animated part with a new key from `useReplay`.
 - **No horizontal page scroll on a 390 px phone.** Wide SVGs sit inside an `overflow-x: auto` wrapper.
 
 ## Motion gotchas
@@ -32,6 +32,7 @@
 - **Don't set `style.opacity` directly and then animate to a single target value.** Motion caches values, so the animation silently does nothing. Reset with `animate(el, { opacity: 0 }, { duration: 0 })`, or animate with keyframe arrays like `{ opacity: [0, 1] }`.
 - **Convert `HTMLCollection` with `Array.from`** before passing it to `animate`. The helper wrappers already do this.
 - **Respect `prefers-reduced-motion`.** The helpers set duration to 0.
+- **In `web/`, animate declaratively with the kit's `play()` helper** (variants with keyframes) rather than calling `animate` on elements. It avoids the caching problem above, and applies reduced motion through `tr()`.
 
 ## Writing
 

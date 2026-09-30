@@ -1,0 +1,9 @@
+/* The base rules every page shares. Page-level type and components live in each page's CSS. */
+:root{box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none !important}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 72px)}
+p{margin:0 0 12px}
+button{font:inherit; color:inherit}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--ink); outline-offset:3px; border-radius:4px}

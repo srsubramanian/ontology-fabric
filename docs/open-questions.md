@@ -29,4 +29,5 @@ Follow the build order in Chapter 7 of `site/platform.html`, with the changes re
 - Generate the pages in CI from the LinkML source, so they stay in step with each ontology release.
 - Add a question tracer: pick a competency question and animate its Cypher path across the class graph.
 - Candidate separate pages, each linked from its chapter like `retrieval.html`: ontology authoring, the ingestion pipeline, releases and governance.
-- Optional: split `platform.html` into source partials with a small build step, if editing the single file gets slow.
+- Port `platform.html` to `web/`, a chapter at a time (decision 21). Move its custom Prism grammars and shared diagram code into `web/src/kit/` as they're needed, and fold in the Snowflake gap and the standards-first update (question 1) as each chapter is ported.
+- Add CI that runs `npm run check` and the smoke test, and fails if a built page in `site/` is stale against `web/`.

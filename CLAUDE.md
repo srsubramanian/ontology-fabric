@@ -5,14 +5,15 @@ Ontology Fabric is the working name for a payments knowledge layer: an ontology-
 ## What's in this repo
 
 - `site/platform.html`: the platform overview. A map of the whole system plus seven chapters, each split into sub-pages. One self-contained HTML file.
-- `site/retrieval.html`: the retrieval walkthrough, in 11 stages, covering Neptune, Snowflake and OpenSearch. Also self-contained.
+- `site/retrieval.html`: the retrieval walkthrough, in 11 stages, covering Neptune, Snowflake and OpenSearch. Also self-contained, but built from `web/`: don't edit it by hand.
+- `web/`: the React source for pages that have moved off hand-written HTML (so far, the retrieval page). `web/src/kit/` holds what pages share: colour tokens, Motion helpers, Prism grammars and the code block.
 - `docs/`: decisions, style guide, 2026 research notes, open questions, and how the project got here.
 - `tools/smoke_test.py`: loads every view of both pages headlessly, fails on JavaScript errors and saves screenshots.
 
 ## Working rules
 
-- After changing a page, run `python tools/smoke_test.py` and look at the screenshots it names.
-- Pages stay self-contained. Inline CSS and JS, libraries only from `cdn.jsdelivr.net` at pinned versions, fonts from Google Fonts.
+- After changing a page, run `python tools/smoke_test.py` and look at the screenshots it names. For a page in `web/`, run `npm run check` in `web/` first: it typechecks and rebuilds the page into `site/`. Commit the rebuilt file with its source.
+- Each page is one self-contained HTML file, with fonts from Google Fonts. Pages in `web/` inline everything at build time, from npm packages pinned to exact versions. `site/platform.html` is still hand-written, with inline CSS and JS and libraries from `cdn.jsdelivr.net` at pinned versions, until it's ported.
 - `site/platform.html` is about 360 KB. Make targeted edits and don't rewrite it wholesale.
 - Check current facts before stating them. Standards, AWS services, the MCP spec and card network rules change often. Record sources in `docs/research-2026-09.md`.
 - Label invented numbers, IDs and names as illustrative on the page.
