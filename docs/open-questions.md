@@ -10,7 +10,9 @@ Follow the build order in chapter 7 of the overview (`site/index.html#ch7`), wit
 
 1. **Ontology core.** Build LinkML for 15 to 25 classes, bootstrapped from ISO 20022 card messages, FIBO parties and agreements, and ISO code lists. Add 30 to 50 competency questions per domain as tests, and a generator for Neptune headers and OpenSearch mappings. Start from the draft in `ontology/`: it already passes `linkml-lint`, generates OWL and SHACL, and feeds the class explorer.
    - Done: 13 of its 21 concrete classes map to FIBO 2026 Q2, OMG Commons 20250801 or an ISO 20022 card message. The other eight say why none fits, and `tools/check_ontology.py` enforces both.
-   - Next: the generator, with a CI check that fails when a committed artifact is stale. Then more competency questions per domain.
+   - Done: the generator, `tools/generate.py`. It writes `generated/`: OWL, SHACL, the extraction JSON Schema, Pydantic models, Neptune load headers with label chains, and the three OpenSearch mappings. CI fails when `generated/` is stale, and renaming a class regenerates every artifact.
+   - Next: more competency questions per domain, reviewed by the owning teams.
+   - Later: Snowflake semantic views, once metrics are defined in the ontology (decision 5). Confirm the embedding model in step 3; the mappings assume 1,024 dimensions.
    - Open: confirm whether ISO 20022's ChargeBackResponse (`cain.028`) carries representment evidence. If it does, map Representment to it.
 2. **Graph first.** Load one month of disputes and the parties, cards and events they touch. Answer lineage questions by hand in Cypher.
 3. **Search.** Build the three indexes behind aliases, with hybrid search and the ID join.

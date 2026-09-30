@@ -1,0 +1,668 @@
+@prefix fibo-loan-spc-crd: <https://spec.edmcouncil.org/fibo/ontology/LOAN/LoansSpecific/CardAccounts/> .
+@prefix linkml: <https://w3id.org/linkml/> .
+@prefix pay: <https://ontology.example.com/payments/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+pay:Chargeback a sh:NodeShape ;
+    rdfs:label "Chargeback" ;
+    rdfs:comment "A dispute event in which the issuer, through the card network, reverses all or part of a captured transaction for the cardholder." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class pay:DisputeEvent ;
+            sh:description "The earlier dispute event this one answers." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path pay:responds_to ],
+        [ sh:class pay:ReasonCode ;
+            sh:description "The network reason codes behind a dispute." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path pay:has_reason ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "When the dispute step began." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:opened_at ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path pay:id ],
+        [ sh:class pay:Capture ;
+            sh:description "Links a dispute event to the capture it contests." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path pay:disputes ] ;
+    sh:targetClass pay:Chargeback .
+
+pay:Chunk a sh:NodeShape ;
+    rdfs:comment "A passage of a document. Its text and embedding live in OpenSearch; the stub in Neptune links it to the entities it mentions." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "Anything a chunk names, such as a merchant, a reason code or a dispute, so its text links to the graph." ;
+            sh:order 2 ;
+            sh:path pay:mentions ],
+        [ sh:class pay:Document ;
+            sh:description "The document a chunk comes from." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path pay:part_of ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:id ] ;
+    sh:targetClass pay:Chunk .
+
+pay:FraudReport a sh:NodeShape ;
+    rdfs:comment "An issuer reporting an authorization as fraud to the network." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:dateTime ;
+            sh:description "When the fraud was reported." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:reported_at ],
+        [ sh:class pay:Authorization ;
+            sh:description "The authorization a fraud report is about." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path pay:reports ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path pay:id ] ;
+    sh:targetClass pay:FraudReport .
+
+pay:Organization a sh:NodeShape ;
+    rdfs:comment "A company or institution. One bank is one Organization, however many roles it plays." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class pay:PartyRole ;
+            sh:description "A party plays a role." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path pay:acts_as ],
+        [ sh:datatype xsd:string ;
+            sh:description "What people call it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path pay:name ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:id ] ;
+    sh:targetClass pay:Organization .
+
+pay:Party a sh:NodeShape ;
+    rdfs:comment "A person or organization that takes part in payments." ;
+    sh:closed false ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class pay:PartyRole ;
+            sh:description "A party plays a role." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path pay:acts_as ],
+        [ sh:datatype xsd:string ;
+            sh:description "What people call it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path pay:name ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:id ] ;
+    sh:targetClass pay:Party .
+
+pay:PaymentEvent a sh:NodeShape ;
+    rdfs:comment "Something that happened to a payment, at a time. Each step is its own event, instead of a status field that keeps being overwritten." ;
+    sh:closed false ;
+    sh:ignoredProperties ( rdf:type pay:amount pay:at_merchant pay:authorized_at pay:captured_at pay:captures pay:channel pay:currency pay:disputes pay:from_device pay:has_evidence pay:has_reason pay:has_response pay:opened_at pay:refunded_at pay:refunds pay:reported_at pay:reports pay:responds_to pay:settled_at pay:settles pay:with_card ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:id ] ;
+    sh:targetClass pay:PaymentEvent .
+
+pay:Person a sh:NodeShape ;
+    rdfs:comment "An individual, such as a cardholder." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class pay:PartyRole ;
+            sh:description "A party plays a role." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path pay:acts_as ],
+        [ sh:datatype xsd:string ;
+            sh:description "What people call it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path pay:name ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:id ] ;
+    sh:targetClass pay:Person .
+
+pay:PreArbitration a sh:NodeShape ;
+    rdfs:comment "Issuer challenges the merchant's response before arbitration." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class pay:ReasonCode ;
+            sh:description "The network reason codes behind a dispute." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path pay:has_reason ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "When the dispute step began." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:opened_at ],
+        [ sh:class pay:DisputeEvent ;
+            sh:description "The earlier dispute event this one answers." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path pay:responds_to ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path pay:id ],
+        [ sh:class pay:Capture ;
+            sh:description "Links a dispute event to the capture it contests." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path pay:disputes ] ;
+    sh:targetClass pay:PreArbitration .
+
+pay:Refund a sh:NodeShape ;
+    rdfs:comment "The merchant returning all or part of a captured amount." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:dateTime ;
+            sh:description "When the refund was made." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:refunded_at ],
+        [ sh:datatype xsd:decimal ;
+            sh:description "The amount, in the transaction currency." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path pay:amount ],
+        [ sh:datatype xsd:string ;
+            sh:description "The transaction currency, as an ISO 4217 alphabetic code such as USD." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path pay:currency ;
+            sh:pattern "^[A-Z]{3}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path pay:id ],
+        [ sh:class pay:Capture ;
+            sh:description "The capture a refund returns money from." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path pay:refunds ] ;
+    sh:targetClass pay:Refund .
+
+pay:Representment a sh:NodeShape ;
+    rdfs:comment "The merchant's response to a chargeback, with its evidence." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:dateTime ;
+            sh:description "When the dispute step began." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path pay:opened_at ],
+        [ sh:class pay:DisputeEvent ;
+            sh:description "The earlier dispute event this one answers." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path pay:responds_to ],
+        [ sh:class pay:ReasonCode ;
+            sh:description "The network reason codes behind a dispute." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path pay:has_reason ],
+        [ sh:class pay:Document ;
+            sh:description "Documents sent as evidence." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 0 ;
+            sh:path pay:has_evidence ],
+        [ sh:class pay:Capture ;
+            sh:description "Links a dispute event to the capture it contests." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path pay:disputes ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path pay:id ] ;
+    sh:targetClass pay:Representment .
+
+pay:Settlement a sh:NodeShape ;
+    rdfs:comment "Funds moving between the banks for a batch of captures." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:dateTime ;
+            sh:description "When the funds moved." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:settled_at ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path pay:id ],
+        [ sh:class pay:Capture ;
+            sh:description "The captures a settlement pays out." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path pay:settles ] ;
+    sh:targetClass pay:Settlement .
+
+linkml:Any a sh:NodeShape ;
+    rdfs:comment "Any entity with an ID. A relationship whose range is Any can point at a node of any class, as a chunk's MENTIONS does. Not a node itself." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:targetClass linkml:Any .
+
+pay:Acquirer a sh:NodeShape ;
+    rdfs:comment "The bank that signs up merchants and claims funds for them." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:id ] ;
+    sh:targetClass pay:Acquirer .
+
+pay:BinRange a sh:NodeShape ;
+    rdfs:comment "The range of card numbers a bank issues from. A node rather than a string, so authorizations can be grouped by it." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class pay:Issuer ;
+            sh:description "The issuer a BIN range belongs to." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path pay:assigned_to ],
+        [ sh:datatype xsd:string ;
+            sh:description "The leading digits every card in the range shares." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path pay:prefix ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:id ] ;
+    sh:targetClass pay:BinRange .
+
+pay:Card a sh:NodeShape ;
+    rdfs:comment "A payment card, identified by a token rather than its number." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "The card network whose rules apply." ;
+            sh:in ( fibo-loan-spc-crd:VisaNetwork fibo-loan-spc-crd:MastercardNetwork ) ;
+            sh:maxCount 1 ;
+            sh:order 1 ;
+            sh:path pay:network ],
+        [ sh:class pay:Cardholder ;
+            sh:description "Who a card is issued to." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path pay:held_by ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:id ],
+        [ sh:class pay:BinRange ;
+            sh:description "The BIN range a card's number falls in." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path pay:in_bin_range ] ;
+    sh:targetClass pay:Card .
+
+pay:Cardholder a sh:NodeShape ;
+    rdfs:comment "The person a card is issued to." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:id ] ;
+    sh:targetClass pay:Cardholder .
+
+pay:Device a sh:NodeShape ;
+    rdfs:comment "A phone, browser or terminal an authorization came from." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:id ],
+        [ sh:class pay:Merchant ;
+            sh:description "A summary edge, rebuilt daily from Snowflake: the device made authorizations at the merchant. It carries auths, first_seen and last_seen, so risk walks don't need every authorization in the graph (decision 2)." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path pay:seen_at ] ;
+    sh:targetClass pay:Device .
+
+pay:Issuer a sh:NodeShape ;
+    rdfs:comment "The bank that issues cards and approves or declines their authorizations." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:id ] ;
+    sh:targetClass pay:Issuer .
+
+pay:ResponseCode a sh:NodeShape ;
+    rdfs:comment "The issuer's answer code on an authorization, such as approved or declined." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The code as the network or issuer writes it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path pay:code ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:id ] ;
+    sh:targetClass pay:ResponseCode .
+
+pay:Authorization a sh:NodeShape ;
+    rdfs:comment "The issuer's approval or decline of a payment request." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:dateTime ;
+            sh:description "When the issuer answered." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:authorized_at ],
+        [ sh:class pay:Device ;
+            sh:description "The device an authorization came from." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 6 ;
+            sh:path pay:from_device ],
+        [ sh:datatype xsd:decimal ;
+            sh:description "The amount, in the transaction currency." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path pay:amount ],
+        [ sh:datatype xsd:string ;
+            sh:description "The transaction currency, as an ISO 4217 alphabetic code such as USD." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path pay:currency ;
+            sh:pattern "^[A-Z]{3}$" ],
+        [ sh:description "Whether the card was present." ;
+            sh:in ( "card_present" "card_not_present" ) ;
+            sh:maxCount 1 ;
+            sh:order 3 ;
+            sh:path pay:channel ],
+        [ sh:class pay:Card ;
+            sh:description "The card an authorization used." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path pay:with_card ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path pay:id ],
+        [ sh:class pay:Merchant ;
+            sh:description "Where an authorization was requested." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path pay:at_merchant ],
+        [ sh:class pay:ResponseCode ;
+            sh:description "The issuer's answer to an authorization." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 7 ;
+            sh:path pay:has_response ] ;
+    sh:targetClass pay:Authorization .
+
+pay:Document a sh:NodeShape ;
+    rdfs:comment "A network rule book, runbook or piece of evidence. Its text lives in search; Neptune keeps a stub." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "What sort of document it is." ;
+            sh:in ( "network_rules" "runbook" "evidence" ) ;
+            sh:maxCount 1 ;
+            sh:order 2 ;
+            sh:path pay:kind ],
+        [ sh:datatype xsd:string ;
+            sh:description "What people call it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path pay:name ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:id ] ;
+    sh:targetClass pay:Document .
+
+pay:Merchant a sh:NodeShape ;
+    rdfs:comment "A business that accepts cards, as its acquirer knows it." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class pay:Acquirer ;
+            sh:description "A merchant's acquiring bank." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path pay:acquired_by ],
+        [ sh:datatype xsd:string ;
+            sh:description "What people call it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:name ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path pay:id ],
+        [ sh:datatype xsd:string ;
+            sh:description "Merchant category code, from ISO 18245." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path pay:mcc ;
+            sh:pattern "^\\d{4}$" ] ;
+    sh:targetClass pay:Merchant .
+
+pay:PartyRole a sh:NodeShape ;
+    rdfs:comment "A role a party plays, such as issuer or merchant. Roles keep one bank from turning into two nodes." ;
+    sh:closed false ;
+    sh:ignoredProperties ( rdf:type pay:acquired_by pay:mcc pay:name ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:id ] ;
+    sh:targetClass pay:PartyRole .
+
+pay:DisputeEvent a sh:NodeShape ;
+    rdfs:comment "A step in a dispute over a captured transaction." ;
+    sh:closed false ;
+    sh:ignoredProperties ( rdf:type pay:has_evidence ) ;
+    sh:property [ sh:class pay:ReasonCode ;
+            sh:description "The network reason codes behind a dispute." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path pay:has_reason ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "When the dispute step began." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:opened_at ],
+        [ sh:class pay:DisputeEvent ;
+            sh:description "The earlier dispute event this one answers." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path pay:responds_to ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path pay:id ],
+        [ sh:class pay:Capture ;
+            sh:description "Links a dispute event to the capture it contests." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path pay:disputes ] ;
+    sh:targetClass pay:DisputeEvent .
+
+pay:ReasonCode a sh:NodeShape ;
+    rdfs:comment "A network's reason for a dispute. A node, so chargebacks and the documents that explain the code meet at one place." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "The card network whose rules apply." ;
+            sh:in ( fibo-loan-spc-crd:VisaNetwork fibo-loan-spc-crd:MastercardNetwork ) ;
+            sh:maxCount 1 ;
+            sh:order 1 ;
+            sh:path pay:network ],
+        [ sh:datatype xsd:string ;
+            sh:description "The code as the network or issuer writes it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path pay:code ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:id ] ;
+    sh:targetClass pay:ReasonCode .
+
+pay:Capture a sh:NodeShape ;
+    rdfs:comment "The merchant claiming the funds an authorization approved." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:decimal ;
+            sh:description "The amount, in the transaction currency." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path pay:amount ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "When the merchant claimed the funds." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:captured_at ],
+        [ sh:datatype xsd:string ;
+            sh:description "The transaction currency, as an ISO 4217 alphabetic code such as USD." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path pay:currency ;
+            sh:pattern "^[A-Z]{3}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path pay:id ],
+        [ sh:class pay:Authorization ;
+            sh:description "The authorization a capture claims funds for." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path pay:captures ] ;
+    sh:targetClass pay:Capture .
+

@@ -1,0 +1,858 @@
+{
+    "$defs": {
+        "Acquirer": {
+            "additionalProperties": false,
+            "description": "The bank that signs up merchants and claims funds for them.",
+            "properties": {
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Acquirer",
+            "type": "object"
+        },
+        "Any": {
+            "additionalProperties": true,
+            "description": "Any entity with an ID. A relationship whose range is Any can point at a node of any class, as a chunk's MENTIONS does. Not a node itself.",
+            "title": "Any",
+            "type": [
+                "null",
+                "boolean",
+                "object",
+                "number",
+                "string"
+            ]
+        },
+        "Authorization": {
+            "additionalProperties": false,
+            "description": "The issuer's approval or decline of a payment request.",
+            "properties": {
+                "amount": {
+                    "description": "The amount, in the transaction currency.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "at_merchant": {
+                    "description": "Where an authorization was requested.",
+                    "type": "string"
+                },
+                "authorized_at": {
+                    "description": "When the issuer answered.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "channel": {
+                    "$ref": "#/$defs/Channel",
+                    "description": "Whether the card was present."
+                },
+                "currency": {
+                    "description": "The transaction currency, as an ISO 4217 alphabetic code such as USD.",
+                    "pattern": "^[A-Z]{3}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "from_device": {
+                    "description": "The device an authorization came from.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "has_response": {
+                    "description": "The issuer's answer to an authorization.",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "with_card": {
+                    "description": "The card an authorization used.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "at_merchant",
+                "with_card",
+                "has_response",
+                "id"
+            ],
+            "title": "Authorization",
+            "type": "object"
+        },
+        "BinRange": {
+            "additionalProperties": false,
+            "description": "The range of card numbers a bank issues from. A node rather than a string, so authorizations can be grouped by it.",
+            "properties": {
+                "assigned_to": {
+                    "description": "The issuer a BIN range belongs to.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "prefix": {
+                    "description": "The leading digits every card in the range shares.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "BinRange",
+            "type": "object"
+        },
+        "Capture": {
+            "additionalProperties": false,
+            "description": "The merchant claiming the funds an authorization approved.",
+            "properties": {
+                "amount": {
+                    "description": "The amount, in the transaction currency.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "captured_at": {
+                    "description": "When the merchant claimed the funds.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "captures": {
+                    "description": "The authorization a capture claims funds for.",
+                    "type": "string"
+                },
+                "currency": {
+                    "description": "The transaction currency, as an ISO 4217 alphabetic code such as USD.",
+                    "pattern": "^[A-Z]{3}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "captures",
+                "id"
+            ],
+            "title": "Capture",
+            "type": "object"
+        },
+        "Card": {
+            "additionalProperties": false,
+            "description": "A payment card, identified by a token rather than its number.",
+            "properties": {
+                "held_by": {
+                    "description": "Who a card is issued to.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "in_bin_range": {
+                    "description": "The BIN range a card's number falls in.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "network": {
+                    "$ref": "#/$defs/CardNetwork",
+                    "description": "The card network whose rules apply."
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Card",
+            "type": "object"
+        },
+        "CardNetwork": {
+            "description": "Card networks whose rules the ontology covers.",
+            "enum": [
+                "visa",
+                "mastercard"
+            ],
+            "title": "CardNetwork",
+            "type": "string"
+        },
+        "Cardholder": {
+            "additionalProperties": false,
+            "description": "The person a card is issued to.",
+            "properties": {
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Cardholder",
+            "type": "object"
+        },
+        "Channel": {
+            "description": "How the card took part in a payment.",
+            "enum": [
+                "card_present",
+                "card_not_present"
+            ],
+            "title": "Channel",
+            "type": "string"
+        },
+        "Chargeback": {
+            "additionalProperties": false,
+            "description": "A dispute event in which the issuer, through the card network, reverses all or part of a captured transaction for the cardholder.",
+            "properties": {
+                "disputes": {
+                    "description": "Links a dispute event to the capture it contests.",
+                    "type": "string"
+                },
+                "has_reason": {
+                    "description": "The network reason codes behind a dispute.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "opened_at": {
+                    "description": "When the dispute step began.",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "responds_to": {
+                    "description": "The earlier dispute event this one answers.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "opened_at",
+                "disputes",
+                "has_reason",
+                "id"
+            ],
+            "title": "Chargeback",
+            "type": "object"
+        },
+        "Chunk": {
+            "additionalProperties": false,
+            "description": "A passage of a document. Its text and embedding live in OpenSearch; the stub in Neptune links it to the entities it mentions.",
+            "properties": {
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "mentions": {
+                    "description": "Anything a chunk names, such as a merchant, a reason code or a dispute, so its text links to the graph.",
+                    "items": {
+                        "$ref": "#/$defs/Any"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "part_of": {
+                    "description": "The document a chunk comes from.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Chunk",
+            "type": "object"
+        },
+        "Device": {
+            "additionalProperties": false,
+            "description": "A phone, browser or terminal an authorization came from.",
+            "properties": {
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "seen_at": {
+                    "description": "A summary edge, rebuilt daily from Snowflake: the device made authorizations at the merchant. It carries auths, first_seen and last_seen, so risk walks don't need every authorization in the graph (decision 2).",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Device",
+            "type": "object"
+        },
+        "DisputeEvent": {
+            "additionalProperties": false,
+            "description": "A step in a dispute over a captured transaction.",
+            "properties": {
+                "disputes": {
+                    "description": "Links a dispute event to the capture it contests.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "has_reason": {
+                    "description": "The network reason codes behind a dispute.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "opened_at": {
+                    "description": "When the dispute step began.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "responds_to": {
+                    "description": "The earlier dispute event this one answers.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "DisputeEvent",
+            "type": "object"
+        },
+        "Document": {
+            "additionalProperties": false,
+            "description": "A network rule book, runbook or piece of evidence. Its text lives in search; Neptune keeps a stub.",
+            "properties": {
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "kind": {
+                    "$ref": "#/$defs/DocumentKind",
+                    "description": "What sort of document it is."
+                },
+                "name": {
+                    "description": "What people call it.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Document",
+            "type": "object"
+        },
+        "DocumentKind": {
+            "description": "Kinds of document the platform indexes.",
+            "enum": [
+                "network_rules",
+                "runbook",
+                "evidence"
+            ],
+            "title": "DocumentKind",
+            "type": "string"
+        },
+        "FraudReport": {
+            "additionalProperties": false,
+            "description": "An issuer reporting an authorization as fraud to the network.",
+            "properties": {
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "reported_at": {
+                    "description": "When the fraud was reported.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "reports": {
+                    "description": "The authorization a fraud report is about.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "reports",
+                "id"
+            ],
+            "title": "FraudReport",
+            "type": "object"
+        },
+        "Issuer": {
+            "additionalProperties": false,
+            "description": "The bank that issues cards and approves or declines their authorizations.",
+            "properties": {
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Issuer",
+            "type": "object"
+        },
+        "Merchant": {
+            "additionalProperties": false,
+            "description": "A business that accepts cards, as its acquirer knows it.",
+            "properties": {
+                "acquired_by": {
+                    "description": "A merchant's acquiring bank.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "mcc": {
+                    "description": "Merchant category code, from ISO 18245.",
+                    "pattern": "^\\d{4}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "name": {
+                    "description": "What people call it.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Merchant",
+            "type": "object"
+        },
+        "Organization": {
+            "additionalProperties": false,
+            "description": "A company or institution. One bank is one Organization, however many roles it plays.",
+            "properties": {
+                "acts_as": {
+                    "description": "A party plays a role.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "What people call it.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Organization",
+            "type": "object"
+        },
+        "Party": {
+            "additionalProperties": false,
+            "description": "A person or organization that takes part in payments.",
+            "properties": {
+                "acts_as": {
+                    "description": "A party plays a role.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "What people call it.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Party",
+            "type": "object"
+        },
+        "PartyRole": {
+            "additionalProperties": false,
+            "description": "A role a party plays, such as issuer or merchant. Roles keep one bank from turning into two nodes.",
+            "properties": {
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "PartyRole",
+            "type": "object"
+        },
+        "PaymentEvent": {
+            "additionalProperties": false,
+            "description": "Something that happened to a payment, at a time. Each step is its own event, instead of a status field that keeps being overwritten.",
+            "properties": {
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "PaymentEvent",
+            "type": "object"
+        },
+        "Person": {
+            "additionalProperties": false,
+            "description": "An individual, such as a cardholder.",
+            "properties": {
+                "acts_as": {
+                    "description": "A party plays a role.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "What people call it.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Person",
+            "type": "object"
+        },
+        "PreArbitration": {
+            "additionalProperties": false,
+            "description": "Issuer challenges the merchant's response before arbitration.",
+            "properties": {
+                "disputes": {
+                    "description": "Links a dispute event to the capture it contests.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "has_reason": {
+                    "description": "The network reason codes behind a dispute.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "opened_at": {
+                    "description": "When the dispute step began.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "responds_to": {
+                    "description": "The earlier dispute event this one answers.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "responds_to",
+                "id"
+            ],
+            "title": "PreArbitration",
+            "type": "object"
+        },
+        "ReasonCode": {
+            "additionalProperties": false,
+            "description": "A network's reason for a dispute. A node, so chargebacks and the documents that explain the code meet at one place.",
+            "properties": {
+                "code": {
+                    "description": "The code as the network or issuer writes it.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "network": {
+                    "$ref": "#/$defs/CardNetwork",
+                    "description": "The card network whose rules apply."
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "ReasonCode",
+            "type": "object"
+        },
+        "Refund": {
+            "additionalProperties": false,
+            "description": "The merchant returning all or part of a captured amount.",
+            "properties": {
+                "amount": {
+                    "description": "The amount, in the transaction currency.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "currency": {
+                    "description": "The transaction currency, as an ISO 4217 alphabetic code such as USD.",
+                    "pattern": "^[A-Z]{3}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "refunded_at": {
+                    "description": "When the refund was made.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "refunds": {
+                    "description": "The capture a refund returns money from.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "refunds",
+                "id"
+            ],
+            "title": "Refund",
+            "type": "object"
+        },
+        "Representment": {
+            "additionalProperties": false,
+            "description": "The merchant's response to a chargeback, with its evidence.",
+            "properties": {
+                "disputes": {
+                    "description": "Links a dispute event to the capture it contests.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "has_evidence": {
+                    "description": "Documents sent as evidence.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "has_reason": {
+                    "description": "The network reason codes behind a dispute.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "opened_at": {
+                    "description": "When the dispute step began.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "responds_to": {
+                    "description": "The earlier dispute event this one answers.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "responds_to",
+                "id"
+            ],
+            "title": "Representment",
+            "type": "object"
+        },
+        "ResponseCode": {
+            "additionalProperties": false,
+            "description": "The issuer's answer code on an authorization, such as approved or declined.",
+            "properties": {
+                "code": {
+                    "description": "The code as the network or issuer writes it.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "ResponseCode",
+            "type": "object"
+        },
+        "Settlement": {
+            "additionalProperties": false,
+            "description": "Funds moving between the banks for a batch of captures.",
+            "properties": {
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "settled_at": {
+                    "description": "When the funds moved.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "settles": {
+                    "description": "The captures a settlement pays out.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": [
+                "settles",
+                "id"
+            ],
+            "title": "Settlement",
+            "type": "object"
+        },
+        "VisaReasonCode": {
+            "description": "Visa dispute reason codes. Each is loaded as a ReasonCode node.",
+            "enum": [
+                "10.4",
+                "13.1"
+            ],
+            "title": "VisaReasonCode",
+            "type": "string"
+        }
+    },
+    "$id": "https://ontology.example.com/payments",
+    "$schema": "https://json-schema.org/draft/2019-09/schema",
+    "additionalProperties": true,
+    "metamodel_version": "1.11.0",
+    "title": "payments",
+    "type": "object",
+    "version": "1.7.0"
+}

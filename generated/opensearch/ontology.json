@@ -1,0 +1,58 @@
+{
+  "settings": {
+    "index": {
+      "knn": true
+    }
+  },
+  "mappings": {
+    "properties": {
+      "class": {
+        "type": "keyword"
+      },
+      "labels": {
+        "type": "keyword"
+      },
+      "abstract": {
+        "type": "boolean"
+      },
+      "aliases": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
+          }
+        }
+      },
+      "description": {
+        "type": "text"
+      },
+      "owner": {
+        "type": "keyword"
+      },
+      "lives_in": {
+        "type": "keyword"
+      },
+      "id_rule": {
+        "type": "keyword"
+      },
+      "close_mappings": {
+        "type": "keyword"
+      },
+      "relationships": {
+        "type": "keyword"
+      },
+      "ontology_version": {
+        "type": "keyword"
+      },
+      "embedding": {
+        "type": "knn_vector",
+        "dimension": 1024,
+        "space_type": "cosinesimil",
+        "method": {
+          "name": "hnsw",
+          "engine": "faiss"
+        }
+      }
+    }
+  }
+}

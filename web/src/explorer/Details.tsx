@@ -18,19 +18,16 @@ const ANSWERED: Record<Store, { name: string; color: string; why: string }> = {
   snowflake: { name: 'Snowflake', color: 'var(--wh)', why: 'It counts over big tables and time, so the warehouse answers it, using the classes and relationships the ontology names.' },
 };
 
-/** Column types in Neptune's openCypher load format. Anything else loads as a String. */
-const NEPTUNE_TYPE: Record<string, string> = { datetime: 'DateTime', decimal: 'Double', float: 'Double', double: 'Double', integer: 'Int', boolean: 'Bool' };
+/** The node file headers tools/generate.py writes, one per concrete class, read at build time. */
+const HEADERS = import.meta.glob('../../../generated/neptune/nodes/*.csv', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const loaderHeader = (c: ClassInfo) => {
+  const header = HEADERS[`../../../generated/neptune/nodes/${c.name}.csv`];
+  if (header === undefined) throw new Error(`No generated Neptune header for ${c.name}. Run: python tools/generate.py`);
+  return header.trim();
+};
 
 const howMany = (s: Pick<Slot, 'required' | 'multivalued'>) =>
   s.multivalued ? (s.required ? 'one or more' : 'any number') : (s.required ? 'exactly one' : 'at most one');
-
-/** The node file header our generator writes for a class: attributes become columns, relationships become edges. */
-function loaderHeader(c: ClassInfo) {
-  const columns = c.slots
-    .filter((s) => !s.relationship && !s.identifier)
-    .map((s) => `${s.name}:${NEPTUNE_TYPE[s.range] ?? 'String'}${s.multivalued ? '[]' : ''}`);
-  return [':ID', ':LABEL', ...columns, 'ontology_version:String'].join(',');
-}
 
 type Nav = { onPick: (name: string) => void; onQuestion: (id: string) => void; onHome: () => void };
 

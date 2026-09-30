@@ -1,0 +1,232 @@
+{
+  "ontology_version": "1.7.0",
+  "labels": {
+    "Acquirer": [
+      "Acquirer",
+      "PartyRole"
+    ],
+    "Authorization": [
+      "Authorization",
+      "PaymentEvent"
+    ],
+    "BinRange": [
+      "BinRange"
+    ],
+    "Capture": [
+      "Capture",
+      "PaymentEvent"
+    ],
+    "Card": [
+      "Card"
+    ],
+    "Cardholder": [
+      "Cardholder",
+      "PartyRole"
+    ],
+    "Chargeback": [
+      "Chargeback",
+      "DisputeEvent",
+      "PaymentEvent"
+    ],
+    "Chunk": [
+      "Chunk"
+    ],
+    "Device": [
+      "Device"
+    ],
+    "Document": [
+      "Document"
+    ],
+    "FraudReport": [
+      "FraudReport",
+      "PaymentEvent"
+    ],
+    "Issuer": [
+      "Issuer",
+      "PartyRole"
+    ],
+    "Merchant": [
+      "Merchant",
+      "PartyRole"
+    ],
+    "Organization": [
+      "Organization",
+      "Party"
+    ],
+    "Person": [
+      "Person",
+      "Party"
+    ],
+    "PreArbitration": [
+      "PreArbitration",
+      "DisputeEvent",
+      "PaymentEvent"
+    ],
+    "ReasonCode": [
+      "ReasonCode"
+    ],
+    "Refund": [
+      "Refund",
+      "PaymentEvent"
+    ],
+    "Representment": [
+      "Representment",
+      "DisputeEvent",
+      "PaymentEvent"
+    ],
+    "ResponseCode": [
+      "ResponseCode"
+    ],
+    "Settlement": [
+      "Settlement",
+      "PaymentEvent"
+    ]
+  },
+  "edge_id_rule": "{start_id}|{TYPE}|{end_id}",
+  "relationships": [
+    {
+      "type": "ACQUIRED_BY",
+      "from": "Merchant",
+      "to": "Acquirer",
+      "multivalued": false,
+      "properties": []
+    },
+    {
+      "type": "ACTS_AS",
+      "from": "Party",
+      "to": "PartyRole",
+      "multivalued": true,
+      "properties": []
+    },
+    {
+      "type": "ASSIGNED_TO",
+      "from": "BinRange",
+      "to": "Issuer",
+      "multivalued": false,
+      "properties": []
+    },
+    {
+      "type": "AT_MERCHANT",
+      "from": "Authorization",
+      "to": "Merchant",
+      "multivalued": false,
+      "properties": []
+    },
+    {
+      "type": "CAPTURES",
+      "from": "Capture",
+      "to": "Authorization",
+      "multivalued": false,
+      "properties": []
+    },
+    {
+      "type": "DISPUTES",
+      "from": "DisputeEvent",
+      "to": "Capture",
+      "multivalued": false,
+      "properties": []
+    },
+    {
+      "type": "FROM_DEVICE",
+      "from": "Authorization",
+      "to": "Device",
+      "multivalued": false,
+      "properties": []
+    },
+    {
+      "type": "HAS_EVIDENCE",
+      "from": "Representment",
+      "to": "Document",
+      "multivalued": true,
+      "properties": []
+    },
+    {
+      "type": "HAS_REASON",
+      "from": "DisputeEvent",
+      "to": "ReasonCode",
+      "multivalued": true,
+      "properties": []
+    },
+    {
+      "type": "HAS_RESPONSE",
+      "from": "Authorization",
+      "to": "ResponseCode",
+      "multivalued": false,
+      "properties": []
+    },
+    {
+      "type": "HELD_BY",
+      "from": "Card",
+      "to": "Cardholder",
+      "multivalued": false,
+      "properties": []
+    },
+    {
+      "type": "IN_BIN_RANGE",
+      "from": "Card",
+      "to": "BinRange",
+      "multivalued": false,
+      "properties": []
+    },
+    {
+      "type": "MENTIONS",
+      "from": "Chunk",
+      "to": "any",
+      "multivalued": true,
+      "properties": []
+    },
+    {
+      "type": "PART_OF",
+      "from": "Chunk",
+      "to": "Document",
+      "multivalued": false,
+      "properties": []
+    },
+    {
+      "type": "REFUNDS",
+      "from": "Refund",
+      "to": "Capture",
+      "multivalued": false,
+      "properties": []
+    },
+    {
+      "type": "REPORTS",
+      "from": "FraudReport",
+      "to": "Authorization",
+      "multivalued": false,
+      "properties": []
+    },
+    {
+      "type": "RESPONDS_TO",
+      "from": "DisputeEvent",
+      "to": "DisputeEvent",
+      "multivalued": false,
+      "properties": []
+    },
+    {
+      "type": "SEEN_AT",
+      "from": "Device",
+      "to": "Merchant",
+      "multivalued": true,
+      "properties": [
+        "auths:Long",
+        "first_seen:DateTime",
+        "last_seen:DateTime"
+      ]
+    },
+    {
+      "type": "SETTLES",
+      "from": "Settlement",
+      "to": "Capture",
+      "multivalued": true,
+      "properties": []
+    },
+    {
+      "type": "WITH_CARD",
+      "from": "Authorization",
+      "to": "Card",
+      "multivalued": false,
+      "properties": []
+    }
+  ]
+}
