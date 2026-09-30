@@ -8,7 +8,10 @@ None right now. New ones go here.
 
 Follow the build order in chapter 7 of the overview (`site/index.html#ch7`), with the changes recorded in `decisions.md`:
 
-1. **Ontology core.** Build LinkML for 15 to 25 classes, bootstrapped from ISO 20022 card messages, FIBO parties and agreements, and ISO code lists. Add 30 to 50 competency questions per domain as tests, and a generator for Neptune headers and OpenSearch mappings. Start from the draft in `ontology/`: it already passes `linkml-lint`, generates OWL and SHACL, and feeds the class explorer. Only 2 of its 21 concrete classes are mapped to a standard so far; ISO 20022 mappings are still to do. When mapping to FIBO, pin a quarterly release rather than master (decision 9).
+1. **Ontology core.** Build LinkML for 15 to 25 classes, bootstrapped from ISO 20022 card messages, FIBO parties and agreements, and ISO code lists. Add 30 to 50 competency questions per domain as tests, and a generator for Neptune headers and OpenSearch mappings. Start from the draft in `ontology/`: it already passes `linkml-lint`, generates OWL and SHACL, and feeds the class explorer.
+   - Done: 13 of its 21 concrete classes map to FIBO 2026 Q2, OMG Commons 20250801 or an ISO 20022 card message. The other eight say why none fits, and `tools/check_ontology.py` enforces both.
+   - Next: the generator, with a CI check that fails when a committed artifact is stale. Then more competency questions per domain.
+   - Open: confirm whether ISO 20022's ChargeBackResponse (`cain.028`) carries representment evidence. If it does, map Representment to it.
 2. **Graph first.** Load one month of disputes and the parties, cards and events they touch. Answer lineage questions by hand in Cypher.
 3. **Search.** Build the three indexes behind aliases, with hybrid search and the ID join.
 4. **Retrieval and agents.** Start from BYOKG-RAG, put the tools behind AgentCore Gateway and Policy, and add the Snowflake lane: VAMP-style metric templates first, then Cortex Analyst behind the validator for questions no template fits (decision 5).

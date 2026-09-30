@@ -171,7 +171,7 @@ export function App() {
         </aside>
       </div>
 
-      <footer>An illustrative draft ontology for learning, written down from what the platform and retrieval pages already show. Classes, IDs and examples are illustrative, not the platform's real ontology, which comes next and starts from ISO 20022 and FIBO. Standard mappings were checked against OMG Commons 20250801 and FIBO in September 2026.</footer>
+      <footer>An illustrative draft ontology for learning, written down from what the overview and retrieval walkthrough already show, and now growing into the real core. IDs and examples are illustrative. Standard mappings were checked in September 2026 against FIBO 2026 Q2, OMG Commons 20250801 and the current ISO 20022 card messages.</footer>
     </main>
   );
 }

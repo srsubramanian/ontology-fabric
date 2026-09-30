@@ -4,35 +4,49 @@
 # the running examples, the relationship names in their Cypher, the modeling
 # patterns from chapter 1 (events not status fields, codes as nodes, one
 # direction, a shallow hierarchy, roles), and the classes that chapter's
-# competency-question rounds added. The real core, prototype step 1,
-# replaces it, bootstrapped from ISO 20022 and FIBO (decision 9).
+# competency-question rounds added. Prototype step 1 grows it into the real
+# core, bootstrapped from ISO 20022, FIBO and ISO code lists (decision 9):
+# each class maps to a standard concept, or says why none fits.
 #
 # Annotations used on classes, read by the class explorer (web/src/explorer):
-#   owner     the team that owns the class (decision 9: layered ownership)
-#   lives_in  where instances live: graph (Neptune), warehouse (lake or
-#             Snowflake, joining the graph when a question walks through it)
-#             or search (text in OpenSearch, a stub in Neptune) - decision 2
-#   id_rule   the one ID used in every store (decision 4)
-#   example   an instance from the pages' running examples, where one exists
+#   owner        the team that owns the class (decision 9: layered ownership)
+#   lives_in     where instances live: graph (Neptune), warehouse (lake or
+#                Snowflake, joining the graph when a question walks through it)
+#                or search (text in OpenSearch, a stub in Neptune) - decision 2
+#   id_rule      the one ID used in every store (decision 4)
+#   example      an instance from the pages' running examples, where one exists
+#   no_standard  why a concrete class has no close_mappings
 #
 # Check it with: linkml-lint --config ontology/.linkmllint.yaml ontology/payments.yaml
 
 id: https://ontology.example.com/payments
 name: payments
 title: Payments ontology (illustrative draft)
-version: 1.6.0
+version: 1.7.0
 prefixes:
   pay: https://ontology.example.com/payments/
   linkml: https://w3id.org/linkml/
   # Standards we align with through skos:closeMatch, never owl:imports (decision 9).
-  # Checked 2026-09-30 against OMG Commons 20250801 and FIBO master.
+  # Every mapping was checked on 2026-09-30 against the releases pinned below.
   cmns-pts: https://www.omg.org/spec/Commons/PartiesAndSituations/
   cmns-org: https://www.omg.org/spec/Commons/Organizations/
+  cmns-doc: https://www.omg.org/spec/Commons/Documents/
   fibo-fnd-aap-ppl: https://spec.edmcouncil.org/fibo/ontology/FND/AgentsAndPeople/People/
+  fibo-be-fct-fct: https://spec.edmcouncil.org/fibo/ontology/BE/FunctionalEntities/FunctionalEntities/
+  fibo-loan-spc-crd: https://spec.edmcouncil.org/fibo/ontology/LOAN/LoansSpecific/CardAccounts/
+  fibo-fbc-fct-usjrga: https://spec.edmcouncil.org/fibo/ontology/FBC/FunctionalEntities/NorthAmericanEntities/USRegulatoryAgencies/
+  fibo-fbc-fi-stl: https://spec.edmcouncil.org/fibo/ontology/FBC/FinancialInstruments/Settlement/
+  # ISO 20022 publishes identifiers for message definitions, not for the events
+  # they carry, so a lifecycle event maps to the message that starts it, named by
+  # its XML namespace. The version in each name is the pin.
+  iso20022: "urn:iso:std:iso:20022:tech:xsd:"
 default_prefix: pay
 default_range: string
 imports:
   - linkml:types
+annotations:
+  fibo_release: https://spec.edmcouncil.org/fibo/ontology/master/2026Q2/
+  commons_release: https://www.omg.org/spec/Commons/20250801/
 
 classes:
 
@@ -83,6 +97,7 @@ classes:
   Cardholder:
     is_a: PartyRole
     description: The person a card is issued to.
+    close_mappings: [fibo-loan-spc-crd:Cardholder]
     annotations:
       owner: core
       lives_in: graph
@@ -92,6 +107,7 @@ classes:
   Issuer:
     is_a: PartyRole
     description: The bank that issues cards and approves or declines their authorizations.
+    close_mappings: [fibo-loan-spc-crd:IssuingFinancialInstitution]
     annotations:
       owner: core
       lives_in: graph
@@ -105,12 +121,16 @@ classes:
       owner: core
       lives_in: graph
       id_rule: "acq:{acquirer_id}"
+      no_standard: >-
+        FIBO has no acquirer. ISO 20022 names the acquirer only as a party
+        inside card messages, with no identifier of its own.
       example: "Coastal Acquiring"
 
   Merchant:
     is_a: PartyRole
     description: A business that accepts cards, as its acquirer knows it.
     aliases: [store, merchant outlet]
+    close_mappings: [fibo-be-fct-fct:Merchant]
     slots: [name, mcc, acquired_by]
     annotations:
       owner: core
@@ -123,6 +143,7 @@ classes:
   Card:
     description: A payment card, identified by a token rather than its number.
     aliases: [PAN, token]
+    close_mappings: [fibo-loan-spc-crd:PaymentCard]
     slots: [id, network, held_by, in_bin_range]
     annotations:
       owner: core
@@ -135,6 +156,7 @@ classes:
       The range of card numbers a bank issues from. A node rather than a
       string, so authorizations can be grouped by it.
     aliases: [BIN, IIN]
+    close_mappings: [fibo-fbc-fct-usjrga:IssuerIdentificationNumber]
     slots: [id, prefix, assigned_to]
     annotations:
       owner: authorization
@@ -148,6 +170,9 @@ classes:
       owner: risk
       lives_in: graph
       id_rule: "dev:{device_id}"
+      no_standard: >-
+        ISO 20022 describes the point of interaction inside card messages,
+        with no identifier of its own. FIBO has no device.
 
   # ---------- Events in a payment's life ----------
 
@@ -165,7 +190,8 @@ classes:
     is_a: PaymentEvent
     description: The issuer's approval or decline of a payment request.
     aliases: [auth, approval]
-    slots: [authorized_at, amount, channel, at_merchant, with_card, from_device, has_response]
+    close_mappings: [iso20022:cain.001.001.05]
+    slots: [authorized_at, amount, currency, channel, at_merchant, with_card, from_device, has_response]
     slot_usage:
       at_merchant:
         required: true
@@ -183,7 +209,8 @@ classes:
     is_a: PaymentEvent
     description: The merchant claiming the funds an authorization approved.
     aliases: [clearing, presentment]
-    slots: [captured_at, amount, captures]
+    close_mappings: [iso20022:cain.003.001.05]
+    slots: [captured_at, amount, currency, captures]
     slot_usage:
       captures:
         required: true
@@ -196,6 +223,7 @@ classes:
   Settlement:
     is_a: PaymentEvent
     description: Funds moving between the banks for a batch of captures.
+    close_mappings: [fibo-fbc-fi-stl:SettlementEvent]
     slots: [settled_at, settles]
     slot_usage:
       settles:
@@ -209,7 +237,7 @@ classes:
     is_a: PaymentEvent
     description: The merchant returning all or part of a captured amount.
     aliases: [credit]
-    slots: [refunded_at, amount, refunds]
+    slots: [refunded_at, amount, currency, refunds]
     slot_usage:
       refunds:
         required: true
@@ -217,11 +245,15 @@ classes:
       owner: settlement
       lives_in: warehouse
       id_rule: "rf:{refund_id}"
+      no_standard: >-
+        ISO 20022 sends a refund as a financial message with a refund
+        transaction type, so no message stands for refunds alone.
 
   FraudReport:
     is_a: PaymentEvent
     description: An issuer reporting an authorization as fraud to the network.
     aliases: [TC40, SAFE report]
+    close_mappings: [iso20022:cafr.001.001.04]
     slots: [reported_at, reports]
     slot_usage:
       reports:
@@ -244,6 +276,7 @@ classes:
     is_a: DisputeEvent
     title: Chargeback
     aliases: [CB, chargeback case]
+    close_mappings: [iso20022:cain.027.001.04]
     description: >-
       A dispute event in which the issuer, through the card network,
       reverses all or part of a captured transaction for the cardholder.
@@ -272,6 +305,9 @@ classes:
       owner: disputes
       lives_in: graph
       id_rule: "rep:{representment_id}"
+      no_standard: >-
+        ISO 20022's chargeback response (cain.028) answers a chargeback, but
+        whether it carries the merchant's evidence isn't confirmed yet.
 
   PreArbitration:
     is_a: DisputeEvent
@@ -284,6 +320,9 @@ classes:
       owner: disputes
       lives_in: graph
       id_rule: "parb:{pre_arbitration_id}"
+      no_standard: >-
+        Pre-arbitration is a card network rule, with no ISO 20022 message or
+        FIBO concept of its own.
 
   # ---------- Codes and documents ----------
 
@@ -297,6 +336,9 @@ classes:
       owner: disputes
       lives_in: graph
       id_rule: "rc:{network}:{code}"
+      no_standard: >-
+        Each card network publishes its own dispute reason codes; no ISO
+        list covers them.
       example: "rc:visa:10.4, Other Fraud: Card-Absent Environment"
       code_list: VisaReasonCode
 
@@ -307,11 +349,15 @@ classes:
       owner: authorization
       lives_in: graph
       id_rule: "resp:{code}"
+      no_standard: >-
+        Response codes come from ISO 8583 and each network's rules, which
+        publish no identifiers to map to.
 
   Document:
     description: >-
       A network rule book, runbook or piece of evidence. Its text lives in
       search; Neptune keeps a stub.
+    close_mappings: [cmns-doc:Document]
     slots: [id, name, kind]
     annotations:
       owner: core
@@ -328,6 +374,8 @@ classes:
       owner: core
       lives_in: search
       id_rule: "{doc_slug}#{chunk}"
+      no_standard: >-
+        A passage of an indexed document is this platform's own idea.
       example: "visa-vamp-2026#c04"
 
   # ---------- Open ranges ----------
@@ -348,8 +396,9 @@ slots:
   name:
     description: What people call it.
   mcc:
-    description: Merchant category code.
+    description: Merchant category code, from ISO 18245.
     pattern: "^\\d{4}$"
+    close_mappings: [fibo-be-fct-fct:MerchantCategoryCode]
   network:
     description: The card network whose rules apply.
     range: CardNetwork
@@ -363,6 +412,9 @@ slots:
   amount:
     description: The amount, in the transaction currency.
     range: decimal
+  currency:
+    description: The transaction currency, as an ISO 4217 alphabetic code such as USD.
+    pattern: "^[A-Z]{3}$"
   channel:
     description: Whether the card was present.
     range: Channel
@@ -464,9 +516,12 @@ enums:
 
   CardNetwork:
     description: Card networks whose rules the ontology covers.
+    close_mappings: [fibo-loan-spc-crd:CreditCardNetwork]
     permissible_values:
       visa:
+        meaning: fibo-loan-spc-crd:VisaNetwork
       mastercard:
+        meaning: fibo-loan-spc-crd:MastercardNetwork
 
   Channel:
     description: How the card took part in a payment.
