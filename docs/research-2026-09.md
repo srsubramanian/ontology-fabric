@@ -69,6 +69,14 @@ What changed around this build, and what the pages rely on. Where the source URL
   - https://merchantriskcouncil.org/learning/resource-center/member-news/blog/2026/stricter-vamp-ratio-thresholds-are-now-in-effect-heres-how-to-stay-compliant
   - https://www.chargeflow.io/blog/vamp-visa-acquirer-monitoring-program
 
+## Standards the draft ontology maps to (checked 2026-09-30)
+
+- **FIBO's party concepts now live in the OMG Commons Ontology Library.** FIBO's Parties ontology was changed to reuse Commons v1.1 and v1.2 (FND-380, FND-389). Source: https://spec.edmcouncil.org/fibo/ontology/FND/Parties/Parties/
+- **Commons Parties and Situations, release 20250801:** `cmns-pts:Party` ("person or organization") and `cmns-pts:PartyRole` ("role played by an organization or individual that may be time bound"). Source: https://www.omg.org/spec/Commons/PartiesAndSituations/
+- **Commons Organizations, release 20250801:** `cmns-org:Organization`. Source: https://www.omg.org/spec/Commons/Organizations/
+- **FIBO People:** `fibo-fnd-aap-ppl:Person` ("individual human being, with consciousness of self"), read from FIBO master. Pin a quarterly release when the real core is mapped (decision 9). Source: https://spec.edmcouncil.org/fibo/ontology/FND/AgentsAndPeople/People/
+- **LinkML 1.11.1:** `linkml-lint`, `gen-owl` and `gen-shacl` all run cleanly on `ontology/payments.yaml`. `close_mappings` come out as `skos:closeMatch`, and the OWL has no `owl:imports`.
+
 ## Claude Code
 
 - **Project memory**: `./CLAUDE.md` loads at every session start, and `@path` imports pull in other files. Keep it concise. https://docs.claude.com/en/docs/claude-code/memory

@@ -95,7 +95,10 @@ export function App() {
       <header id="hero" hidden={n > 0}>
         <h1>How a question becomes an answer.</h1>
         <p className="lede">The retrieval path of the payments knowledge layer, now with the warehouse in the loop: Neptune for how things connect, Snowflake for how much and how often, OpenSearch for what the text says. Pick a question to see its route, then open any stage.</p>
-        <p style={{ margin: '-10px 0 24px' }}><a className="vbtn" href="platform.html" target="_blank" rel="noopener">Open the platform overview</a></p>
+        <p style={{ margin: '-10px 0 24px' }}>
+          <a className="vbtn" href="platform.html" target="_blank" rel="noopener">Open the platform overview</a>{' '}
+          <a className="vbtn" href="ontology.html" target="_blank" rel="noopener">Open the class explorer</a>
+        </p>
       </header>
       <Toc view={view} />
 

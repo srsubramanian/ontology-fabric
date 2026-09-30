@@ -1,0 +1,10 @@
+extends: recommended
+rules:
+  # pay: is this project's own namespace (site/platform.html, chapter 1).
+  # The prefix registry's "pay" is an unrelated vocabulary.
+  canonical_prefixes:
+    level: disabled
+  standard_naming:
+    level: error
+    # Real Visa reason codes keep the network's own spelling.
+    exclude: ["10.4", "13.1"]

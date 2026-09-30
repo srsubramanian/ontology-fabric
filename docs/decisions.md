@@ -68,3 +68,4 @@ Settled unless a later entry says otherwise. Newest changes are at the bottom of
 ## The pages
 
 21. **The learning pages move to React, one page at a time** (Vite, React 19, TypeScript, `motion/react`). Each page still builds into one self-contained HTML file in `site/`, so publishing and the smoke test don't change. Shared parts live in `web/src/kit/`. The retrieval page moved first, with every view pixel-identical to the hand-written version. The platform page follows chapter by chapter; the class explorer and question tracer are built in React from the start.
+22. **Pages read the ontology from its LinkML source, never from a hand-copied list.** The class explorer imports `ontology/payments.yaml` at build time and derives label chains, inherited slots and relationships the way LinkML's SchemaView does. Until prototype step 1 delivers the real core, that file is an illustrative draft written down from the pages themselves.

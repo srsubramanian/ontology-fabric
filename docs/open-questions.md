@@ -11,12 +11,13 @@
 3. **Write the "what lives where" rules for each domain.** Disputes are settled. Authorization, settlement and fees still need rules for when a record is pulled into Neptune.
 4. **Decide how Snowflake is called:** through the Snowflake-managed MCP server (Cortex Analyst over semantic views), or through a connector running reviewed SQL templates. The latter is what the retrieval page shows.
 5. **Decide whether to add the ontology's "actions"** (binding ontology terms to MCP tools) in a later phase.
+6. **Name the role classes.** Chapter 1's modeling patterns draw `IssuerRole` and `AcquirerRole`, while the Cypher on both pages uses `:Acquirer` and `:Merchant`. The draft in `ontology/` uses `Issuer`, `Acquirer`, `Merchant` and `Cardholder` under an abstract `PartyRole`. Settle one naming and make the platform page match.
 
 ## Next steps for the prototype
 
 Follow the build order in Chapter 7 of `site/platform.html`, with the changes recorded in `decisions.md`:
 
-1. **Ontology core.** Build LinkML for 15 to 25 classes, bootstrapped from ISO 20022 card messages and FIBO parties and agreements. Add 30 to 50 competency questions per domain as tests, and a generator for Neptune headers and OpenSearch mappings.
+1. **Ontology core.** Build LinkML for 15 to 25 classes, bootstrapped from ISO 20022 card messages and FIBO parties and agreements. Add 30 to 50 competency questions per domain as tests, and a generator for Neptune headers and OpenSearch mappings. Start from the draft in `ontology/`: it already passes `linkml-lint`, generates OWL and SHACL, and feeds the class explorer. Only 2 of its 21 concrete classes are mapped to a standard so far; ISO 20022 mappings are still to do.
 2. **Graph first.** Load one month of disputes and the parties, cards and events they touch. Answer lineage questions by hand in Cypher.
 3. **Search.** Build the three indexes behind aliases, with hybrid search and the ID join.
 4. **Retrieval and agents.** Start from BYOKG-RAG, put the tools behind AgentCore Gateway and Policy, and add the Snowflake lane with VAMP-style metric templates.
@@ -25,9 +26,8 @@ Follow the build order in Chapter 7 of `site/platform.html`, with the changes re
 ## Backlog for the pages
 
 - Use Prism for the remaining plain code snippets in chapters 1, 6 and 7.
-- Build an ontology class explorer: an interactive class graph in the same hand-drawn style.
 - Generate the pages in CI from the LinkML source, so they stay in step with each ontology release.
-- Add a question tracer: pick a competency question and animate its Cypher path across the class graph.
+- Add a question tracer: pick a competency question and animate its Cypher or SQL, step by step, across the class graph. The explorer already highlights each question's walk from `ontology/competency-questions.yaml`; the tracer adds the query text and results.
 - Candidate separate pages, each linked from its chapter like `retrieval.html`: ontology authoring, the ingestion pipeline, releases and governance.
 - Port `platform.html` to `web/`, a chapter at a time (decision 21). Move its custom Prism grammars and shared diagram code into `web/src/kit/` as they're needed, and fold in the Snowflake gap and the standards-first update (question 1) as each chapter is ported.
 - Add CI that runs `npm run check` and the smoke test, and fails if a built page in `site/` is stale against `web/`.
