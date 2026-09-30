@@ -1,0 +1,474 @@
+# Illustrative draft of the payments ontology, for the learning pages.
+#
+# It writes down what site/platform.html and site/retrieval.html already show:
+# the running examples, the relationship names in their Cypher, the modeling
+# patterns from chapter 1 (events not status fields, codes as nodes, one
+# direction, a shallow hierarchy, roles), and the classes that chapter's
+# competency-question rounds added. The real core, prototype step 1,
+# replaces it, bootstrapped from ISO 20022 and FIBO (decision 9).
+#
+# Annotations used on classes, read by the class explorer (web/src/explorer):
+#   owner     the team that owns the class (decision 9: layered ownership)
+#   lives_in  where instances live: graph (Neptune), warehouse (lake or
+#             Snowflake, joining the graph when a question walks through it)
+#             or search (text in OpenSearch, a stub in Neptune) - decision 2
+#   id_rule   the one ID used in every store (decision 4)
+#   example   an instance from the pages' running examples, where one exists
+#
+# Check it with: linkml-lint --config ontology/.linkmllint.yaml ontology/payments.yaml
+
+id: https://ontology.example.com/payments
+name: payments
+title: Payments ontology (illustrative draft)
+version: 1.6.0
+prefixes:
+  pay: https://ontology.example.com/payments/
+  linkml: https://w3id.org/linkml/
+  # Standards we align with through skos:closeMatch, never owl:imports (decision 9).
+  # Checked 2026-09-30 against OMG Commons 20250801 and FIBO master.
+  cmns-pts: https://www.omg.org/spec/Commons/PartiesAndSituations/
+  cmns-org: https://www.omg.org/spec/Commons/Organizations/
+  fibo-fnd-aap-ppl: https://spec.edmcouncil.org/fibo/ontology/FND/AgentsAndPeople/People/
+default_prefix: pay
+default_range: string
+imports:
+  - linkml:types
+
+classes:
+
+  # ---------- Parties and the roles they play ----------
+
+  Party:
+    abstract: true
+    description: A person or organization that takes part in payments.
+    close_mappings: [cmns-pts:Party]
+    slots: [id, name, acts_as]
+    annotations:
+      owner: core
+      lives_in: graph
+
+  Person:
+    is_a: Party
+    description: An individual, such as a cardholder.
+    close_mappings: [fibo-fnd-aap-ppl:Person]
+    annotations:
+      owner: core
+      lives_in: graph
+      id_rule: "person:{person_id}"
+      example: "Maya"
+
+  Organization:
+    is_a: Party
+    description: >-
+      A company or institution. One bank is one Organization, however many
+      roles it plays.
+    close_mappings: [cmns-org:Organization]
+    annotations:
+      owner: core
+      lives_in: graph
+      id_rule: "org:{org_id}"
+      example: "First Bay Bank"
+
+  PartyRole:
+    abstract: true
+    description: >-
+      A role a party plays, such as issuer or merchant. Roles keep one bank
+      from turning into two nodes.
+    close_mappings: [cmns-pts:PartyRole]
+    slots: [id]
+    annotations:
+      owner: core
+      lives_in: graph
+
+  Cardholder:
+    is_a: PartyRole
+    description: The person a card is issued to.
+    annotations:
+      owner: core
+      lives_in: graph
+      id_rule: "ch:{cardholder_id}"
+      example: "Maya"
+
+  Issuer:
+    is_a: PartyRole
+    description: The bank that issues cards and approves or declines their authorizations.
+    annotations:
+      owner: core
+      lives_in: graph
+      id_rule: "iss:{issuer_id}"
+      example: "First Bay Bank"
+
+  Acquirer:
+    is_a: PartyRole
+    description: The bank that signs up merchants and claims funds for them.
+    annotations:
+      owner: core
+      lives_in: graph
+      id_rule: "acq:{acquirer_id}"
+      example: "Coastal Acquiring"
+
+  Merchant:
+    is_a: PartyRole
+    description: A business that accepts cards, as its acquirer knows it.
+    aliases: [store, merchant outlet]
+    slots: [name, mcc, acquired_by]
+    annotations:
+      owner: core
+      lives_in: graph
+      id_rule: "m:{merchant_id}"
+      example: "m:88213, Harbor Grill #4, MCC 5812"
+
+  # ---------- Instruments ----------
+
+  Card:
+    description: A payment card, identified by a token rather than its number.
+    aliases: [PAN, token]
+    slots: [id, network, held_by, in_bin_range]
+    annotations:
+      owner: core
+      lives_in: graph
+      id_rule: "card:{token}"
+      example: "card:tk_1a3"
+
+  BinRange:
+    description: >-
+      The range of card numbers a bank issues from. A node rather than a
+      string, so authorizations can be grouped by it.
+    aliases: [BIN, IIN]
+    slots: [id, prefix, assigned_to]
+    annotations:
+      owner: authorization
+      lives_in: graph
+      id_rule: "bin:{prefix}"
+
+  Device:
+    description: A phone, browser or terminal an authorization came from.
+    slots: [id]
+    annotations:
+      owner: risk
+      lives_in: graph
+      id_rule: "dev:{device_id}"
+
+  # ---------- Events in a payment's life ----------
+
+  PaymentEvent:
+    abstract: true
+    description: >-
+      Something that happened to a payment, at a time. Each step is its own
+      event, instead of a status field that keeps being overwritten.
+    slots: [id]
+    annotations:
+      owner: core
+      lives_in: graph
+
+  Authorization:
+    is_a: PaymentEvent
+    description: The issuer's approval or decline of a payment request.
+    aliases: [auth, approval]
+    slots: [authorized_at, amount, channel, at_merchant, with_card, from_device, has_response]
+    slot_usage:
+      at_merchant:
+        required: true
+      with_card:
+        required: true
+      has_response:
+        required: true
+    annotations:
+      owner: authorization
+      lives_in: warehouse
+      id_rule: "auth:{authorization_id}"
+      example: "auth:5521, Aug 3, $42.50, card not present"
+
+  Capture:
+    is_a: PaymentEvent
+    description: The merchant claiming the funds an authorization approved.
+    aliases: [clearing, presentment]
+    slots: [captured_at, amount, captures]
+    slot_usage:
+      captures:
+        required: true
+    annotations:
+      owner: settlement
+      lives_in: warehouse
+      id_rule: "cap:{capture_id}"
+      example: "cap:7731, Aug 4, $42.50"
+
+  Settlement:
+    is_a: PaymentEvent
+    description: Funds moving between the banks for a batch of captures.
+    slots: [settled_at, settles]
+    slot_usage:
+      settles:
+        required: true
+    annotations:
+      owner: settlement
+      lives_in: warehouse
+      id_rule: "stl:{settlement_id}"
+
+  Refund:
+    is_a: PaymentEvent
+    description: The merchant returning all or part of a captured amount.
+    aliases: [credit]
+    slots: [refunded_at, amount, refunds]
+    slot_usage:
+      refunds:
+        required: true
+    annotations:
+      owner: settlement
+      lives_in: warehouse
+      id_rule: "rf:{refund_id}"
+
+  FraudReport:
+    is_a: PaymentEvent
+    description: An issuer reporting an authorization as fraud to the network.
+    aliases: [TC40, SAFE report]
+    slots: [reported_at, reports]
+    slot_usage:
+      reports:
+        required: true
+    annotations:
+      owner: risk
+      lives_in: graph
+      id_rule: "fr:{report_id}"
+
+  DisputeEvent:
+    is_a: PaymentEvent
+    abstract: true
+    description: A step in a dispute over a captured transaction.
+    slots: [opened_at, disputes, has_reason, responds_to]
+    annotations:
+      owner: disputes
+      lives_in: graph
+
+  Chargeback:
+    is_a: DisputeEvent
+    title: Chargeback
+    aliases: [CB, chargeback case]
+    description: >-
+      A dispute event in which the issuer, through the card network,
+      reverses all or part of a captured transaction for the cardholder.
+    slot_usage:
+      disputes:
+        required: true
+      has_reason:
+        required: true
+      opened_at:
+        required: true
+    annotations:
+      owner: disputes
+      lives_in: graph
+      id_rule: "cb:{chargeback_id}"
+      example: "cb:1001, Aug 19, reason 10.4"
+
+  Representment:
+    is_a: DisputeEvent
+    description: The merchant's response to a chargeback, with its evidence.
+    aliases: [second presentment, merchant response]
+    slots: [has_evidence]
+    slot_usage:
+      responds_to:
+        required: true
+    annotations:
+      owner: disputes
+      lives_in: graph
+      id_rule: "rep:{representment_id}"
+
+  PreArbitration:
+    is_a: DisputeEvent
+    description: Issuer challenges the merchant's response before arbitration.
+    aliases: [pre-arb]
+    slot_usage:
+      responds_to:
+        required: true
+    annotations:
+      owner: disputes
+      lives_in: graph
+      id_rule: "parb:{pre_arbitration_id}"
+
+  # ---------- Codes and documents ----------
+
+  ReasonCode:
+    description: >-
+      A network's reason for a dispute. A node, so chargebacks and the
+      documents that explain the code meet at one place.
+    aliases: [dispute reason]
+    slots: [id, network, code]
+    annotations:
+      owner: disputes
+      lives_in: graph
+      id_rule: "rc:{network}:{code}"
+      example: "rc:visa:10.4, Other Fraud: Card-Absent Environment"
+      code_list: VisaReasonCode
+
+  ResponseCode:
+    description: The issuer's answer code on an authorization, such as approved or declined.
+    slots: [id, code]
+    annotations:
+      owner: authorization
+      lives_in: graph
+      id_rule: "resp:{code}"
+
+  Document:
+    description: >-
+      A network rule book, runbook or piece of evidence. Its text lives in
+      search; Neptune keeps a stub.
+    slots: [id, name, kind]
+    annotations:
+      owner: core
+      lives_in: search
+      id_rule: "{doc_slug}"
+      example: "visa-vamp-2026"
+
+  Chunk:
+    description: >-
+      A passage of a document. Its text and embedding live in OpenSearch; the
+      stub in Neptune links it to the codes it mentions.
+    slots: [id, part_of, mentions]
+    annotations:
+      owner: core
+      lives_in: search
+      id_rule: "{doc_slug}#{chunk}"
+      example: "visa-vamp-2026#c04"
+
+slots:
+
+  # ---------- Attributes ----------
+
+  id:
+    identifier: true
+    description: The one ID used in Neptune, OpenSearch and Snowflake.
+  name:
+    description: What people call it.
+  mcc:
+    description: Merchant category code.
+    pattern: "^\\d{4}$"
+  network:
+    description: The card network whose rules apply.
+    range: CardNetwork
+  code:
+    description: The code as the network or issuer writes it.
+  prefix:
+    description: The leading digits every card in the range shares.
+  kind:
+    description: What sort of document it is.
+    range: DocumentKind
+  amount:
+    description: The amount, in the transaction currency.
+    range: decimal
+  channel:
+    description: Whether the card was present.
+    range: Channel
+  authorized_at:
+    description: When the issuer answered.
+    range: datetime
+  captured_at:
+    description: When the merchant claimed the funds.
+    range: datetime
+  settled_at:
+    description: When the funds moved.
+    range: datetime
+  refunded_at:
+    description: When the refund was made.
+    range: datetime
+  reported_at:
+    description: When the fraud was reported.
+    range: datetime
+  opened_at:
+    description: When the dispute step began.
+    range: datetime
+
+  # ---------- Relationships: one canonical direction each ----------
+
+  acts_as:
+    description: A party plays a role.
+    range: PartyRole
+    multivalued: true
+  acquired_by:
+    description: A merchant's acquiring bank.
+    range: Acquirer
+  held_by:
+    description: Who a card is issued to.
+    range: Cardholder
+  in_bin_range:
+    description: The BIN range a card's number falls in.
+    range: BinRange
+  assigned_to:
+    description: The issuer a BIN range belongs to.
+    range: Issuer
+  at_merchant:
+    description: Where an authorization was requested.
+    range: Merchant
+  with_card:
+    description: The card an authorization used.
+    range: Card
+  from_device:
+    description: The device an authorization came from.
+    range: Device
+  has_response:
+    description: The issuer's answer to an authorization.
+    range: ResponseCode
+  captures:
+    description: The authorization a capture claims funds for.
+    range: Authorization
+  settles:
+    description: The captures a settlement pays out.
+    range: Capture
+    multivalued: true
+  refunds:
+    description: The capture a refund returns money from.
+    range: Capture
+  disputes:
+    description: Links a dispute event to the capture it contests.
+    range: Capture
+  has_reason:
+    description: The network reason codes behind a dispute.
+    range: ReasonCode
+    multivalued: true
+  responds_to:
+    description: The earlier dispute event this one answers.
+    range: DisputeEvent
+  has_evidence:
+    description: Documents sent as evidence.
+    range: Document
+    multivalued: true
+  reports:
+    description: The authorization a fraud report is about.
+    range: Authorization
+  part_of:
+    description: The document a chunk comes from.
+    range: Document
+  mentions:
+    description: Codes a chunk mentions, so its text links to the graph.
+    range: ReasonCode
+    multivalued: true
+
+enums:
+
+  CardNetwork:
+    description: Card networks whose rules the ontology covers.
+    permissible_values:
+      visa:
+      mastercard:
+
+  Channel:
+    description: How the card took part in a payment.
+    permissible_values:
+      card_present:
+      card_not_present:
+
+  DocumentKind:
+    description: Kinds of document the platform indexes.
+    permissible_values:
+      network_rules:
+      runbook:
+      evidence:
+
+  VisaReasonCode:
+    description: Visa dispute reason codes. Each is loaded as a ReasonCode node.
+    permissible_values:
+      "10.4":
+        description: "Other Fraud: Card-Absent Environment"
+        meaning: pay:visa-10.4
+      "13.1":
+        description: "Merchandise/Services Not Received"
+        meaning: pay:visa-13.1

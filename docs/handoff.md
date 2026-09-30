@@ -4,8 +4,9 @@ Ontology Fabric is the project name, chosen at the end of the claude.ai conversa
 
 - Platform overview: https://claude.ai/artifact/A5HhgTYfgDiRmbzBhz7gRA
 - Retrieval walkthrough: https://claude.ai/artifact/Sd5jT4CmwRLyvoMY3QUQSk
+- Class explorer: https://claude.ai/artifact/BqDPHaioHftbPxMQobyz74
 
-The files in `site/` are the same pages, with the links between them changed to relative paths.
+The files in `site/` are the same pages, with the links between them changed to relative paths. The published platform and retrieval copies predate the React port, so they don't link to the class explorer yet.
 
 ## How the pages are organised
 
@@ -40,6 +41,7 @@ Reading progress on the platform page is stored in the browser under `pkl-progre
 6. **The standards-first plan.** Bootstrap about 80% of the ontology from ISO 20022 and FIBO, then hand ownership to teams through layers and review windows, so the project isn't blocked waiting on 13 teams.
 7. **Snowflake joins retrieval** as the warehouse lane, with metrics defined once in the ontology and computed in SQL.
 8. **The pages move to React.** The single-file platform page was getting hard to extend, and the backlog (class explorer, question tracer, pages generated from LinkML) needs components and data. The retrieval page was ported first to `web/`; it still builds into one HTML file, and every view matches the hand-written version pixel for pixel.
+9. **A class explorer, read from LinkML.** The draft ontology in `ontology/` writes down what the pages already show, and `site/ontology.html` draws it: classes, abstract parents as frames, relationships in their one direction, where each class's data lives, who owns it, and the competency questions it must answer.
 
 ## Clarifications worth keeping
 

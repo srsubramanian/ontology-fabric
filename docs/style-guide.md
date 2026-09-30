@@ -23,6 +23,7 @@
 - **One view at a time**, switched by hash routes:
   - Platform page: `#map`, `#chN` and `#chN:K`.
   - Retrieval page: `#map` and `#s1` to `#s11`.
+  - Class explorer: `#map`, `#<ClassName>` (such as `#Chargeback`) and `#CQ-NN` for a competency question.
 - **Chapters split into sub-pages**, with underlined tabs and Previous/Next buttons. Arrow keys move between sub-pages.
 - **A view's animation runs when it's shown** (or when it scrolls into view with Motion's `inView`), and always has a replay button. In `web/`, a view mounts when shown, which starts its `useTimeline` steps; the replay button remounts the animated part with a new key from `useReplay`.
 - **No horizontal page scroll on a 390 px phone.** Wide SVGs sit inside an `overflow-x: auto` wrapper.
@@ -41,3 +42,4 @@
 - **Keep the running examples consistent:**
   - Platform page: Maya's online order at Harbor Grill, chargeback `cb:1001`, reason code 10.4, capture `cap:7731`, authorization `auth:5521`, merchant `m:88213`.
   - Retrieval page: Sunset Tickets `m:10442` and its August VAMP ratio of 1.65% against a 1.5% threshold.
+  - Class explorer: the examples in `ontology/payments.yaml` come from the two pages above, so they stay consistent with them.

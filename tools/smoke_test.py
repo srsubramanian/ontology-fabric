@@ -4,7 +4,7 @@ Usage:
     pip install -r tools/requirements.txt
     python -m playwright install chromium
     python tools/smoke_test.py            # all pages
-    python tools/smoke_test.py retrieval  # one page, by name
+    python tools/smoke_test.py ontology   # one page, by name
 """
 import os
 import pathlib
@@ -27,6 +27,11 @@ def views_for(page, name):
             tabs = page.evaluate(f"document.querySelectorAll('#{ch} .subtab').length")
             routes += [f"#{ch}:{k}" for k in range(1, tabs + 1)]
         return routes
+    if name == "ontology":
+        # The class explorer: the map, then each class and each competency question selected.
+        picks = page.evaluate("[...document.querySelectorAll('[data-class], [data-question]')]"
+                              ".map(e => e.dataset.class || e.dataset.question)")
+        return ["#map"] + ["#" + p for p in dict.fromkeys(picks)]
     return ["#" + v for v in page.evaluate("[...document.querySelectorAll('.view')].map(v => v.id)")]
 
 
@@ -62,7 +67,7 @@ def check(name, pw):
 
 
 def main():
-    names = sys.argv[1:] or ["platform", "retrieval"]
+    names = sys.argv[1:] or ["platform", "retrieval", "ontology"]
     failed = False
     with sync_playwright() as pw:
         for name in names:

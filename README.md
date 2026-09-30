@@ -8,19 +8,30 @@ Open these in a browser. You need to be online for the fonts, and for the platfo
 
 - `site/platform.html`: the platform map and seven chapters
 - `site/retrieval.html`: how a question becomes an answer, across all three stores
+- `site/ontology.html`: the class explorer, read from the draft ontology in `ontology/`
 
 ## Change a React page
 
-`site/retrieval.html` is built from `web/`, so edit the source there (you need Node 20.19 or later):
+`site/retrieval.html` and `site/ontology.html` are built from `web/`, so edit the source there (you need Node 20.19 or later):
 
 ```bash
 cd web
 npm install
-npm run dev      # live preview at http://localhost:5173/retrieval.html
-npm run check    # typecheck, then rebuild site/retrieval.html
+npm run dev      # live preview at http://localhost:5173/retrieval.html or /ontology.html
+npm run check    # typecheck, then rebuild both pages into site/
 ```
 
-Commit the rebuilt `site/retrieval.html` together with its source.
+Commit the rebuilt pages together with their source.
+
+## Check the ontology after a change
+
+```bash
+pip install -r tools/requirements-ontology.txt
+linkml-lint --config ontology/.linkmllint.yaml ontology/payments.yaml
+python tools/check_ontology.py
+```
+
+The check fails if a competency question walks a relationship the schema doesn't have. Rebuild the pages afterwards, so the class explorer shows the change.
 
 ## Check the pages after a change
 

@@ -1,0 +1,46 @@
+# Competency questions: what version 1 must answer (site/platform.html,
+# chapter 1, "Version 1"). Each one becomes a test in CI.
+#
+#   walks        the relationships the question follows, as Class.slot,
+#                in the order a query walks them
+#   answered_in  the store that answers it, by the shape of the count
+#                (decision 14): neptune for walks and counts along
+#                relationships, snowflake for counts over big tables and time
+
+questions:
+
+  - id: CQ-01
+    domain: disputes
+    question: Which merchants had the most 10.4 chargebacks last month?
+    walks: [Chargeback.has_reason, Chargeback.disputes, Capture.captures, Authorization.at_merchant]
+    answered_in: neptune
+
+  - id: CQ-02
+    domain: disputes
+    question: What evidence did we send for this chargeback, and when?
+    walks: [Representment.responds_to, Representment.has_evidence]
+    answered_in: neptune
+
+  - id: CQ-03
+    domain: authorization
+    question: Show the full lifecycle of this authorization.
+    walks: [Capture.captures, Settlement.settles, Refund.refunds, Chargeback.disputes]
+    answered_in: neptune
+
+  - id: CQ-04
+    domain: authorization
+    question: Which response codes spiked for this BIN range today?
+    walks: [Authorization.with_card, Card.in_bin_range, Authorization.has_response]
+    answered_in: snowflake
+
+  - id: CQ-05
+    domain: settlement
+    question: Which captures haven't settled after 3 days?
+    walks: [Settlement.settles]
+    answered_in: snowflake
+
+  - id: CQ-06
+    domain: risk
+    question: Which merchants share devices or acquirers with a flagged one?
+    walks: [FraudReport.reports, Authorization.at_merchant, Authorization.from_device, Merchant.acquired_by]
+    answered_in: neptune

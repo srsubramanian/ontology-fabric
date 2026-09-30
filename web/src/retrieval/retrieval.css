@@ -1,19 +1,6 @@
-/* The retrieval page. Colour tokens and the shared reset live in ../kit. */
+/* The retrieval page. Tokens, the reset and shared page styles live in ../kit. */
 :root{--flow:var(--query)}
-body{margin:0; background:var(--paper); color:var(--ink); font-family:"Schibsted Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size:17px; line-height:1.55; -webkit-font-smoothing:antialiased}
-.wrap{max-width:1180px; margin:0 auto; padding:48px 28px 88px}
 body.inpage .wrap{padding-top:14px}
-h1{font-size:clamp(2.2rem,5vw,3.8rem); line-height:1.0; letter-spacing:-0.03em; font-weight:800; margin:0 0 18px; max-width:22ch}
-h2{font-size:clamp(1.8rem,3.4vw,2.6rem); line-height:1.05; letter-spacing:-0.02em; font-weight:800; margin:0 0 8px}
-h3{font-size:1.15rem; line-height:1.25; margin:0 0 8px; font-weight:700}
-.lede{font-size:1.15rem; color:var(--muted); max-width:62ch; margin-bottom:26px}
-.intro{color:var(--muted); max-width:66ch}
-code,.mono{font-family:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:.88em}
-.note{font-size:.86rem; color:var(--muted); margin:10px 0 0}
-.vcap{font-size:.8rem; font-weight:800; color:var(--muted); margin:0 0 8px}
-.vbtns{display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 0}
-.vbtn{border:1px solid var(--line); background:var(--raised); border-radius:8px; padding:7px 13px; cursor:pointer; font-weight:600; font-size:.88rem; text-decoration:none; color:var(--ink); display:inline-block}
-.vbtn.go{background:var(--query); color:var(--paper); border-color:transparent}
 /* nav */
 .toc{position:sticky; top:env(safe-area-inset-top,0px); z-index:20; background:var(--paper); display:flex; gap:4px; overflow-x:auto; padding:10px 0; margin:0 0 22px; border-bottom:1px solid var(--line); scrollbar-width:none}
 .toc::-webkit-scrollbar{display:none}
@@ -21,7 +8,6 @@ code,.mono{font-family:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Co
 .toc a:hover{color:var(--ink); background:var(--faint)}
 .toc a.here{color:var(--paper); background:var(--ink)}
 /* pipeline map */
-.xwrap{overflow-x:auto}
 .pmap{display:block; width:100%; min-width:900px; height:auto}
 .pn{cursor:pointer; transform-box:fill-box; transform-origin:center}
 .pn .box{fill:var(--raised); stroke:var(--line); stroke-width:1.25}
@@ -32,9 +18,6 @@ code,.mono{font-family:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Co
 .pn .s{font-size:11.5px; fill:var(--muted)}
 .pe{fill:none; stroke:var(--line); stroke-width:1.6}
 .pe.on{stroke:var(--flow); stroke-width:2.4}
-.legend{display:flex; flex-wrap:wrap; gap:8px 20px; font-size:.84rem; color:var(--muted); margin:8px 0 0}
-.legend span{display:inline-flex; align-items:center; gap:7px}
-.legend i{width:14px; height:4px; border-radius:2px; background:var(--c)}
 .qpick{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:8px; margin:22px 0 8px}
 .qbtn{text-align:left; border:1px solid var(--line); background:var(--raised); border-radius:12px; padding:10px 12px; cursor:pointer; font-size:.9rem; line-height:1.35}
 .qbtn b{display:block; font-size:.72rem; font-weight:800; color:var(--query); margin-bottom:4px}
@@ -61,20 +44,8 @@ code,.mono{font-family:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Co
 .keys li::before{content:""; position:absolute; left:2px; top:14px; width:10px; height:10px; border-radius:3px; background:var(--c)}
 .viz{background:var(--raised); border:1px solid var(--line); border-radius:14px; padding:18px}
 .svgv{display:block; width:100%; height:auto; min-width:560px}
-.code{background:var(--code-bg); color:var(--code-ink); border-radius:12px; overflow:auto}
-.code pre{margin:0; padding:14px 16px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12.5px; line-height:1.65}
-.code .token.keyword, .code .token.key{color:#8DB8F2}
-.code .token.class-name, .code .token.relationship{color:#C9A8F2}
-.code .token.variable, .code .token.number{color:#EDBB6A}
-.code .token.string, .code .token.property, .code .token.scalar{color:#86D6BC}
-.code .token.relationship.property{color:#C9A8F2}
-.code .token.function{color:#9FE1CB}
-.code .token.comment{color:#7F8D9A}
-.code .token.punctuation, .code .token.operator{color:#AEB9C4}
-.code .token.boolean{color:#EDBB6A}
 .pager{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:36px; padding-top:18px; border-top:1px solid var(--line)}
 .pager .go{margin-left:auto}
-footer{margin-top:60px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:.85rem; max-width:80ch}
 /* page 1 */
 .arrive{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.1fr); gap:16px; align-items:start}
 @media (max-width:760px){.arrive{grid-template-columns:minmax(0,1fr)}}

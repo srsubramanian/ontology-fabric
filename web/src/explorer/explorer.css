@@ -1,0 +1,101 @@
+/* The ontology explorer. Tokens, the reset and shared page styles live in ../kit. */
+.wrap.wide{max-width:1320px; padding-top:28px}
+/* A tool page: a smaller title, so the map starts above the fold. */
+h1{max-width:30ch; font-size:clamp(1.9rem,3.4vw,2.7rem); margin-bottom:10px}
+.lede{font-size:1.02rem; max-width:88ch; margin-bottom:16px}
+.stats{display:flex; flex-wrap:wrap; align-items:center; gap:8px 18px; color:var(--muted); font-size:.92rem; margin:-8px 0 22px}
+.stats b{color:var(--ink)}
+.muted{color:var(--muted)}
+
+/* toolbar */
+.toolbar{display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; padding:10px 0 12px; border-bottom:1px solid var(--line); margin-bottom:14px}
+.find{position:relative; flex:1 1 260px; max-width:360px}
+.find input{width:100%; font:inherit; font-size:.92rem; color:var(--ink); background:var(--raised); border:1px solid var(--line); border-radius:10px; padding:8px 12px}
+.find input::placeholder{color:var(--muted)}
+.found{position:absolute; z-index:5; left:0; right:0; top:calc(100% + 4px); display:grid; gap:2px; background:var(--raised); border:1px solid var(--line); border-radius:10px; padding:6px; box-shadow:0 8px 24px -12px var(--ink)}
+.found button{text-align:left; border:0; background:none; border-radius:6px; padding:6px 8px; cursor:pointer; font-size:.9rem; font-weight:600}
+.found button:hover,.found button:focus-visible{background:var(--faint)}
+.found .muted{font-weight:400; padding:6px 8px; font-size:.88rem}
+.seg{display:inline-flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--raised)}
+.seg button{border:0; background:none; padding:7px 12px; font-size:.86rem; font-weight:600; color:var(--muted); cursor:pointer}
+.seg button + button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--paper)}
+
+/* layout: map beside the panel, stacked on narrower screens */
+.explore{display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:24px; align-items:start}
+@media (max-width:1100px){.explore{grid-template-columns:minmax(0,1fr)}}
+.cmap{display:block; width:100%; min-width:700px; height:auto; user-select:none}
+.cbg{fill:transparent}
+
+/* frames: abstract classes */
+.cf{cursor:pointer}
+.cf rect{fill:none; stroke:var(--muted); stroke-width:1.2; stroke-dasharray:5 4}
+.cf .ft{font-size:12px; font-weight:800; fill:var(--muted)}
+.cf .fa{font-weight:500; font-size:11px}
+.cf:hover rect{stroke:var(--ink)}
+.cf.sel rect{stroke:var(--onto); stroke-width:2.2; stroke-dasharray:none}
+.cf.sel .ft{fill:var(--onto)}
+
+/* boxes: concrete classes */
+.cn{cursor:pointer}
+.cn .box{fill:var(--raised); stroke:var(--line); stroke-width:1.25}
+.cn:hover .box{fill:var(--paper)}
+.cn.sel .box{stroke:var(--onto); stroke-width:2.6}
+.cn .t{font-size:13.5px; font-weight:700; fill:var(--ink)}
+.cn .s{font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; fill:var(--muted)}
+.cn:focus-visible,.cf:focus-visible{outline:none}
+.cn:focus-visible .box,.cf:focus-visible rect{stroke:var(--ink); stroke-width:2.4}
+
+/* relationships */
+.ce{fill:none; stroke:var(--muted); stroke-width:1.3}
+.ch{fill:var(--muted)}
+.cl{font-family:"JetBrains Mono",ui-monospace,monospace; font-size:9.5px; font-weight:600; fill:var(--muted); paint-order:stroke; stroke:var(--paper); stroke-width:3px; stroke-linejoin:round}
+.cr{transition:opacity .25s}
+.cr.faded{opacity:.14}
+.cr.faded .cl{opacity:0}
+.cr.hl .ce{stroke:var(--onto); stroke-width:2.4}
+.cr.hl .ch{fill:var(--onto)}
+.cr.hl .cl{fill:var(--onto); font-size:10px}
+
+/* legend under the map */
+.legend .lg-box{width:16px; height:10px; border-radius:3px; background:var(--raised); border:1.25px solid var(--line)}
+.legend .lg-frame{width:16px; height:10px; border-radius:3px; background:none; border:1.25px dashed var(--muted)}
+.legend .lg-arrow{width:18px; height:2px; background:var(--muted); position:relative}
+.legend .lg-arrow::after{content:""; position:absolute; right:-2px; top:-3px; border:4px solid transparent; border-left:6px solid var(--muted); border-right:0}
+.ownerchip{border:1px solid var(--line); background:var(--raised); border-radius:999px; padding:3px 10px; font-size:.82rem; font-weight:600; color:var(--ink); cursor:pointer}
+.ownerchip[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:transparent}
+
+/* the side panel */
+.panel{position:sticky; top:14px; max-height:calc(100vh - 28px); overflow:auto; background:var(--raised); border:1px solid var(--line); border-radius:14px; padding:16px 18px; font-size:.94rem}
+@media (max-width:1100px){.panel{position:static; max-height:none}}
+.panel p{margin:0 0 8px}
+.dtitle{font-size:1.6rem; margin:0 0 4px; display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.dtitle.q{font-size:1.3rem; line-height:1.25; display:block}
+.badge{font-size:.72rem; font-weight:800; letter-spacing:.02em; color:var(--muted); border:1px dashed var(--muted); border-radius:999px; padding:2px 8px}
+.curie{font-family:"JetBrains Mono",ui-monospace,monospace; font-size:.82rem; color:var(--muted)}
+.back{border:0; background:none; padding:0; margin:0 0 10px; color:var(--muted); font-weight:600; font-size:.84rem; cursor:pointer}
+.back::before{content:"← "}
+.back:hover{color:var(--ink)}
+.dsec{border-top:1px solid var(--line); padding-top:10px; margin-top:12px}
+.dsec h3{font-size:.78rem; font-weight:800; color:var(--muted); margin:0 0 6px}
+.clink{border:0; background:none; padding:0; font:inherit; font-weight:700; color:var(--onto); cursor:pointer; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:2px}
+.chain{display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin-bottom:6px}
+.chain i{font-style:normal; color:var(--muted); margin:0 6px 0 2px}
+.idrule{font-size:.9rem; font-weight:600}
+.store{display:inline-block; font-size:.78rem; font-weight:800; padding:2px 9px; border-radius:999px; background:var(--c); color:var(--paper); margin-right:4px}
+.props{width:100%; border-collapse:collapse; font-size:.88rem}
+.props td{padding:4px 6px 4px 0; border-bottom:1px solid var(--faint); vertical-align:top}
+.rels{list-style:none; margin:0; padding:0; font-size:.9rem}
+.rels li{padding:3px 0}
+.rels code,.walk code{font-size:.78rem; font-weight:700; color:var(--muted)}
+.walk{margin:0 0 8px; padding-left:20px; font-size:.92rem}
+.walk li{padding:3px 0}
+.cover{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.cover div{background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:8px 10px}
+.cover b{display:block; font-size:1.3rem}
+.cover span{font-size:.8rem; color:var(--muted)}
+.qlist{display:grid; gap:6px}
+.qitem{text-align:left; border:1px solid var(--line); background:var(--paper); border-radius:10px; padding:8px 10px; cursor:pointer; font-size:.9rem; line-height:1.35}
+.qitem:hover{border-color:var(--ink)}
+.qmeta{display:flex; align-items:center; gap:8px; font-size:.72rem; font-weight:800; color:var(--muted); margin-bottom:3px}
+.qmeta i{font-style:normal; color:var(--paper); background:var(--c); border-radius:999px; padding:1px 7px}
