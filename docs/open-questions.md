@@ -13,7 +13,6 @@
 3. **Write the "what lives where" rules for each domain.** Disputes are settled. Authorization, settlement and fees still need rules for when a record is pulled into Neptune.
 4. **Decide how Snowflake is called:** through the Snowflake-managed MCP server (Cortex Analyst over semantic views), or through a connector running reviewed SQL templates. The latter is what the retrieval page shows.
 5. **Decide whether to add the ontology's "actions"** (binding ontology terms to MCP tools) in a later phase.
-6. **Name the role classes.** Chapter 1's modeling patterns draw `IssuerRole` and `AcquirerRole`, while the Cypher on both pages uses `:Acquirer` and `:Merchant`. The draft in `ontology/` uses `Issuer`, `Acquirer`, `Merchant` and `Cardholder` under an abstract `PartyRole`. Settle one naming and make the platform page match.
 
 ## Next steps for the prototype
 

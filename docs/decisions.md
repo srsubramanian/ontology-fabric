@@ -26,7 +26,7 @@ Settled unless a later entry says otherwise. Newest changes are at the bottom of
    - Make codes nodes when things link to them.
    - Give each relationship one canonical direction.
    - Keep hierarchies to 3 or 4 levels.
-   - Organizations get roles rather than duplicate nodes.
+   - Organizations get roles rather than duplicate nodes. Role classes take plain names (`Issuer`, `Acquirer`, `Merchant`, `Cardholder`) under an abstract `PartyRole`, and a party reaches each role through `ACTS_AS`.
 8. **SHACL 1.0 core gates every load.** Missing required links reject the record. SHACL 1.2 and RDF 1.2 are still drafts, so wait for them.
 9. **Bootstrap from industry standards, then hand ownership to teams.** This direction is agreed; updating the platform page to show it is still open.
    - Sources: ISO 20022 card and payment messages, FIBO for parties and agreements, and ISO code lists.
