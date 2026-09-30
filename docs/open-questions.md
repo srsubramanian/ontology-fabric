@@ -27,7 +27,6 @@ Follow the build order in Chapter 7 of `site/platform.html`, with the changes re
 
 ## Backlog for the pages
 
-- Use Prism for the remaining plain code snippets in chapters 1, 6 and 7.
 - Generate the pages in CI from the LinkML source, so they stay in step with each ontology release.
 - Add a question tracer: pick a competency question and animate its Cypher or SQL, step by step, across the class graph. The explorer already highlights each question's walk from `ontology/competency-questions.yaml`; the tracer adds the query text and results.
 - Candidate separate pages, each linked from its chapter like `retrieval.html`: ontology authoring, the ingestion pipeline, releases and governance.
