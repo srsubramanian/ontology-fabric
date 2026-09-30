@@ -97,7 +97,7 @@ linkml_meta = LinkMLMeta({'annotations': {'commons_release': {'tag': 'commons_re
                              'prefix_reference': 'https://w3id.org/linkml/'},
                   'pay': {'prefix_prefix': 'pay',
                           'prefix_reference': 'https://ontology.example.com/payments/'}},
-     'source_file': '/home/user/ontology-fabric/ontology/payments.yaml',
+     'source_file': 'ontology/payments.yaml',
      'title': 'Payments ontology (illustrative draft)'} )
 
 class CardNetwork(str, Enum):

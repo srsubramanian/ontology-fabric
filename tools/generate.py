@@ -142,11 +142,14 @@ def linkml_outputs():
         shacl = ShaclGenerator(path).serialize()
         jsonschema = JsonSchemaGenerator(path).serialize()
         pydantic = PydanticGenerator(path).serialize()
+    # Some generators record where the schema was read from; keep that the same on every machine.
+    here = lambda text: text.replace(path, SCHEMA.relative_to(ROOT).as_posix())
+    ending = lambda text: text if text.endswith("\n") else text + "\n"
     return {
-        "owl/payments.ttl": canonical_turtle(owl),
-        "shacl/payments.shacl.ttl": canonical_turtle(shacl),
-        "jsonschema/payments.schema.json": jsonschema if jsonschema.endswith("\n") else jsonschema + "\n",
-        "pydantic/payments.py": pydantic if pydantic.endswith("\n") else pydantic + "\n",
+        "owl/payments.ttl": canonical_turtle(here(owl)),
+        "shacl/payments.shacl.ttl": canonical_turtle(here(shacl)),
+        "jsonschema/payments.schema.json": ending(here(jsonschema)),
+        "pydantic/payments.py": ending(here(pydantic)),
     }
 
 
