@@ -394,45 +394,5 @@
     if (mode === 'flow' && !playing && curStep === 0) play(0);
   }
 
-  // ---------- Walkthrough ----------
-  const WALK = [
-    { title:'Route the question', touches:['api'],
-      text:'The service splits the question. Ranking merchants by chargebacks is a graph question; what the rules say is a document question. Both need an entry point first.' },
-    { title:'Search OpenSearch for entry points', touches:['api','opensearch'],
-      text:'One hybrid query finds the reason code and the chunks that discuss it, and returns IDs to hand to Neptune. Modeling reason codes as nodes, not just properties, lets documents and chargebacks meet at the same node.' },
-    { title:'Write and check the Cypher', touches:['api','opensearch','bedrock'],
-      text:'Claude writes the query using only the classes the ontology index returned. The validator checks it against the ontology before anything runs; on failure the error goes back to Claude for a retry.' },
-    { title:'Traverse Neptune', touches:['api','neptune'],
-      text:'Neptune walks from one reason code through chargebacks, captures and authorizations to merchants, then counts. The ID from OpenSearch is the starting point.' },
-    { title:'Answer with citations', touches:['api','bedrock'],
-      text:'Claude writes only from the graph results and the retrieved chunks, and cites both. A reviewer can rerun the query or open the chunk behind any sentence.' }
-  ];
-  const wsteps = document.getElementById('wsteps');
-  const wtext = document.getElementById('wtext');
-  const panels = Array.from(document.querySelectorAll('.wpanel'));
-  const touches = Array.from(document.querySelectorAll('.touch'));
-  let wcur = 0;
-  function showWalk(i){
-    wcur = i;
-    const w = WALK[i];
-    Array.from(wsteps.querySelectorAll('button')).forEach((b, j) => { if (j === i) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
-    wtext.textContent = w.text;
-    panels.forEach(p => { p.hidden = Number(p.dataset.w) !== i; });
-    touches.forEach(t => t.classList.toggle('on', w.touches.includes(t.dataset.t)));
-    if (!reduce){
-      animate(wtext, { opacity:[0,1] }, { duration:0.3 });
-      animate(panels[i], { opacity:[0,1], y:[8,0] }, { duration:0.35, ease:[0.22,1,0.36,1] });
-      const on = touches.filter(t => w.touches.includes(t.dataset.t));
-      if (on.length) animate(on, { scale:[0.92,1] }, { duration:0.3, delay: stagger(0.05) });
-    }
-  }
-  WALK.forEach((w, i) => {
-    const li = document.createElement('li'); const b = document.createElement('button');
-    b.type = 'button'; b.textContent = w.title; b.addEventListener('click', () => showWalk(i));
-    li.appendChild(b); wsteps.appendChild(li);
-  });
-  wsteps.style.setProperty('--flow', 'var(--query)');
-  showWalk(0);
-
   intro();
 })();

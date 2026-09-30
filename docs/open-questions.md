@@ -20,7 +20,9 @@ Follow the build order in Chapter 7 of `site/platform.html`, with the changes re
 - Generate the pages in CI from the LinkML source, so they stay in step with each ontology release.
 - Show results in the question tracer. It already steps each competency question's query line by line alongside its walk on the map; once step 2 of the build order loads a sample month, run the queries and show the rows they return, each cited by ID.
 - Candidate separate pages, each linked from its chapter like `retrieval.html`: ontology authoring, the ingestion pipeline, releases and governance.
-- Port the platform page's chapters to React, one at a time (decision 21). Chapter 1 is done; the page builds from `web/`, with the unported chapters as their original markup and scripts. Move custom Prism grammars and shared diagram code into `web/src/kit/` as they're needed, and fold in the Snowflake gap as each chapter is ported.
+- Finish moving the platform page to React (decision 21). All seven chapters are React; the shell (map, section nav, reading path with each chapter's check, router) is still the original scripts. Port it next.
+- Then merge the three pages into one published page, so there's one link to share and cross-links become jumps within it: a top bar (Overview, Retrieval, Explorer), one router with prefixed routes made of letters, digits and hyphens so shared links can deep-link to any view, and each page's styles scoped to it.
+- Fold the Snowflake lane (decision 5) into the platform page. The chapter ports kept its content as it was.
 
 ## Housekeeping
 

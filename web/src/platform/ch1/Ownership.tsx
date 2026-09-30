@@ -1,7 +1,7 @@
 import { inView } from 'motion/react';
 import { useEffect, useRef } from 'react';
 import { model } from '../../explorer/data';
-import { anim, dl, hideAll, packet, wait } from './anim';
+import { anim, dl, hideAll, packet, wait } from '../shared/anim';
 
 // Who owns it (decision 9): the core team owns the core, owning teams own their domain modules
 // through CODEOWNERS, and any team adds extensions and promotes them when they're shared.

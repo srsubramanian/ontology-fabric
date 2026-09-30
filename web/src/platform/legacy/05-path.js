@@ -168,37 +168,4 @@
   }
   renderPath();
 
-  // ---------- Chapter 5: who uses it ----------
-  const us = document.getElementById('usesvg');
-  if (us){
-    const gE = document.getElementById('upaths'), gK = document.getElementById('upk');
-    const E = {
-      a:[[230,44],[290,44],[290,70],[339,70]], u:[[230,118],[290,118],[290,92],[339,92]], api:[[570,81],[689,81]],
-      e:[[230,210],[339,210]], gx:[[570,210],[815,210],[815,119]], t:[[230,286],[339,286]]
-    };
-    const P = {};
-    Object.keys(E).forEach(k => { P[k] = el('path', { d: rounded(E[k], 10), class:'le', 'marker-end':'url(#mg-line)' }, gE); });
-    function go(key, color, dur){
-      if (reduce || !M) return Promise.resolve();
-      const p = P[key], len = p.getTotalLength();
-      const g = el('g', {}, gK);
-      const h = el('circle', { r:10, opacity:0.22 }, g); h.style.fill = color;
-      const c = el('circle', { r:5 }, g); c.style.fill = color; c.style.stroke = 'var(--raised)'; c.style.strokeWidth = '1.5';
-      const put = v => { const pt = p.getPointAtLength(v * len); g.setAttribute('transform', 'translate(' + pt.x + ',' + pt.y + ')'); };
-      put(0);
-      return tween({ duration: dur || 0.8, ease:[0.45,0,0.2,1], onUpdate: put }).then(() => g.remove());
-    }
-    async function playUsers(){
-      gK.replaceChildren();
-      const chains = [
-        [['a','var(--query)'],['api','var(--query)']],
-        [['u','var(--query)'],['api','var(--query)']],
-        [['e','var(--graph)'],['gx','var(--graph)']],
-        [['t','var(--onto)']]
-      ];
-      await Promise.all(chains.map((ch, i) => new Promise(r => setTimeout(r, i * 350)).then(async () => { for (const [k, col] of ch) await go(k, col, 0.75); })));
-    }
-    onView(us, () => { anim(us.querySelectorAll('.unode'), { opacity:[0,1] }, { duration:0.4, delay:(i) => i * 0.07 }); setTimeout(playUsers, 600); }, 0.45);
-    const rb = document.getElementById('uReplay'); if (rb) rb.addEventListener('click', playUsers);
-  }
 })();
