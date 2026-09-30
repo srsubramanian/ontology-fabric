@@ -9,9 +9,8 @@
    - the two coverage numbers.
 
    While there, bring chapter 1's building-blocks deep dive in line with decision 6: its "Four forms" step still says only the Turtle and SHACL are written by hand, where with LinkML only the YAML is.
-2. **Pick a durable execution engine** for the extraction pipeline's human reviews: Temporal's LangGraph plugin (preview), another orchestrator, or LangGraph with a Postgres checkpointer plus restart handling.
-3. **Write the "what lives where" rules for each domain.** Disputes are settled. Authorization, settlement and fees still need rules for when a record is pulled into Neptune.
-4. **Decide whether to add the ontology's "actions"** (binding ontology terms to MCP tools) in a later phase.
+2. **Write the "what lives where" rules for each domain.** Disputes are settled. Authorization, settlement and fees still need rules for when a record is pulled into Neptune.
+3. **Decide whether to add the ontology's "actions"** (binding ontology terms to MCP tools) in a later phase.
 
 ## Next steps for the prototype
 

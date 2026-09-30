@@ -2028,7 +2028,7 @@ pay:ChargebackShape a sh:NodeShape ;
     <article style="--c:var(--onto)"><h3>Version both stores together</h3><p>Stamp ontology_version on nodes and documents. New release, new indexes, alias swap. Pair it with a Neptune snapshot so a rollback covers both stores.</p></article>
     <article style="--c:var(--graph)"><h3>Enforce access in layers</h3><p>Neptune has no row-level security. Put the rules in AgentCore Policy at the gateway, give the query role read-only IAM access, and tag OpenSearch documents with a classification the service filters on.</p></article>
     <article style="--c:var(--graph)"><h3>Decide what lives in Neptune</h3><p>Materialize what questions walk through or reason over. Leave high-volume authorizations in the lake, linked by ID, and pull a record in when a dispute touches it.</p></article>
-    <article style="--c:var(--query)"><h3>Make long waits survive crashes</h3><p>LangGraph checkpoints save state, but a run lives in one process. For reviews that wait days, run the pipeline on durable execution, such as Temporal’s LangGraph plugin, now in preview.</p></article>
+    <article style="--c:var(--query)"><h3>Make long waits survive crashes</h3><p>LangGraph checkpoints save state, but a run lives in one process. Run the pipeline on Lambda durable functions instead: each step is checkpointed and retried, and a wait for a reviewer can last up to a year at no compute cost.</p></article>
     <article style="--c:var(--graph)"><h3>Own the graph instead of using managed GraphRAG</h3><p>Bedrock Knowledge Bases GraphRAG builds its own graph in Neptune Analytics with its own entity extraction. Because your ontology is the product, you build and govern the graph; bring in Neptune Analytics later for algorithms.</p></article>
   </div>
 </section>
@@ -2155,7 +2155,7 @@ pay:ChargebackShape a sh:NodeShape ;
       { title:'Collect sources', nodes:['repos','events','docs','extract'], hops:[['i1','i2','i3']],
         text:'Code is parsed with tree-sitter: entities, enums, state machines, OpenAPI and Avro. Payment events are mapped deterministically, with no LLM involved. Documents are split into chunks.' },
       { title:'Extract with Claude', nodes:['extract','bedrock'], hops:[['i4'],['-i4']],
-        text:'For code and documents, Claude on Bedrock extracts entities and relationships constrained to the generated schema, and the embedding model embeds each chunk. Low-confidence results pause for human review in LangGraph.' },
+        text:'For code and documents, Claude on Bedrock extracts entities and relationships constrained to the generated schema, and the embedding model embeds each chunk. Low-confidence results wait for human review, in a durable function that survives restarts.' },
       { title:'Write the graph', nodes:['extract','stage','neptune'], hops:[['i8','i5'],['i6']],
         text:'Everyday writes use openCypher MERGE on deterministic IDs, so a rerun never duplicates anything. First loads and backfills go through S3 and the Neptune bulk loader.' },
       { title:'Store chunk text in OpenSearch', nodes:['extract','opensearch','neptune'], hops:[['i7']],
@@ -2204,7 +2204,7 @@ pay:ChargebackShape a sh:NodeShape ;
     docs:{ title:'Documents', what:'Network rules, reason code guides, dispute runbooks and internal specs.',
       holds:['Chunks that keep their section headings','Links from each chunk to the entities it mentions'],
       watch:'Set an access classification on every chunk at ingest. Adding it later means re-reading every document.' },
-    extract:{ title:'Extraction pipeline', holdsLabel:'Two jobs', what:'LangGraph on Fargate: fan-out per source, retries, checkpoints in Aurora PostgreSQL, and human review through interrupt() for low-confidence results. The Claude Agent SDK handles open-ended work on one repository inside a single node.',
+    extract:{ title:'Extraction pipeline', holdsLabel:'Two jobs', what:'Lambda durable functions: fan-out per source batch, steps that are checkpointed and retried, and a callback wait for human review of low-confidence results. Claude\'s mapping can run in LangGraph inside a step. Open-ended work on one repository, with the Claude Agent SDK, runs as a Fargate task the function waits on.',
       holds:['Main job: fill Neptune and OpenSearch with data validated against the generated schema','Side job: open a pull request when code shows something the ontology lacks','Never writes the ontology itself'],
       watch:'Make every write idempotent with deterministic IDs, so a retry or a rerun changes nothing.' },
     stage:{ title:'Staging bucket', what:'S3 staging for the Neptune bulk loader, in the openCypher CSV format with :ID, :LABEL, :START_ID, :END_ID, :TYPE and typed property columns.',

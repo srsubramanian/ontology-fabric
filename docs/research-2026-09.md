@@ -51,7 +51,10 @@ What changed around this build, and what the pages rely on. Every finding below 
 
 - **AWS Labs' BYOKG-RAG** answers questions over a graph you bring. It combines four retrieval strategies (agentic, scoring-based, path-based, query-based), supports Neptune Database and Analytics with OpenSearch or S3 Vectors, and is Apache 2.0 licensed. https://github.com/awslabs/graphrag-toolkit
 - **Bedrock Knowledge Bases GraphRAG** still builds its own graph, in Neptune Analytics, from the documents you upload to S3, so it doesn't fit an ontology we own. https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-build-graphs-build.html
-- **Durable execution**: Temporal's LangGraph plugin for Python entered public preview on 16 July 2026. https://temporal.io/blog/temporal-langgraph-plugin-durable-execution
+- **Durable execution** (checked 30 September 2026):
+  - Lambda durable functions run for up to one year. Steps are checkpointed and retried; after an interruption the code replays from the start and skips finished steps. Waits and callbacks suspend without compute charges, which suits human review. SDKs for Python, JavaScript, TypeScript and Java. https://docs.aws.amazon.com/lambda/latest/dg/durable-functions.html
+  - Temporal's LangGraph plugin for Python is still in public preview (announced 16 July 2026), and experimental in the Temporal Python SDK. https://temporal.io/blog/temporal-langgraph-plugin-durable-execution and https://docs.temporal.io/develop/python/integrations/langgraph
+  - LangGraph's `interrupt()` pauses a run on its checkpointer, and a `Command(resume=...)` on the same thread ID continues it. Nothing re-drives a run a crash left mid-step. https://docs.langchain.com/oss/python/langgraph/interrupts
 
 ## Standards and payments
 

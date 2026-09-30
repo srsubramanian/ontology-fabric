@@ -63,7 +63,7 @@ Settled unless a later entry says otherwise. Newest changes are at the bottom of
 ## Extraction pipeline
 
 19. **How code becomes ontology proposals:** tree-sitter extracts facts, Claude maps them to the ontology with a confidence score, and anything under 0.9 goes to a person. Gaps become ontology pull requests.
-20. **Reviews can wait for days, so runs must survive restarts.** Which durable execution engine to use is still open (see `open-questions.md`).
+20. **Reviews can wait for days, so runs must survive restarts.** The pipeline runs on Lambda durable functions: each step is checkpointed and retried, a crash replays past finished steps, and a reviewer's decision arrives as a callback the run waits on, up to a year, at no compute cost. Claude's mapping can use LangGraph inside a step. Each invocation keeps Lambda's 15-minute limit, so sources are split into batches, and long agent work on one repository runs as a Fargate task the function waits on.
 
 ## The pages
 
