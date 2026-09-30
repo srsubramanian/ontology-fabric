@@ -6,6 +6,7 @@ import { anim, dl, drawIn, hideAll, wait } from '../shared/anim';
 import payments from '../../../../ontology/payments.yaml?raw';
 import { linesHtml } from '../shared/lines';
 import { Keys, Stepper } from '../shared/Stepper';
+import { Block } from '../shared/Block';
 
 // Deep dive: the building blocks, followed through one payment (Maya's order at Harbor Grill).
 
@@ -307,7 +308,7 @@ export function BuildingBlocks() {
   };
 
   return (
-    <section className="block dd" id="dd1" aria-labelledby="dd1h" ref={root}>
+    <Block className="block dd" id="dd1" aria-labelledby="dd1h" ref={root}>
       <h3 className="sech" id="dd1h">Deep dive: the building blocks, through one payment</h3>
       <p className="intro">One small story, followed through each tool in the ontology toolkit: what OWL, Turtle, Git and SHACL each do, and how the same idea turns up in Neptune and OpenSearch.</p>
       <Stepper id="ddsteps" label="Deep dive steps" titles={STEPS.map((x) => x.t)} cur={cur} onPick={(n) => show(n)} />
@@ -459,7 +460,7 @@ export function BuildingBlocks() {
 
         </div>
       </div>
-    </section>
+    </Block>
   );
 }
 

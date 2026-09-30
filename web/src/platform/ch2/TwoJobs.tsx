@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { rounded } from '../../kit/svg';
 import { anim, packet, wait } from '../shared/anim';
+import { Block } from '../shared/Block';
 
 // One pipeline, two jobs: it fills the graph, and now and then it proposes an ontology change
 // that a person reviews. Then three reasons a person has to review it.
@@ -82,7 +83,7 @@ export function TwoJobs() {
   }, { amount: 0.4 }), []);
 
   return (
-    <section className="block" id="evolve" aria-labelledby="evh">
+    <Block className="block" id="evolve" aria-labelledby="evh">
       <h3 className="sech" id="evh">One pipeline, two jobs</h3>
       <p className="intro">The extraction pipeline has one main job and one side job. It never writes the ontology itself.</p>
       <div className="diagram-wrap">
@@ -116,6 +117,6 @@ export function TwoJobs() {
         <div className="why"><div className="wv"><code className="al">entities</code><span className="q">→</span><code className="tgt" id="aliasTgt">{alias}</code></div><h4>Releases rebuild indexes</h4><p>Each version means new indexes and an alias swap.</p></div>
       </div>
       <p className="note">One exception: before v1 exists, the pipeline runs once to build the term inventory in step 2 above.</p>
-    </section>
+    </Block>
   );
 }

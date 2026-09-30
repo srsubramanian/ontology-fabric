@@ -3,6 +3,7 @@ import { reduce } from '../../kit/motion';
 import { anim, dl } from '../shared/anim';
 import { highlightLines } from '../shared/lines';
 import { FOLLOW, WCODE } from './walk-data';
+import { Block } from '../shared/Block';
 
 // One question, end to end: what each part of the system does, step by step, with the code
 // or data it handles and an optional tour of that code.
@@ -68,7 +69,7 @@ export function OneQuestion() {
 
   const w = WALK[cur];
   return (
-    <section className="block" aria-labelledby="walkh" ref={root}>
+    <Block className="block" aria-labelledby="walkh" ref={root}>
       <h3 className="sech" id="walkh">One question, end to end</h3>
       <p className="intro">A dispute analyst's agent asks: which merchants had the most 10.4 chargebacks last month, and what do the network rules say about 10.4? Step through what each part of the system does.</p>
       <div className="walk">
@@ -86,6 +87,6 @@ export function OneQuestion() {
           <div className="frow"><button type="button" className="vbtn" id="followBtn" onClick={follow}>{following ? 'Stop' : 'Follow along'}</button><p className="fcap" id="fcap" aria-live="polite" ref={capEl}>{cap}</p></div>
         </div>
       </div>
-    </section>
+    </Block>
   );
 }

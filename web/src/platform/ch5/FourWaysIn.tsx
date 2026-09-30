@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { reduce } from '../../kit/motion';
 import { rounded } from '../../kit/svg';
 import { anim, tween } from '../shared/anim';
+import { Block } from '../shared/Block';
 
 // Four ways in: agents and analysts through the retrieval service, engineers straight to the
 // graph, other teams through the published ontology.
@@ -48,7 +49,7 @@ export function FourWaysIn() {
   }, { amount: 0.45 }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <section className="block" id="users" aria-labelledby="usersh">
+    <Block className="block" id="users" aria-labelledby="usersh">
       <h3 className="sech" id="usersh">Four ways in</h3>
       <p className="intro">Everyone reaches the same knowledge, just not the same way. Agents and analysts go through the retrieval service, engineers explore the graph directly, and other teams consume the published ontology.</p>
       <div className="diagram-wrap"><svg id="usesvg" className="loopsvg" ref={svg} viewBox="0 0 960 330" role="img" aria-label="Agents and the analyst UI reach Neptune and OpenSearch through the retrieval service; engineers use Graph Explorer; other teams use the published ontology">
@@ -74,6 +75,6 @@ export function FourWaysIn() {
         <div><b>G.V()</b><span>Developers writing Cypher every day. A paid query IDE with graph views.</span></div>
         <div><b>Linkurious Enterprise</b><span>Investigations at scale. Paid, and it brings its own access rules: a second policy to maintain.</span></div>
       </div>
-    </section>
+    </Block>
   );
 }

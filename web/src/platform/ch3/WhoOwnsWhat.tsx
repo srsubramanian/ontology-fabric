@@ -1,9 +1,10 @@
 import type { CSSProperties } from 'react';
+import { Block } from '../shared/Block';
 
 /** Who owns what: Neptune holds what is true, OpenSearch finds where to start, one ID joins them. */
 export function WhoOwnsWhat() {
   return (
-    <section className="block" aria-labelledby="own">
+    <Block className="block" aria-labelledby="own">
       <h3 className="sech" id="own">Who owns what</h3>
       <p className="intro">Most of the design follows from one split. Neptune is the system of record for payment facts and how they connect. OpenSearch is a derived index that turns words and meaning into Neptune IDs.</p>
       <div className="split">
@@ -35,6 +36,6 @@ export function WhoOwnsWhat() {
         </div>
       </div>
       <p className="rule">If OpenSearch disappeared tomorrow, you could rebuild it from Neptune and the source documents in S3. Never let the reverse become true.</p>
-    </section>
+    </Block>
   );
 }

@@ -8,6 +8,7 @@ import { model } from '../../explorer/data';
 import { linesHtml } from '../shared/lines';
 import { Ownership } from './Ownership';
 import { Keys, Stepper } from '../shared/Stepper';
+import { Block } from '../shared/Block';
 
 // How version 1 gets made, standards first (decision 9): the overview map, one panel per step,
 // then who owns it and how it's authored.
@@ -362,7 +363,7 @@ export function Version1() {
   );
 
   return (
-    <section className="block" id="v1" aria-labelledby="v1h" ref={root}>
+    <Block className="block" id="v1" aria-labelledby="v1h" ref={root}>
       <h3 className="sech" id="v1h">How version 1 gets made</h3>
       <p className="intro">Questions and standards from the top, evidence from the code below. They meet in a small core that you prove with real data before tagging 1.0.</p>
       <div className="diagram-wrap">
@@ -576,7 +577,7 @@ export function Version1() {
           <a className="chlink" href="#authh">See both side by side</a>
         </div>
       </div>
-    </section>
+    </Block>
   );
 }
 

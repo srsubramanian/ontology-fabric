@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { Block } from '../shared/Block';
 
 /** Decisions that are cheap to settle now and expensive to change once data is loaded. */
 const DECISIONS: [c: string, title: string, text: string][] = [
@@ -14,12 +15,12 @@ const DECISIONS: [c: string, title: string, text: string][] = [
 
 export function DecideEarly() {
   return (
-    <section className="block" aria-labelledby="dech">
+    <Block className="block" aria-labelledby="dech">
       <h3 className="sech" id="dech">Decide these early</h3>
       <p className="intro">Each of these is cheap to settle now and expensive to change after data is loaded.</p>
       <div className="decide">
         {DECISIONS.map(([c, title, text]) => <article key={title} style={{ '--c': c } as CSSProperties}><h3>{title}</h3><p>{text}</p></article>)}
       </div>
-    </section>
+    </Block>
   );
 }

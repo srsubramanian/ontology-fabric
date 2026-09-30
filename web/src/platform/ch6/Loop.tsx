@@ -4,6 +4,7 @@ import { flushSync } from 'react-dom';
 import { reduce } from '../../kit/motion';
 import { rounded } from '../../kit/svg';
 import { anim, tween } from '../shared/anim';
+import { Block } from '../shared/Block';
 
 // A continuous loop: signals become proposals, automated checks run, the diff picks a lane,
 // and a release train ships it. Send a change through and watch its pull request.
@@ -196,7 +197,7 @@ export function Loop() {
   }, { amount: 0.4 }), []);
 
   return (
-    <section className="block" id="loopsec" aria-labelledby="loop">
+    <Block className="block" id="loopsec" aria-labelledby="loop">
       <h3 className="sech" id="loop">A continuous loop</h3>
       <p className="intro">Machines detect, draft, test and release. People decide only where meaning changes, and the diff decides which lane a change takes. Send a change through.</p>
       <div className="scen" id="scen" role="group" aria-label="Example changes">
@@ -270,6 +271,6 @@ export function Loop() {
           <p className="note">Illustrative trends from a healthy loop.</p>
         </div>
       </div>
-    </section>
+    </Block>
   );
 }

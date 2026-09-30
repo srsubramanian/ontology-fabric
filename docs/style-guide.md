@@ -2,7 +2,7 @@
 
 ## Visual
 
-- **Diagrams are custom, hand-drawn SVG, animated with Motion 13.4.4.** Pages in `web/` use `motion/react` from npm; the platform page's original scripts get the same npm build as `window.Motion` (`web/src/platform/globals.ts`). Don't use Mermaid or ELK layouts; the owner tried and rejected both.
+- **Diagrams are custom, hand-drawn SVG, animated with Motion 13.4.4.** Pages in `web/` use `motion/react` from npm. Don't use Mermaid or ELK layouts; the owner tried and rejected both.
 - **Code uses Prism 1.30.0 components** in manual mode: from npm through `web/src/kit/prism.ts`. Custom grammars already defined there include `opensearch`, `mcphttp`, `walktext`, `tsq`, `tree`, `cli`, `cedar`, `diffx` and `csvx`. Reuse them before writing new ones.
 - **Fonts:** Schibsted Grotesk for text, JetBrains Mono for code and IDs.
 - **Colours carry meaning.** Keep them consistent:
