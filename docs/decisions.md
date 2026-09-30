@@ -51,7 +51,7 @@ Settled unless a later entry says otherwise. Newest changes are at the bottom of
 
 ## Agents and access
 
-17. **MCP follows the 2026-07-28 spec:** stateless calls, `Mcp-Method` and `Mcp-Name` headers, `_meta`, and structured results. Agents never get a raw Cypher tool. A2A handles agent-to-agent work.
+17. **MCP follows the 2026-07-28 spec:** stateless calls, `Mcp-Method` and `Mcp-Name` headers, `_meta`, and structured results. Agents never get a raw Cypher tool. A2A handles agent-to-agent work. Version 1 is read-only. Actions come in a later phase, once retrieval proves out: action types defined in the ontology and generated into MCP tools, such as `open_representment` taking a `Chargeback` and its `Document`s. Each calls the owning system's API, never a Neptune write, behind a Cedar permit and human approval; the change reaches the graph through the normal loads.
 18. **Access is enforced in layers:**
     - AgentCore Gateway checks identity.
     - AgentCore Policy (Cedar) is default deny, and a forbid rule beats any permit.

@@ -9,7 +9,6 @@
    - the two coverage numbers.
 
    While there, bring chapter 1's building-blocks deep dive in line with decision 6: its "Four forms" step still says only the Turtle and SHACL are written by hand, where with LinkML only the YAML is.
-2. **Decide whether to add the ontology's "actions"** (binding ontology terms to MCP tools) in a later phase.
 
 ## Next steps for the prototype
 
@@ -20,6 +19,7 @@ Follow the build order in Chapter 7 of `site/platform.html`, with the changes re
 3. **Search.** Build the three indexes behind aliases, with hybrid search and the ID join.
 4. **Retrieval and agents.** Start from BYOKG-RAG, put the tools behind AgentCore Gateway and Policy, and add the Snowflake lane: VAMP-style metric templates first, then Cortex Analyst behind the validator for questions no template fits (decision 5).
 5. **The change loop.** Set up the proposal bot, the three review lanes and release trains.
+6. **Actions, later.** Once retrieval proves out, add action types to the ontology and generate them into MCP tools that call the owning systems (decision 17).
 
 ## Backlog for the pages
 
