@@ -30,5 +30,4 @@ Follow the build order in Chapter 7 of `site/platform.html`, with the changes re
 
 ## Housekeeping
 
-- The published copies of the platform and retrieval pages on claude.ai predate the React port and don't link to the class explorer. Republish them from `main`, keeping their URLs.
 - If the repository becomes public: the earlier "About the owner" text is still in git history, and "13 teams" appears in `site/platform.html` and `docs/handoff.md`.
