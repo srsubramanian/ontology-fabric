@@ -2,6 +2,9 @@
 
 - Every competency question walks relationships the schema really has.
 - Every concrete class has the annotations the class explorer reads.
+- The class explorer (web/src/explorer/model.ts) reads every class the way LinkML's
+  SchemaView does: the same label chain and the same inherited slots. Needs Node 22.6
+  or later and `npm install` in web/; skipped, with a note, without them.
 - Coverage, the two numbers from decision 9: questions the schema answers,
   and classes mapped to a standard concept.
 
@@ -10,7 +13,10 @@ Usage:
     linkml-lint --config ontology/.linkmllint.yaml ontology/payments.yaml
     python tools/check_ontology.py
 """
+import json
 import pathlib
+import shutil
+import subprocess
 import sys
 
 import yaml
@@ -25,6 +31,31 @@ STORES = {"neptune", "snowflake"}
 def annotation(cls, key):
     a = cls.annotations.get(key) if cls.annotations else None
     return a.value if a is not None else None
+
+
+def check_explorer(sv, classes, problems):
+    """Compare the explorer's TypeScript reading of the schema with LinkML's SchemaView."""
+    if not shutil.which("node") or not (ROOT / "web" / "node_modules" / "yaml").exists():
+        print("explorer check skipped: needs Node 22.6 or later and `npm install` in web/")
+        return
+    run = subprocess.run(
+        ["node", "--experimental-strip-types", "--no-warnings", str(ROOT / "web" / "scripts" / "dump-model.ts")],
+        capture_output=True, text=True)
+    if run.returncode:
+        problems.append("explorer: " + (run.stderr.strip().splitlines() or ["dump-model.ts failed"])[-1])
+        return
+    explorer = json.loads(run.stdout)
+    agree = 0
+    for name in classes:
+        linkml = {"chain": sv.class_ancestors(name),
+                  "slots": sorted([s.name, s.range, bool(s.required), bool(s.multivalued)]
+                                  for s in sv.class_induced_slots(name))}
+        seen = explorer.get(name)
+        if seen and seen["chain"] == linkml["chain"] and sorted(seen["slots"]) == linkml["slots"]:
+            agree += 1
+        else:
+            problems.append(f"explorer: reads {name} differently from LinkML")
+    print(f"class explorer reads classes the way LinkML does: {agree} of {len(classes)}")
 
 
 def main():
@@ -58,6 +89,7 @@ def main():
         if len(problems) > before:
             failing.add(q["id"])
 
+    check_explorer(sv, classes, problems)
     concrete = [c for c in classes.values() if not c.abstract]
     mapped = [c for c in concrete if c.close_mappings]
     print(f"{len(classes)} classes, {len(concrete)} concrete")
