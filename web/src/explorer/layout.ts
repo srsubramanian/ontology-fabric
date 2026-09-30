@@ -53,8 +53,9 @@ type Label = { at?: number; side?: 'left' | 'right' | 'above' };
 /**
  * Where each relationship leaves its class and arrives at its target, as a side and a fraction along it.
  * A relationship open to any class has no target box: it ends in a short stub of the given length and direction.
+ * A relationship from a class to itself is a loop at the top right, or under the class with loop: ['bottom', fraction].
  */
-const PORTS: Record<string, { from: Port; to?: Port; stub?: [number, number]; label?: Label }> = {
+const PORTS: Record<string, { from?: Port; to?: Port; stub?: [number, number]; label?: Label; loop?: Port }> = {
   'Party.acts_as': { from: ['top', 0.21875], to: ['bottom', 0.5] },
   'Merchant.acquired_by': { from: ['bottom', 0.5], to: ['top', 0.5] },
   'Card.held_by': { from: ['left', 0.5], to: ['right', 0.5] },
@@ -66,6 +67,8 @@ const PORTS: Record<string, { from: Port; to?: Port; stub?: [number, number]; la
   'Authorization.with_card': { from: ['bottom', 0.3], to: ['top', 0.3] },
   'Authorization.has_response': { from: ['bottom', 0.85], to: ['top', 0.3], label: { at: 0.62 } },
   'Capture.captures': { from: ['left', 0.5], to: ['right', 0.5] },
+  // Under Authorization, between WITH_CARD and HAS_RESPONSE: above it, FraudReport sits too close.
+  'Authorization.increments': { loop: ['bottom', 0.55] },
   'Authorization.authenticated_by': { from: ['right', 0.85], to: ['left', 0.3], label: { at: 0.2 } },
   'Reversal.reverses': { from: ['left', 0.3], to: ['bottom', 0.95], label: { at: 0.15 } },
   'Settlement.settles': { from: ['bottom', 0.5], to: ['top', 0.5] },
@@ -107,6 +110,14 @@ function arrowhead([x, y]: [number, number], [dx, dy]: [number, number]): string
  */
 export function edgeGeometry(id: string, from: Box, to?: Box): EdgeGeometry {
   if (from === to) {
+    const loop = PORTS[id]?.loop;
+    if (loop?.[0] === 'bottom') {
+      const x1 = from.x + from.w * loop[1] - 14, x2 = x1 + 28, y = from.y + from.h;
+      return {
+        d: `M${x1},${y} C${x1},${y + 26} ${x2},${y + 26} ${x2},${y}`, label: [(x1 + x2) / 2, y + 34], anchor: 'middle',
+        head: arrowhead([x2, y], [0, -1]),
+      };
+    }
     const x1 = from.x + from.w - 42, x2 = from.x + from.w - 14, y = from.y;
     return {
       d: `M${x1},${y} C${x1},${y - 26} ${x2},${y - 26} ${x2},${y}`, label: [(x1 + x2) / 2, y - 32], anchor: 'middle',
@@ -115,6 +126,7 @@ export function edgeGeometry(id: string, from: Box, to?: Box): EdgeGeometry {
   }
   const ports = PORTS[id];
   if (!ports) throw new Error(`No layout for relationship ${id}`);
+  if (!ports.from) throw new Error(`No start port for relationship ${id}`);
   if (!to) {
     if (!ports.stub) throw new Error(`${id} is open to any class, so its layout needs a stub`);
     const [x1, y1] = at(from, ports.from), [x2, y2] = [x1 + ports.stub[0], y1 + ports.stub[1]];

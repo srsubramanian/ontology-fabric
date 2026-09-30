@@ -1,1 +1,1 @@
-:ID,:LABEL,authorized_at:DateTime,amount:Double,currency:String,channel:String,credential:String,token_requestor:String,ontology_version:String
+:ID,:LABEL,authorized_at:DateTime,amount:Double,approved_amount:Double,currency:String,channel:String,authorization_type:String,credential:String,token_requestor:String,initiated_by:String,standing_instruction:String,decided_by:String,ontology_version:String

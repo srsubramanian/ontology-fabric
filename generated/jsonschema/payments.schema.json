@@ -153,6 +153,13 @@
                         "null"
                     ]
                 },
+                "approved_amount": {
+                    "description": "The amount the issuer approved, when less than the amount requested: a partial approval.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
                 "at_merchant": {
                     "description": "Where an authorization was requested.",
                     "type": "string"
@@ -163,6 +170,10 @@
                         "string",
                         "null"
                     ]
+                },
+                "authorization_type": {
+                    "$ref": "#/$defs/AuthorizationType",
+                    "description": "Whether an authorization's amount is final, an estimate, or an increase to an earlier estimate."
                 },
                 "authorized_at": {
                     "description": "When the issuer answered.",
@@ -188,6 +199,10 @@
                         "null"
                     ]
                 },
+                "decided_by": {
+                    "$ref": "#/$defs/Decider",
+                    "description": "Who answered the authorization: the issuer, or stand-in processing answering for an issuer that couldn't."
+                },
                 "from_device": {
                     "description": "The device an authorization came from.",
                     "type": [
@@ -202,6 +217,21 @@
                 "id": {
                     "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
                     "type": "string"
+                },
+                "increments": {
+                    "description": "The earlier authorization an incremental authorization adds to.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "initiated_by": {
+                    "$ref": "#/$defs/Initiator",
+                    "description": "Who started the payment, under the networks' stored-credential rules: the cardholder, or the merchant using a card it keeps on file."
+                },
+                "standing_instruction": {
+                    "$ref": "#/$defs/StandingInstruction",
+                    "description": "The agreement a merchant-initiated payment follows, such as a subscription."
                 },
                 "token_requestor": {
                     "description": "The Token Requestor ID of the wallet or merchant a network token was issued to: 11 digits, assigned under EMVCo's payment tokenisation.",
@@ -224,6 +254,17 @@
             ],
             "title": "Authorization",
             "type": "object"
+        },
+        "AuthorizationType": {
+            "description": "What an authorization's amount means. Visa names estimated and incremental authorizations; Mastercard names preauthorizations, undefined and final authorizations.",
+            "enum": [
+                "final",
+                "estimated",
+                "incremental",
+                "undefined"
+            ],
+            "title": "AuthorizationType",
+            "type": "string"
         },
         "BinRange": {
             "additionalProperties": false,
@@ -475,6 +516,16 @@
                 "wallet_token"
             ],
             "title": "Credential",
+            "type": "string"
+        },
+        "Decider": {
+            "description": "Who answered an authorization.",
+            "enum": [
+                "issuer",
+                "network_stand_in",
+                "processor_stand_in"
+            ],
+            "title": "Decider",
             "type": "string"
         },
         "Device": {
@@ -740,6 +791,15 @@
                 "prepaid"
             ],
             "title": "FundingSource",
+            "type": "string"
+        },
+        "Initiator": {
+            "description": "Who started a payment, under the networks' stored-credential rules.",
+            "enum": [
+                "cardholder",
+                "merchant"
+            ],
+            "title": "Initiator",
             "type": "string"
         },
         "Issuer": {
@@ -1307,6 +1367,16 @@
             "title": "Settlement",
             "type": "object"
         },
+        "StandingInstruction": {
+            "description": "The agreement a merchant-initiated payment follows.",
+            "enum": [
+                "recurring",
+                "installment",
+                "unscheduled"
+            ],
+            "title": "StandingInstruction",
+            "type": "string"
+        },
         "VisaReasonCode": {
             "description": "Visa dispute reason codes. Each is loaded as a ReasonCode node.",
             "enum": [
@@ -1323,5 +1393,5 @@
     "metamodel_version": "1.11.0",
     "title": "payments",
     "type": "object",
-    "version": "1.9.0"
+    "version": "1.10.0"
 }

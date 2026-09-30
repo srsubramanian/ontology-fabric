@@ -834,9 +834,21 @@ questions:
   - id: CQ-58
     domain: authorization
     question: Which hotel and car rental authorizations were incremental or estimated?
+    walks: [Authorization.at_merchant, Authorization.increments]
     answered_in: snowflake
-    gap: >-
-      An authorization has no type, such as initial, incremental, estimated or final.
+    query: |
+      SELECT e.authorization_id AS estimated, m.name, m.mcc, e.amount AS estimated_amount,
+             COUNT(i.authorization_id) AS increments,
+             e.amount + COALESCE(SUM(i.amount), 0) AS total_authorized
+      FROM fct_authorization e
+      JOIN dim_merchant m ON m.merchant_id = e.merchant_id                              -- Authorization.at_merchant
+      LEFT JOIN fct_authorization i ON i.increments_authorization_id = e.authorization_id  -- Authorization.increments
+      WHERE e.authorization_type = 'estimated'
+        AND m.mcc IN ('7011', '7512')   -- hotels and car rental (ISO 18245)
+        AND e.authorized_at >= DATEADD('day', -30, CURRENT_DATE)
+      GROUP BY 1, 2, 3, 4
+      ORDER BY increments DESC
+      LIMIT 100;
 
   - id: CQ-59
     domain: authorization
@@ -858,24 +870,55 @@ questions:
   - id: CQ-60
     domain: authorization
     question: Which recurring payments are failing for this merchant?
+    walks: [Authorization.at_merchant, Authorization.has_response]
     answered_in: snowflake
-    gap: >-
-      An authorization has no recurring or stored-credential indicator.
+    query: |
+      SELECT a.card_id, COUNT(*) AS attempts,
+             COUNT_IF(a.response_code <> '00') AS declined,   -- Authorization.has_response
+             MAX(a.authorized_at) AS last_attempt
+      FROM fct_authorization a
+      JOIN dim_merchant m ON m.merchant_id = a.merchant_id   -- Authorization.at_merchant
+      WHERE m.merchant_id = :merchant_id
+        AND a.initiated_by = 'merchant' AND a.standing_instruction = 'recurring'
+        AND a.authorized_at >= DATEADD('day', -90, CURRENT_DATE)
+      GROUP BY 1
+      HAVING declined > 0
+      ORDER BY declined DESC
+      LIMIT 100;
 
   - id: CQ-61
     domain: authorization
     question: Which authorizations were only partly approved?
+    walks: [Authorization.at_merchant, Authorization.has_response]
     answered_in: snowflake
-    gap: >-
-      An authorization has one amount, so an approved amount can't be told from the requested
-      one.
+    query: |
+      SELECT a.authorization_id, m.merchant_id, m.name,
+             a.amount AS requested, a.approved_amount, a.currency
+      FROM fct_authorization a
+      JOIN dim_merchant m ON m.merchant_id = a.merchant_id   -- Authorization.at_merchant
+      WHERE a.response_code = '10'                            -- Authorization.has_response
+        AND a.authorized_at >= DATEADD('day', -30, CURRENT_DATE)
+      ORDER BY a.amount - a.approved_amount DESC
+      LIMIT 100;
 
   - id: CQ-62
     domain: authorization
     question: Which authorizations did the network approve in stand-in while the issuer was down?
+    walks: [Authorization.with_card, Card.in_bin_range, BinRange.assigned_to, Authorization.has_response]
     answered_in: snowflake
-    gap: >-
-      Nothing records who made the decision: the issuer, the network's stand-in or a processor.
+    query: |
+      SELECT i.issuer_id, i.name, DATE_TRUNC('hour', a.authorized_at) AS hour,
+             COUNT(*) AS stand_in_approvals, SUM(a.amount) AS amount
+      FROM fct_authorization a
+      JOIN dim_card c ON c.card_id = a.card_id                -- Authorization.with_card
+      JOIN dim_bin_range b ON b.bin_id = c.bin_id             -- Card.in_bin_range
+      JOIN dim_issuer i ON i.issuer_id = b.issuer_id          -- BinRange.assigned_to
+      WHERE a.decided_by = 'network_stand_in'
+        AND a.response_code = '00'                            -- Authorization.has_response
+        AND a.authorized_at >= DATEADD('day', -7, CURRENT_DATE)
+      GROUP BY 1, 2, 3
+      ORDER BY stand_in_approvals DESC
+      LIMIT 100;
 
   # ---------- Settlement ----------
 

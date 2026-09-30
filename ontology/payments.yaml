@@ -26,7 +26,7 @@
 id: https://ontology.example.com/payments
 name: payments
 title: Payments ontology (illustrative draft)
-version: 1.9.0
+version: 1.10.0
 prefixes:
   pay: https://ontology.example.com/payments/
   linkml: https://w3id.org/linkml/
@@ -195,7 +195,9 @@ classes:
     description: The issuer's approval or decline of a payment request.
     aliases: [auth, approval]
     close_mappings: [iso20022:cain.001.001.05]
-    slots: [authorized_at, amount, currency, channel, credential, token_requestor, at_merchant, with_card, from_device, has_response, authenticated_by]
+    slots: [authorized_at, amount, approved_amount, currency, channel, authorization_type, credential, token_requestor,
+            initiated_by, standing_instruction, decided_by, at_merchant, with_card, from_device, has_response,
+            authenticated_by, increments]
     slot_usage:
       at_merchant:
         required: true
@@ -522,6 +524,27 @@ slots:
   channel:
     description: Whether the card was present.
     range: Channel
+  approved_amount:
+    description: >-
+      The amount the issuer approved, when less than the amount requested: a
+      partial approval.
+    range: decimal
+  authorization_type:
+    description: Whether an authorization's amount is final, an estimate, or an increase to an earlier estimate.
+    range: AuthorizationType
+  initiated_by:
+    description: >-
+      Who started the payment, under the networks' stored-credential rules:
+      the cardholder, or the merchant using a card it keeps on file.
+    range: Initiator
+  standing_instruction:
+    description: The agreement a merchant-initiated payment follows, such as a subscription.
+    range: StandingInstruction
+  decided_by:
+    description: >-
+      Who answered the authorization: the issuer, or stand-in processing
+      answering for an issuer that couldn't.
+    range: Decider
   credential:
     description: What stood in for the card number in an authorization.
     range: Credential
@@ -627,6 +650,9 @@ slots:
   authenticated_by:
     description: The authentication an authorization relied on.
     range: Authentication
+  increments:
+    description: The earlier authorization an incremental authorization adds to.
+    range: Authorization
   reverses:
     description: The authorization a reversal cancels.
     range: Authorization
@@ -683,6 +709,51 @@ enums:
     permissible_values:
       card_present:
       card_not_present:
+
+  AuthorizationType:
+    description: >-
+      What an authorization's amount means. Visa names estimated and
+      incremental authorizations; Mastercard names preauthorizations,
+      undefined and final authorizations.
+    permissible_values:
+      final:
+        description: The amount is final, and the payment will be captured for it.
+      estimated:
+        description: >-
+          The final amount isn't known yet, such as at a hotel or car rental.
+          Mastercard calls it a preauthorization.
+      incremental:
+        description: An increase to an earlier estimated authorization.
+      undefined:
+        description: Neither final nor an estimate, in Mastercard's terms.
+
+  Initiator:
+    description: Who started a payment, under the networks' stored-credential rules.
+    permissible_values:
+      cardholder:
+        description: The cardholder took part, such as at a checkout.
+      merchant:
+        description: The merchant charged a card it keeps on file, under an agreement with the cardholder.
+
+  StandingInstruction:
+    description: The agreement a merchant-initiated payment follows.
+    permissible_values:
+      recurring:
+        description: Regular charges, such as a subscription.
+      installment:
+        description: A set number of payments for one purchase.
+      unscheduled:
+        description: Charges at no fixed time, such as a top-up when a balance runs low.
+
+  Decider:
+    description: Who answered an authorization.
+    permissible_values:
+      issuer:
+        description: The issuer, or its processor, decided.
+      network_stand_in:
+        description: The network's stand-in processing answered for the issuer, such as Visa's STIP.
+      processor_stand_in:
+        description: The issuer's processor answered with its own stand-in rules.
 
   Credential:
     description: What stood in for the card number in an authorization.
