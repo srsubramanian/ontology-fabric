@@ -31,17 +31,6 @@
     }, 0.3);
   }
 
-  // ---------- Chapter 3: storage tiers ----------
-  const tiers = document.getElementById('tiers');
-  if (tiers){
-    onView(tiers, () => {
-      tiers.querySelectorAll('.mtrack i').forEach((b, i) => {
-        if (!M || reduce){ b.style.width = b.dataset.w + '%'; return; }
-        anim(b, { width:['0%', b.dataset.w + '%'] }, { duration:0.8, delay:0.1 + i * 0.12, ease:[0.22,1,0.36,1] });
-      });
-    }, 0.4);
-  }
-
   // ---------- Chapter 7: watch list ----------
   const wtl = document.getElementById('wtl');
   if (wtl){
