@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { animate } from 'motion/react';
 import { reduce } from '../../kit/motion';
+import { appOf, isShowing } from '../../kit/route';
 import { chapter1 } from '../ch1/Chapter1';
 import { chapter2 } from '../ch2/Chapter2';
 import { chapter3 } from '../ch3/Chapter3';
@@ -16,8 +18,8 @@ import { ProgressProvider, useProgress } from './progress';
 import { Toc } from './Toc';
 
 // The platform page: the map and your path, then seven chapters, one view at a time.
-// Routes: #map, #chN, #chN:K for a chapter's sub-page, or any element's id, which shows the
-// view (and sub-page) that holds it.
+// Routes: #map, #chN, #chN-K for a chapter's sub-page (#chN:K still works), or any element's
+// id, which shows the view (and sub-page) that holds it. Other apps' routes are left to them.
 
 const CHAPTERS = [chapter1, chapter2, chapter3, chapter4, chapter5, chapter6, chapter7];
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
@@ -46,9 +48,11 @@ function Page() {
   const map = useRef<MapHandle>(null);
 
   const go = (first: boolean) => {
-    const h = decodeURIComponent(location.hash.replace(/^#/, ''));
+    if (appOf(location.hash) !== '') return;
+    let h = location.hash.replace(/^#/, '');
+    try { h = decodeURIComponent(h); } catch { /* keep it as typed */ }
     let view = 0, idx: number | null = null, target: HTMLElement | null = null;
-    const m = h.match(/^(ch\d+)(?::(\d+))?$/);
+    const m = h.match(/^(ch\d+)(?:[:-](\d+))?$/);
     if (m) {
       const ch = document.getElementById(m[1]);
       view = ch && ch.matches('section.chapter') ? Number(ch.dataset.ch) : 0;
@@ -74,7 +78,7 @@ function Page() {
 
   useLayoutEffect(() => {
     go(true);
-    const on = () => go(false);
+    const on = () => flushSync(() => go(false));
     window.addEventListener('hashchange', on);
     return () => window.removeEventListener('hashchange', on);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -101,11 +105,11 @@ function Page() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const r = routeRef.current;
-      if (r.view <= 0 || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if (r.view <= 0 || !isShowing('') || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
       if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || '')) return;
       const cur = r.subs[r.view - 1], count = CHAPTERS[r.view - 1].pages.length + 1;
-      if (e.key === 'ArrowRight' && cur < count - 1) { location.hash = '#ch' + r.view + ':' + (cur + 2); e.preventDefault(); }
-      if (e.key === 'ArrowLeft' && cur > 0) { location.hash = '#ch' + r.view + ':' + cur; e.preventDefault(); }
+      if (e.key === 'ArrowRight' && cur < count - 1) { location.hash = '#ch' + r.view + '-' + (cur + 2); e.preventDefault(); }
+      if (e.key === 'ArrowLeft' && cur > 0) { location.hash = '#ch' + r.view + '-' + cur; e.preventDefault(); }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);

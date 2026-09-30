@@ -6,7 +6,7 @@ None right now. New ones go here.
 
 ## Next steps for the prototype
 
-Follow the build order in Chapter 7 of `site/platform.html`, with the changes recorded in `decisions.md`:
+Follow the build order in chapter 7 of the overview (`site/index.html#ch7`), with the changes recorded in `decisions.md`:
 
 1. **Ontology core.** Build LinkML for 15 to 25 classes, bootstrapped from ISO 20022 card messages, FIBO parties and agreements, and ISO code lists. Add 30 to 50 competency questions per domain as tests, and a generator for Neptune headers and OpenSearch mappings. Start from the draft in `ontology/`: it already passes `linkml-lint`, generates OWL and SHACL, and feeds the class explorer. Only 2 of its 21 concrete classes are mapped to a standard so far; ISO 20022 mappings are still to do. When mapping to FIBO, pin a quarterly release rather than master (decision 9).
 2. **Graph first.** Load one month of disputes and the parties, cards and events they touch. Answer lineage questions by hand in Cypher.
@@ -19,9 +19,9 @@ Follow the build order in Chapter 7 of `site/platform.html`, with the changes re
 
 - Generate the pages in CI from the LinkML source, so they stay in step with each ontology release.
 - Show results in the question tracer. It already steps each competency question's query line by line alongside its walk on the map; once step 2 of the build order loads a sample month, run the queries and show the rows they return, each cited by ID.
-- Candidate separate pages, each linked from its chapter like `retrieval.html`: ontology authoring, the ingestion pipeline, releases and governance.
-- Merge the three pages into one published page, so there's one link to share and cross-links become jumps within it: a top bar (Overview, Retrieval, Explorer), one router with prefixed routes made of letters, digits and hyphens so shared links can deep-link to any view, and each page's styles scoped to it.
-- Fold the Snowflake lane (decision 5) into the platform page. The chapter ports kept its content as it was.
+- Candidate apps for the page, each linked from its chapter the way chapter 4 links to the retrieval walkthrough: ontology authoring, the ingestion pipeline, releases and governance.
+- Fold the Snowflake lane (decision 5) into the overview. The chapter ports kept its content as it was.
+- Move the overview's stylesheet (`platform.css`) onto the shared kit tokens and page styles, the way retrieval and the explorer use them, so the three apps can share one stylesheet.
 
 ## Housekeeping
 

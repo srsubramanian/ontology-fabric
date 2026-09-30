@@ -1,4 +1,4 @@
-# Competency questions: what version 1 must answer (site/platform.html,
+# Competency questions: what version 1 must answer (site/index.html#ch1-2,
 # chapter 1, "Version 1"). Each one becomes a test in CI.
 #
 #   walks        the relationships the question follows, as Class.slot,

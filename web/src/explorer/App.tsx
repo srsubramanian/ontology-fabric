@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { vars } from '../kit/css';
 import { reduce } from '../kit/motion';
-import { useHash } from '../kit/useHash';
+import { hashFor, isShowing, useHash } from '../kit/route';
 import { useReplay } from '../kit/useTimeline';
 import { ClassMap, STORE, type Lens } from './ClassMap';
 import { model } from './data';
@@ -10,7 +10,7 @@ import type { LivesIn } from './model';
 
 const LENSES: [Lens, string][] = [['relationships', 'Relationships'], ['lives', 'Where it lives'], ['owner', 'Who owns it']];
 const OWNERS = [...new Set(Object.values(model.classes).map((c) => c.owner))];
-const go = (target: string) => { location.hash = '#' + target; };
+const go = (target: string) => { location.hash = hashFor('explorer', target); };
 
 /** Classes whose name or aliases contain the query. */
 function search(query: string) {
@@ -37,7 +37,7 @@ function neighbourhood(name: string) {
 }
 
 export function App() {
-  const hash = useHash();
+  const hash = useHash('explorer');
   const selected = Object.hasOwn(model.classes, hash) ? model.classes[hash] : undefined;
   const question = model.questions.find((q) => q.id === hash);
   const [lens, setLens] = useState<Lens>('relationships');
@@ -90,7 +90,7 @@ export function App() {
 
   // Escape clears the search and the selection.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setQuery(''); if (hash) go('map'); } };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && isShowing('explorer')) { setQuery(''); if (hash) go('map'); } };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [hash]);
@@ -108,8 +108,6 @@ export function App() {
           <span><b>{model.relationships.length}</b> relationships</span>
           <span><b>{model.questions.length}</b> competency questions</span>
           <span>version <b>{model.version}</b></span>
-          <a className="vbtn" href="platform.html" target="_blank" rel="noopener">Platform overview</a>
-          <a className="vbtn" href="retrieval.html" target="_blank" rel="noopener">Retrieval walkthrough</a>
         </p>
       </header>
 

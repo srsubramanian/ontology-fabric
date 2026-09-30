@@ -4,6 +4,7 @@ import { vars } from '../kit/css';
 import { reduce, tr } from '../kit/motion';
 import { rounded } from '../kit/svg';
 import { STAGES } from './data';
+import { link } from './link';
 
 const NODES = {
   q: { x: 20, y: 150, w: 140, t: 'Question', s: 'agent or analyst', c: 'var(--muted)', page: 1 },
@@ -132,7 +133,7 @@ export function RetrievalMap({ autoplay }: { autoplay: boolean }) {
           <g>
             {(Object.keys(NODES) as NodeId[]).map((k) => {
               const n = NODES[k];
-              const go = () => { location.hash = '#s' + n.page; };
+              const go = () => { location.hash = link('s' + n.page); };
               const on = pick !== null && litNodes.has(k);
               return (
                 <motion.g
@@ -172,7 +173,7 @@ export function RetrievalMap({ autoplay }: { autoplay: boolean }) {
       <ol className="stages">
         {STAGES.map((s, i) => (
           <li key={s.title}>
-            <a href={'#s' + (i + 1)} style={vars({ '--c': s.color })}>
+            <a href={link('s' + (i + 1))} style={vars({ '--c': s.color })}>
               <span className="n">{i + 1}</span><b>{s.title}</b><span>{s.tag}</span>
             </a>
           </li>

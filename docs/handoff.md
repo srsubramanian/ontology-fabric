@@ -1,16 +1,12 @@
 # Handoff: the story so far
 
-Ontology Fabric is the project name, chosen at the end of the claude.ai conversation. This project started in a claude.ai chat project called "Ontology and RAG" in September 2026. It grew from one question, "how should Neptune and OpenSearch fit together?", into two learning pages and a set of decisions. The published copies on claude.ai are:
+Ontology Fabric is the project name, chosen at the end of the claude.ai conversation. This project started in a claude.ai chat project called "Ontology and RAG" in September 2026. It grew from one question, "how should Neptune and OpenSearch fit together?", into learning pages and a set of decisions. The pages are now one page, published on claude.ai at https://claude.ai/artifact/A5HhgTYfgDiRmbzBhz7gRA, and `site/index.html` is the same file. It holds three apps, switched by a bar at the top: the platform overview, the retrieval walkthrough and the class explorer.
 
-- Platform overview: https://claude.ai/artifact/A5HhgTYfgDiRmbzBhz7gRA
-- Retrieval walkthrough: https://claude.ai/artifact/Sd5jT4CmwRLyvoMY3QUQSk
-- Class explorer: https://claude.ai/artifact/BqDPHaioHftbPxMQobyz74
+The retrieval walkthrough (https://claude.ai/artifact/Sd5jT4CmwRLyvoMY3QUQSk) and the class explorer (https://claude.ai/artifact/BqDPHaioHftbPxMQobyz74) were also published on their own before the merge. Those copies no longer update.
 
-The files in `site/` are the same pages, with the links between them as relative paths. All three were republished from `main` on 30 September 2026; each published copy is the built page with its links to the other two pointed at these URLs.
+## How the page is organised
 
-## How the pages are organised
-
-`site/platform.html` has a map and seven chapters, each split into sub-pages:
+The overview (`#map`) has a map and seven chapters, each split into sub-pages (`#ch3`, `#ch3-2`):
 
 | Chapter | Sub-pages |
 |---|---|
@@ -22,14 +18,16 @@ The files in `site/` are the same pages, with the links between them as relative
 | 6 Keep it current | Versions and alias swaps, The loop, Check yourself |
 | 7 Build it | Build order, Decisions, Watch list, Check yourself |
 
-`site/retrieval.html` has a map with five example questions, and 11 stages that follow one mixed question: "Was Sunset Tickets over Visa's VAMP threshold in August, and what drove it?"
+The retrieval walkthrough (`#retrieval`) has a map with five example questions, and 11 stages (`#retrieval-s1` to `#retrieval-s11`) that follow one mixed question: "Was Sunset Tickets over Visa's VAMP threshold in August, and what drove it?"
 
 - Snowflake computes the ratio.
 - Neptune finds the shared stolen-card pattern.
 - OpenSearch supplies the VAMP rules.
 - Code checks the numbers before anything is answered.
 
-Reading progress on the platform page is stored in the browser under `pkl-progress-v1`.
+The class explorer (`#explorer`) shows the draft ontology: `#explorer-Chargeback` picks a class, and `#explorer-CQ-04` traces a competency question.
+
+Reading progress through the overview's chapters is stored in the browser under `pkl-progress-v1`.
 
 ## How the thinking moved
 
@@ -41,7 +39,8 @@ Reading progress on the platform page is stored in the browser under `pkl-progre
 6. **The standards-first plan.** Bootstrap about 80% of the ontology from ISO 20022 and FIBO, then hand ownership to teams through layers and review windows, so the project isn't blocked waiting on every team. Chapter 1 shows it: standards come first on the version 1 map, two coverage numbers measure the draft, and "Who owns it" shows the core, domain modules and team extensions, with a five-day review window.
 7. **Snowflake joins retrieval** as the warehouse lane, with metrics defined once in the ontology and computed in SQL.
 8. **The pages move to React.** The single-file platform page was getting hard to extend, and the backlog (class explorer, question tracer, pages generated from LinkML) needs components and data. The retrieval page was ported first to `web/`; it still builds into one HTML file, and every view matches the hand-written version pixel for pixel. The platform page followed chapter by chapter, then its shell (map, reading path, router), each ported with every view identical, so it's all React now. Chapter 1 was also made standards-first.
-9. **A class explorer, read from LinkML.** The draft ontology in `ontology/` writes down what the pages already show, and `site/ontology.html` draws it: classes, abstract parents as frames, relationships in their one direction, where each class's data lives, who owns it, and the competency questions it must answer. Pick a question and play its walk: the map adds one relationship at a time, and the query (openCypher for Neptune, SQL for Snowflake) lights the line that walks it.
+9. **A class explorer, read from LinkML.** The draft ontology in `ontology/` writes down what the pages already show, and the class explorer draws it: classes, abstract parents as frames, relationships in their one direction, where each class's data lives, who owns it, and the competency questions it must answer. Pick a question and play its walk: the map adds one relationship at a time, and the query (openCypher for Neptune, SQL for Snowflake) lights the line that walks it.
+10. **One page.** The three pages merged into one, so there's a single link to share and the links between them became jumps within it. A bar switches between the overview, retrieval and the class explorer. Each app keeps exactly its old look, because only the showing app's styles are in the page.
 
 ## Clarifications worth keeping
 
