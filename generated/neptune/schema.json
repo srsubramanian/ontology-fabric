@@ -1,5 +1,5 @@
 {
-  "ontology_version": "1.9.0",
+  "ontology_version": "1.10.0",
   "labels": {
     "Acquirer": [
       "Acquirer",
@@ -195,6 +195,13 @@
       "type": "IN_BIN_RANGE",
       "from": "Card",
       "to": "BinRange",
+      "multivalued": false,
+      "properties": []
+    },
+    {
+      "type": "INCREMENTS",
+      "from": "Authorization",
+      "to": "Authorization",
       "multivalued": false,
       "properties": []
     },

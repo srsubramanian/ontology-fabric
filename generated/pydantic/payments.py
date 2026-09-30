@@ -30,7 +30,7 @@ from pydantic import (
 
 
 metamodel_version = "1.11.0"
-version = "1.9.0"
+version = "1.10.0"
 
 
 class ConfiguredBaseModel(BaseModel):
@@ -114,6 +114,78 @@ class Channel(str, Enum):
     """
     card_present = "card_present"
     card_not_present = "card_not_present"
+
+
+class AuthorizationType(str, Enum):
+    """
+    What an authorization's amount means. Visa names estimated and incremental authorizations; Mastercard names preauthorizations, undefined and final authorizations.
+    """
+    final = "final"
+    """
+    The amount is final, and the payment will be captured for it.
+    """
+    estimated = "estimated"
+    """
+    The final amount isn't known yet, such as at a hotel or car rental. Mastercard calls it a preauthorization.
+    """
+    incremental = "incremental"
+    """
+    An increase to an earlier estimated authorization.
+    """
+    undefined = "undefined"
+    """
+    Neither final nor an estimate, in Mastercard's terms.
+    """
+
+
+class Initiator(str, Enum):
+    """
+    Who started a payment, under the networks' stored-credential rules.
+    """
+    cardholder = "cardholder"
+    """
+    The cardholder took part, such as at a checkout.
+    """
+    merchant = "merchant"
+    """
+    The merchant charged a card it keeps on file, under an agreement with the cardholder.
+    """
+
+
+class StandingInstruction(str, Enum):
+    """
+    The agreement a merchant-initiated payment follows.
+    """
+    recurring = "recurring"
+    """
+    Regular charges, such as a subscription.
+    """
+    installment = "installment"
+    """
+    A set number of payments for one purchase.
+    """
+    unscheduled = "unscheduled"
+    """
+    Charges at no fixed time, such as a top-up when a balance runs low.
+    """
+
+
+class Decider(str, Enum):
+    """
+    Who answered an authorization.
+    """
+    issuer = "issuer"
+    """
+    The issuer, or its processor, decided.
+    """
+    network_stand_in = "network_stand_in"
+    """
+    The network's stand-in processing answered for the issuer, such as Visa's STIP.
+    """
+    processor_stand_in = "processor_stand_in"
+    """
+    The issuer's processor answered with its own stand-in rules.
+    """
 
 
 class Credential(str, Enum):
@@ -606,19 +678,25 @@ class Authorization(PaymentEvent):
                        'Capture',
                        'Refund',
                        'DisputeEvent']} })
+    approved_amount: Optional[Decimal] = Field(default=None, description="""The amount the issuer approved, when less than the amount requested: a partial approval.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization']} })
     currency: Optional[str] = Field(default=None, description="""The transaction currency, as an ISO 4217 alphabetic code such as USD.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization',
                        'Reversal',
                        'Capture',
                        'Refund',
                        'DisputeEvent']} })
     channel: Optional[Channel] = Field(default=None, description="""Whether the card was present.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization']} })
+    authorization_type: Optional[AuthorizationType] = Field(default=None, description="""Whether an authorization's amount is final, an estimate, or an increase to an earlier estimate.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization']} })
     credential: Optional[Credential] = Field(default=None, description="""What stood in for the card number in an authorization.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization']} })
     token_requestor: Optional[str] = Field(default=None, description="""The Token Requestor ID of the wallet or merchant a network token was issued to: 11 digits, assigned under EMVCo's payment tokenisation.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization']} })
+    initiated_by: Optional[Initiator] = Field(default=None, description="""Who started the payment, under the networks' stored-credential rules: the cardholder, or the merchant using a card it keeps on file.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization']} })
+    standing_instruction: Optional[StandingInstruction] = Field(default=None, description="""The agreement a merchant-initiated payment follows, such as a subscription.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization']} })
+    decided_by: Optional[Decider] = Field(default=None, description="""Who answered the authorization: the issuer, or stand-in processing answering for an issuer that couldn't.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization']} })
     at_merchant: str = Field(default=..., description="""Where an authorization was requested.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization']} })
     with_card: str = Field(default=..., description="""The card an authorization used.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization']} })
     from_device: Optional[str] = Field(default=None, description="""The device an authorization came from.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization']} })
     has_response: str = Field(default=..., description="""The issuer's answer to an authorization.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization']} })
     authenticated_by: Optional[str] = Field(default=None, description="""The authentication an authorization relied on.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization']} })
+    increments: Optional[str] = Field(default=None, description="""The earlier authorization an incremental authorization adds to.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Authorization']} })
     id: str = Field(default=..., description="""The one ID used in Neptune, OpenSearch and Snowflake.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Party',
                        'PartyRole',
                        'Card',
