@@ -142,8 +142,6 @@ merchant needs to respond.
   const panels = Array.from(document.querySelectorAll('.wpanel'));
   panels.forEach((p, i) => render(p.querySelector('pre'), WCODE[i]));
 
-  const ttl = document.getElementById('ttl');
-  if (ttl) render(ttl, [{ lang:'turtle', code: ttl.textContent }]);
 
   const code = document.getElementById('wcode'), band = document.getElementById('fband'), fcap = document.getElementById('fcap'), fbtn = document.getElementById('followBtn');
   let run = 0;
