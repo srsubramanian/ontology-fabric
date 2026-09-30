@@ -147,9 +147,11 @@ export function buildModel(schema: RawSchema, questions: RawQuestions): Model {
       const chain = classes[named]?.chain;
       const relationship = chain && relationships.find((r) => r.slot === slot && chain.includes(r.from));
       if (!relationship) throw new Error(`${q.id}: ${walk} is not a relationship in the schema`);
-      // Cypher names the relationship type; SQL marks the line with a comment naming the step.
-      const mark = language === 'sql' ? `-- ${walk}` : `[:${relationship.type}]`;
-      const lines = queryLines.flatMap((line, i) => (line.includes(mark) ? [i] : []));
+      // Cypher names the relationship type, as [:TYPE] or [r:TYPE]; SQL marks the line with a comment naming the step.
+      const walks = language === 'sql'
+        ? (line: string) => line.includes(`-- ${walk}`)
+        : (line: string) => new RegExp(`\\[\\w*:${relationship.type}\\]`).test(line);
+      const lines = queryLines.flatMap((line, i) => (walks(line) ? [i] : []));
       if (!lines.length) throw new Error(`${q.id}: no line of the query walks ${walk}`);
       return { named, relationship, lines };
     });

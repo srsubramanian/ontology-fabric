@@ -38,7 +38,7 @@ def annotation(cls, key):
 
 
 NODE = re.compile(r"(?<![\w.])\((\w*)(?::(\w+))?\s*(?:\{[^}]*\})?\)")
-REL = re.compile(r"(<)?-\[:(\w+)\]-(>)?")
+REL = re.compile(r"(<)?-\[\w*:(\w+)\]-(>)?")
 WRITES = re.compile(r"\b(CREATE|MERGE|DELETE|DETACH|SET|REMOVE|CALL|LOAD\s+CSV|INSERT|UPDATE|DROP|ALTER|TRUNCATE|COPY|GRANT)\b", re.I)
 
 

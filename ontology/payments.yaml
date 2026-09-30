@@ -143,7 +143,7 @@ classes:
 
   Device:
     description: A phone, browser or terminal an authorization came from.
-    slots: [id]
+    slots: [id, seen_at]
     annotations:
       owner: risk
       lives_in: graph
@@ -404,6 +404,14 @@ slots:
   from_device:
     description: The device an authorization came from.
     range: Device
+  seen_at:
+    description: >-
+      A summary edge, rebuilt daily from Snowflake: the device made
+      authorizations at the merchant. It carries auths, first_seen and
+      last_seen, so risk walks don't need every authorization in the graph
+      (decision 2).
+    range: Merchant
+    multivalued: true
   has_response:
     description: The issuer's answer to an authorization.
     range: ResponseCode

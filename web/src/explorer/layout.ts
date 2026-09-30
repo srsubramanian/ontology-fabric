@@ -53,6 +53,7 @@ const PORTS: Record<string, { from: Port; to: Port; label?: Label }> = {
   'BinRange.assigned_to': { from: ['left', 0.5], to: ['right', 0.5] },
   'Authorization.at_merchant': { from: ['left', 0.5], to: ['right', 0.5] },
   'Authorization.from_device': { from: ['left', 0.2], to: ['right', 0.75], label: { side: 'left' } },
+  'Device.seen_at': { from: ['bottom', 0.45], to: ['top', 0.95], label: { side: 'left', at: 0.3 } },
   'Authorization.with_card': { from: ['bottom', 0.3], to: ['top', 0.3] },
   'Authorization.has_response': { from: ['bottom', 0.85], to: ['top', 0.3], label: { at: 0.62 } },
   'Capture.captures': { from: ['left', 0.5], to: ['right', 0.5] },
