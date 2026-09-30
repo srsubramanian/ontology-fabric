@@ -1,0 +1,1204 @@
+<!doctype html>
+<!-- Built from web/src/platform. Edit the source there and run `npm run build` in web/; don't edit site/platform.html by hand. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Neptune + OpenSearch: payments ontology architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+  <marker id="mg-good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,1 L9,5 L0,9 z" style="fill:var(--graph)"/></marker>
+  <marker id="mg-mut" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,1 L9,5 L0,9 z" style="fill:var(--muted)"/></marker>
+  <marker id="mg-onto" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,1 L9,5 L0,9 z" style="fill:var(--onto)"/></marker>
+  <marker id="mg-isa" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1 L11,6 L1,11 z" style="fill:var(--raised);stroke:var(--muted);stroke-width:1.3"/></marker>
+  <marker id="mg-line" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,1 L9,5 L0,9 z" style="fill:var(--line)"/></marker>
+  <marker id="mg-graph8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,1 L9,5 L0,9 z" style="fill:var(--graph)"/></marker>
+</defs></svg>
+<main class="wrap">
+
+<header>
+  <h1>One shared understanding of payments, for people and agents.</h1>
+  <p class="lede">The platform is a payments knowledge layer: an ontology, a graph, a search layer and agents working as one. Start with the map to watch it move, then follow the seven chapters below. Each one lights up its part of the map.</p>
+</header>
+
+<nav class="toc" aria-label="Chapters" id="toc">
+  <a href="#map">Map</a><a href="#ch1"><i class="pdot"></i>1 Ontology</a><a href="#ch2"><i class="pdot"></i>2 Ingest</a><a href="#ch3"><i class="pdot"></i>3 Stores</a><a href="#ch4"><i class="pdot"></i>4 Retrieval</a><a href="#ch5"><i class="pdot"></i>5 Users</a><a href="#ch6"><i class="pdot"></i>6 Evolve</a><a href="#ch7"><i class="pdot"></i>7 Build</a>
+</nav>
+
+<div class="view" id="home">
+<section id="map" aria-label="System map">
+<div class="controls">
+  <div class="flows" role="group" aria-label="Choose a flow" id="flows"></div>
+  <div class="player">
+    <button id="prev" type="button" aria-label="Previous step">Previous</button>
+    <button id="play" type="button">Play flow</button>
+    <button id="next" type="button" aria-label="Next step">Next</button>
+  </div>
+</div>
+
+<div class="diagram-wrap">
+  <svg id="dia" viewBox="0 0 1100 530" role="img" aria-labelledby="diaTitle">
+    <title id="diaTitle">Architecture: ontology source and generator, extraction pipeline, Neptune Database, stream poller, OpenSearch, Bedrock, retrieval service and consumers</title>
+    <defs>
+      <marker id="arr-idle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,1 L9,5 L0,9 z" style="fill:var(--line)"/></marker>
+      <marker id="arr-on" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,1 L9,5 L0,9 z" style="fill:var(--flow)"/></marker>
+    </defs>
+    <rect class="band" x="455" y="148" width="186" height="344" rx="12"/>
+    <g id="edges"></g>
+    <g id="nodes"></g>
+    <g class="gate" aria-hidden="true"><rect x="178" y="133" width="14" height="14" transform="rotate(45 185 140)"/><text x="185" y="126">review</text></g>
+    <g id="packets" aria-hidden="true"></g>
+    <g aria-hidden="true">
+      <text class="colhead" x="105" y="516">Sources</text>
+      <text class="colhead" x="325" y="516">Build and ingest</text>
+      <text class="colhead" x="548" y="516">Stores</text>
+      <text class="colhead" x="765" y="516">Models and serving</text>
+      <text class="colhead" x="985" y="516">Consumers</text>
+    </g>
+  </svg>
+</div>
+<p class="scroll-hint">Scroll sideways to see the whole diagram.</p>
+<div class="legend">
+  <span style="--c:var(--onto)"><i></i>Ontology</span>
+  <span style="--c:var(--graph)"><i></i>Neptune graph</span>
+  <span style="--c:var(--search)"><i></i>OpenSearch</span>
+  <span style="--c:var(--query)"><i></i>Retrieval</span>
+</div>
+
+<section class="stage" aria-live="polite">
+  <div class="narr" id="narr"></div>
+  <ol class="steps" id="steps" aria-label="Steps in this flow"></ol>
+</section>
+
+</section>
+
+<section class="pathsec" id="path" aria-labelledby="pathh">
+  <div class="pathhead"><div><h2 id="pathh">Your path through the platform</h2><p class="intro">Seven chapters, one part of the platform each. Your progress is saved in this browser.</p></div><button type="button" class="vbtn go" id="resume">Start chapter 1</button></div>
+  <ol class="pathlist" id="pathlist"></ol>
+</section>
+
+</div>
+
+<section class="chapter" id="ch1" data-ch="1" style="--c:var(--onto)" aria-labelledby="ch1h">
+  <header class="chhead">
+    <div class="chn" aria-hidden="true">1</div>
+    <div><h2 id="ch1h">Design the ontology</h2><p class="chidea">The ontology is the product: one shared definition of payment concepts that everything else is generated from.</p><div class="chacts"><button type="button" class="vbtn watch" data-flow="design">Watch it on the map</button><a class="vbtn go" href="ontology.html" target="_blank" rel="noopener">Open the class explorer</a></div></div>
+    <figure class="minibox"><svg class="mini" data-ch="1" viewBox="10 26 1070 464" role="img" aria-label="Where chapter 1 sits in the platform"></svg><figcaption>Where this sits in the platform</figcaption></figure>
+  </header>
+<section class="block dd" id="dd1" aria-labelledby="dd1h">
+  <h3 class="sech" id="dd1h">Deep dive: the building blocks, through one payment</h3>
+  <p class="intro">One small story, followed through each tool in the ontology toolkit: what OWL, Turtle, Git and SHACL each do, and how the same idea turns up in Neptune and OpenSearch.</p>
+  <div class="stepper" id="ddsteps" role="group" aria-label="Deep dive steps"></div>
+  <div class="sdetail">
+    <div class="skeys" id="ddkeys" aria-live="polite"></div>
+    <div class="sviz">
+
+      <div class="dpanel" data-d="1">
+        <div class="xwrap"><svg id="ddStory" viewBox="0 0 760 250" style="display:block;width:100%;min-width:600px;height:auto" role="img" aria-label="Maya orders dinner online from Harbor Grill; the payment is authorized, captured, and later charged back with reason 10.4">
+          <g class="sc"><rect class="evbox" x="20" y="16" width="165" height="56" rx="10"/><text class="evt" x="36" y="40">Maya</text><text class="evs" x="36" y="60">Cardholder</text></g>
+          <g class="sc"><rect class="evbox" x="205" y="16" width="165" height="56" rx="10"/><text class="evt" x="221" y="40">Harbor Grill</text><text class="evs" x="221" y="60">Merchant, MCC 5812</text></g>
+          <g class="sc"><rect class="evbox" x="390" y="16" width="165" height="56" rx="10"/><text class="evt" x="406" y="40">First Bay Bank</text><text class="evs" x="406" y="60">Issuer</text></g>
+          <g class="sc"><rect class="evbox" x="575" y="16" width="165" height="56" rx="10"/><text class="evt" x="591" y="40">Coastal Acquiring</text><text class="evs" x="591" y="60">Acquirer</text></g>
+          <path class="le" d="M30,160 L730,160" style="opacity:.5"/>
+          <g class="se"><rect class="evbox" x="30" y="125" width="190" height="72" rx="10"/><rect x="38" y="137" width="3" height="48" rx="1.5" style="fill:var(--graph)"/><text class="evt" x="52" y="148">Authorization</text><text class="evs" x="52" y="167">Aug 3, $42.50 approved</text><text class="evs" x="52" y="185">card not present</text></g>
+          <path class="le sa" d="M220,160 L284,160" marker-end="url(#mg-line)"/>
+          <g class="se"><rect class="evbox" x="285" y="125" width="190" height="72" rx="10"/><rect x="293" y="137" width="3" height="48" rx="1.5" style="fill:var(--graph)"/><text class="evt" x="307" y="148">Capture</text><text class="evs" x="307" y="167">Aug 4, $42.50 captured</text><text class="evs" x="307" y="185">merchant claims funds</text></g>
+          <path class="le sa" d="M475,160 L539,160" marker-end="url(#mg-line)"/>
+          <g class="se"><rect class="evbox" x="540" y="125" width="190" height="72" rx="10"/><rect x="548" y="137" width="3" height="48" rx="1.5" style="fill:var(--bad)"/><text class="evt" x="562" y="148">Chargeback</text><text class="evs" x="562" y="167">Aug 19, reason 10.4</text><text class="evs" x="562" y="185">Maya: not my order</text></g>
+          <text class="evs" x="380" y="236" text-anchor="middle">Things that happened: in ontology terms, these are instances.</text>
+        </svg></div>
+      </div>
+
+      <div class="dpanel" data-d="2" hidden>
+        <div class="xwrap"><svg id="ddOwl" viewBox="0 0 760 300" style="display:block;width:100%;min-width:600px;height:auto" role="img" aria-label="Class diagram: Authorization, Capture and DisputeEvent are kinds of PaymentEvent; Chargeback is a kind of DisputeEvent; Capture captures an Authorization; Chargeback disputes a Capture and has a ReasonCode; Authorization is at a Merchant">
+          <path class="isa" d="M120,110 L120,90 L330,90 L330,75" marker-end="url(#mg-isa)"/>
+          <path class="isa" d="M380,110 L380,75" marker-end="url(#mg-isa)"/>
+          <path class="isa" d="M640,110 L640,90 L430,90 L430,75" marker-end="url(#mg-isa)"/>
+          <path class="isa" d="M640,210 L640,165" marker-end="url(#mg-isa)"/>
+          <path class="rel" d="M300,137 L202,137" marker-end="url(#mg-onto)"/>
+          <path class="rel" d="M560,225 L500,225 L500,137 L462,137" marker-end="url(#mg-onto)"/>
+          <path class="rel" d="M560,250 L462,250" marker-end="url(#mg-onto)"/>
+          <path class="rel" d="M120,164 L120,208" marker-end="url(#mg-onto)"/>
+          <g class="cls"><rect class="evbox" x="300" y="20" width="160" height="54" rx="10"/><text class="evt" x="380" y="43" text-anchor="middle">PaymentEvent</text><text class="evs" x="380" y="61" text-anchor="middle">class</text></g>
+          <g class="cls"><rect class="evbox" x="40" y="110" width="160" height="54" rx="10"/><text class="evt" x="120" y="133" text-anchor="middle">Authorization</text><text class="evs" x="120" y="151" text-anchor="middle">class</text></g>
+          <g class="cls"><rect class="evbox" x="300" y="110" width="160" height="54" rx="10"/><text class="evt" x="380" y="133" text-anchor="middle">Capture</text><text class="evs" x="380" y="151" text-anchor="middle">class</text></g>
+          <g class="cls"><rect class="evbox" x="560" y="110" width="160" height="54" rx="10"/><text class="evt" x="640" y="133" text-anchor="middle">DisputeEvent</text><text class="evs" x="640" y="151" text-anchor="middle">class</text></g>
+          <g class="cls"><rect class="evbox" x="40" y="210" width="160" height="54" rx="10"/><text class="evt" x="120" y="233" text-anchor="middle">Merchant</text><text class="evs" x="120" y="251" text-anchor="middle">class</text></g>
+          <g class="cls"><rect class="evbox" x="300" y="210" width="160" height="54" rx="10"/><text class="evt" x="380" y="233" text-anchor="middle">ReasonCode</text><text class="evs" x="380" y="251" text-anchor="middle">class</text></g>
+          <g class="cls hot"><rect class="evbox" x="560" y="210" width="160" height="54" rx="10"/><text class="evt" x="640" y="233" text-anchor="middle">Chargeback</text><text class="evs" x="640" y="251" text-anchor="middle">class</text></g>
+          <text class="rl" x="251" y="128" text-anchor="middle">CAPTURES</text>
+          <text class="rl" x="507" y="184">DISPUTES</text>
+          <text class="rl" x="511" y="242" text-anchor="middle">HAS_REASON</text>
+          <text class="rl" x="128" y="192">AT_MERCHANT</text>
+        </svg></div>
+        <div class="ddlegend"><span><i class="lrel"></i>Relationship between classes</span><span><i class="lisa"></i>Is a kind of (subclass)</span></div>
+        <p class="note">Maya's dinner isn't here. OWL describes kinds of things and the rules for connecting them; the payments themselves live in Neptune.</p>
+      </div>
+
+      <div class="dpanel" data-d="3" hidden>
+        <div class="ttlgrid">
+          <div class="ddcode" id="ddTtlBox"><div class="ddband" id="ddTtlBand"></div><pre id="ddTtl"></pre></div>
+          <div>
+            <p class="vcap">Every Turtle line is one sentence with three parts</p>
+            <div class="triple" id="ddTriple"></div>
+            <p class="reading" id="ddReading"></p>
+            <div class="vbtns" style="margin-top:14px"><button type="button" class="vbtn" id="ddTtlPrev">Previous</button><button type="button" class="vbtn go" id="ddTtlNext">Next line</button><button type="button" class="vbtn" id="ddTtlPlay">Play all</button></div>
+            <p class="note">Tip: click any line on the left to read it.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="dpanel" data-d="4" hidden>
+        <div class="xwrap"><svg id="ddGit" viewBox="0 0 760 150" style="display:block;width:100%;min-width:560px;height:auto" role="img" aria-label="Git history: main branch with version tags; a branch adds PreArbitration and merges back as version 1.6.0">
+          <path class="gmain" d="M30,56 L730,56"/>
+          <path class="gbranch" d="M290,56 C315,56 315,112 345,112 L525,112 C555,112 555,56 580,56"/>
+          <g class="gc"><circle cx="70" cy="56" r="8"/></g><g class="gc"><circle cx="190" cy="56" r="8"/></g><g class="gc"><circle cx="290" cy="56" r="8"/></g>
+          <g class="gc br"><circle cx="390" cy="112" r="8"/></g><g class="gc br"><circle cx="470" cy="112" r="8"/></g>
+          <g class="gc mg"><circle cx="580" cy="56" r="10"/></g>
+          <g class="gtag"><rect x="42" y="14" width="56" height="20" rx="10"/><text x="70" y="28">v1.4.0</text></g>
+          <g class="gtag"><rect x="162" y="14" width="56" height="20" rx="10"/><text x="190" y="28">v1.5.0</text></g>
+          <g class="gtag new"><rect x="552" y="14" width="56" height="20" rx="10"/><text x="580" y="28">v1.6.0</text></g>
+          <text class="gl" x="360" y="140">branch: add-prearbitration</text>
+          <text class="gl" x="640" y="80">main</text>
+        </svg></div>
+        <div class="gitgrid">
+          <pre class="ftree">ontology-repo/
+├── payments.ttl        <span>classes</span>
+├── shapes/
+│   └── chargeback.ttl  <span>SHACL rules</span>
+├── competency-questions/
+│   └── cq-01.cypher    <span>tests</span>
+└── CHANGELOG.md        <span>releases</span></pre>
+          <div class="prbox">
+            <div class="prhead"><span class="prnum">PR #212</span><span class="tier" style="--c:var(--onto)">minor</span></div>
+            <h4>Add PreArbitration as a kind of DisputeEvent</h4>
+            <div class="diff"><div class="ctx">  pay:DisputeEvent  a  owl:Class .</div><div class="add">+ pay:PreArbitration  a  owl:Class ;</div><div class="add">+   rdfs:subClassOf  pay:DisputeEvent ;</div><div class="add">+   skos:definition  "Issuer challenges the</div><div class="add">+     merchant's response"@en .</div></div>
+            <ul class="gck" id="ddGck"><li><i></i>SHACL shapes still valid</li><li><i></i>Generator produced all artifacts</li><li><i></i>Competency questions pass</li><li><i></i>Disputes owner approved</li></ul>
+            <p class="gmerge" id="ddMerge">Merged and tagged v1.6.0</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="dpanel" data-d="5" hidden>
+        <div class="vbtns"><button type="button" class="vbtn go" id="ddValidate">Validate</button><button type="button" class="vbtn" id="ddShapeBtn" aria-expanded="false">Show the shape in SHACL</button></div>
+        <div class="recs">
+          <div class="rec" id="recA"><b>cb:1001</b><span class="rt">Chargeback</span><ul><li><code>DISPUTES</code> cap:7731</li><li><code>HAS_REASON</code> rc:visa:10.4</li><li><code>opened_at</code> 2026-08-19</li></ul></div>
+          <div class="rec" id="recB"><b>cb:991</b><span class="rt">Chargeback</span><ul><li class="missing"><code>DISPUTES</code> nothing</li><li><code>HAS_REASON</code> rc:visa:10.4</li><li><code>opened_at</code> 2026-08-21</li></ul></div>
+        </div>
+        <div class="rules">
+          <div class="rrow rh"><span>The shape's rules</span><span>cb:1001</span><span>cb:991</span></div>
+          <div class="rrow"><span>Disputes exactly 1 Capture</span><span class="mk" data-r="0" data-c="a"></span><span class="mk" data-r="0" data-c="b"></span></div>
+          <div class="rrow"><span>Has at least 1 ReasonCode</span><span class="mk" data-r="1" data-c="a"></span><span class="mk" data-r="1" data-c="b"></span></div>
+          <div class="rrow"><span>opened_at is a date-time</span><span class="mk" data-r="2" data-c="a"></span><span class="mk" data-r="2" data-c="b"></span></div>
+        </div>
+        <div class="ddcode report" id="ddReport"><pre id="ddReportPre"></pre></div>
+        <div class="ddcode" id="ddShapeBox" hidden><pre id="ddShape"></pre></div>
+      </div>
+
+      <div class="dpanel" data-d="6" hidden>
+        <div class="vbtns" id="ddWorlds"><button type="button" class="vbtn" data-w="owl" aria-pressed="true">OWL's view</button><button type="button" class="vbtn" data-w="shacl" aria-pressed="false">SHACL's view</button></div>
+        <div class="xwrap"><svg id="ddWorld" viewBox="0 0 760 220" style="display:block;width:100%;min-width:560px;height:auto" role="img" aria-label="Chargeback cb:991 has a reason code but no capture link; OWL treats the capture as unknown, SHACL treats it as missing">
+          <path class="rel" d="M240,150 L519,172" marker-end="url(#mg-onto)"/>
+          <text class="rl" x="380" y="186" text-anchor="middle">HAS_REASON</text>
+          <path id="wEdge" class="wedge" d="M240,100 L519,50"/>
+          <text class="rl" id="wEdgeL" x="380" y="50" text-anchor="middle">DISPUTES</text>
+          <g class="cls" id="wNode"><rect class="evbox" x="40" y="96" width="200" height="60" rx="10"/><text class="evt" x="60" y="121">cb:991</text><text class="evs" x="60" y="141">Chargeback</text></g>
+          <g class="cls"><rect class="evbox" x="520" y="148" width="200" height="54" rx="10"/><text class="evt" x="540" y="171">rc:visa:10.4</text><text class="evs" x="540" y="189">ReasonCode</text></g>
+          <g id="wGhost"><rect class="ghostbox" x="520" y="22" width="200" height="54" rx="10"/><text class="evt" x="540" y="45">Capture ?</text><text class="evs" x="540" y="63">exists, not yet known</text></g>
+          <g id="wX" opacity="0"><circle cx="380" cy="75" r="13" style="fill:var(--bad)"/><text x="380" y="80" style="fill:var(--paper);font-size:14px;font-weight:800;text-anchor:middle">✕</text></g>
+        </svg></div>
+        <p class="reading" id="ddWorldText"></p>
+      </div>
+
+      <div class="dpanel" data-d="7" hidden>
+        <div class="forms">
+          <div class="form" data-f="0"><div class="fh"><b>Ontology</b><span class="fk hand">Turtle, written by people</span></div><div class="ddcode"><pre id="ddF0"></pre></div></div>
+          <div class="form" data-f="1"><div class="fh"><b>Rule</b><span class="fk hand">SHACL, written by people</span></div><div class="ddcode"><pre id="ddF1"></pre></div></div>
+          <div class="genbar" id="ddGen">Schema generator: label chains, loader headers, index mappings</div>
+          <div class="form" data-f="2"><div class="fh"><b>Neptune</b><span class="fk gen">openCypher, shape generated</span></div><div class="ddcode"><pre id="ddF2"></pre></div></div>
+          <div class="form" data-f="3"><div class="fh"><b>OpenSearch</b><span class="fk gen">entities index, generated</span></div><div class="ddcode"><pre id="ddF3"></pre></div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section class="block" id="v1" aria-labelledby="v1h">
+  <h3 class="sech" id="v1h">How version 1 gets made</h3>
+  <p class="intro">Questions and standards from the top, evidence from the code below. They meet in a small core that you prove with real data before tagging 1.0.</p>
+  <div class="diagram-wrap">
+    <svg id="v1map" class="v1map" viewBox="0 0 1100 322" role="img" aria-label="Competency questions and standards from the business, and a term inventory from code, converge into a core ontology that is proved with data before tagging 1.0">
+      <text class="lane" x="58" y="52">From the business</text>
+      <text class="lane" x="58" y="214">From the evidence</text>
+      <rect class="corebox" x="560" y="84" width="220" height="190" rx="14"/>
+      <text class="coret" x="576" y="110">Core v1</text>
+      <text class="cores" x="576" y="128">15 to 25 classes</text>
+      <g id="v1edges"></g>
+      <rect class="lblbg" x="430" y="20" width="194" height="18"/>
+      <text class="elbl" x="527" y="33" text-anchor="middle">each question becomes a test</text>
+      <text class="elbl" x="792" y="317" text-anchor="middle">fix the model, regenerate</text>
+      <g id="v1nodes"></g>
+      <g id="v1pk" aria-hidden="true"></g>
+    </svg>
+  </div>
+  <div class="stepper" id="v1steps" role="group" aria-label="Steps to build version 1"></div>
+  <div class="sdetail">
+    <div class="skeys" id="v1keys" aria-live="polite"></div>
+    <div class="sviz">
+
+      <div class="vpanel" data-v="1">
+        <p class="vcap">A question needs it: in v1</p>
+        <div class="qgrid">
+          <div class="qcard"><span class="team">Disputes</span>Which merchants had the most 10.4 chargebacks last month?<br><span class="cq">test CQ-01</span></div>
+          <div class="qcard"><span class="team">Disputes</span>What evidence did we send for this chargeback, and when?<br><span class="cq">test CQ-02</span></div>
+          <div class="qcard"><span class="team">Authorization</span>Show the full lifecycle of this authorization.<br><span class="cq">test CQ-03</span></div>
+          <div class="qcard"><span class="team">Authorization</span>Which response codes spiked for this BIN range today?<br><span class="cq">test CQ-04</span></div>
+          <div class="qcard"><span class="team">Settlement</span>Which captures haven't settled after 3 days?<br><span class="cq">test CQ-05</span></div>
+          <div class="qcard"><span class="team">Risk</span>Which merchants share devices or acquirers with a flagged one?<br><span class="cq">test CQ-06</span></div>
+        </div>
+        <div class="scope"><span>Scope line</span></div>
+        <p class="vcap">No question needs it: out of v1</p>
+        <div class="outs"><span>General ledger postings</span><span>Merchant onboarding paperwork</span><span>Card manufacturing</span><span>Marketing segments</span></div>
+      </div>
+
+      <div class="vpanel" data-v="2" hidden>
+        <div class="vbtns"><button type="button" class="vbtn go" id="clusterBtn">Cluster the names</button><button type="button" class="vbtn" id="clusterReset">Reset</button></div>
+        <div class="mine">
+          <div>
+            <p class="vcap">Names the one-time extraction run found</p>
+            <div class="pool" id="pool">
+              <span class="chip" data-to="cb"><code>TxnDsptRec</code><small>disputes-svc, JPA</small></span>
+              <span class="chip" data-to="rc"><code>ReasonCd</code><small>cb-portal, Avro</small></span>
+              <span class="chip" data-to="cb"><code>ChargebackCase</code><small>cb-portal, OpenAPI</small></span>
+              <span class="chip" data-to="other"><code>rtrvl_request</code><small>disputes-svc, enum</small></span>
+              <span class="chip" data-to="rc"><code>CB_REASON</code><small>reports, SQL</small></span>
+              <span class="chip" data-to="cb"><code>dispute_record</code><small>ledger, DDL</small></span>
+              <span class="chip" data-to="rc"><code>rsn_code</code><small>clearing files</small></span>
+            </div>
+          </div>
+          <div class="clusters">
+            <div class="cl"><header>Chargeback? <span class="who">person decides</span></header><div class="drop" data-drop="cb"></div></div>
+            <div class="cl"><header>ReasonCode? <span class="who">person decides</span></header><div class="drop" data-drop="rc"></div></div>
+            <div class="cl other"><header>Looked similar, isn't <span class="who">new candidate</span></header><div class="drop" data-drop="other"></div></div>
+          </div>
+        </div>
+        <table class="inv" id="inv">
+          <thead><tr><th>Candidate class</th><th>Names</th><th>Systems</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Chargeback</td><td>3</td><td>disputes-svc, cb-portal, ledger</td><td><span class="pill">owner sign-off</span></td></tr>
+            <tr><td>ReasonCode</td><td>3</td><td>cb-portal, reports, clearing</td><td><span class="pill">owner sign-off</span></td></tr>
+            <tr><td>RetrievalRequest</td><td>1</td><td>disputes-svc</td><td><span class="pill">new candidate</span></td></tr>
+          </tbody>
+        </table>
+        <p class="note">The output is a term inventory, not Turtle. People turn it into the ontology.</p>
+      </div>
+
+      <div class="vpanel" data-v="3" hidden>
+        <div class="vbtns"><button type="button" class="vbtn" id="modeAlign" aria-pressed="true">Align with mappings</button><button type="button" class="vbtn" id="modeImport" aria-pressed="false">Import everything</button></div>
+        <div class="xwrap"><svg id="topsvg" viewBox="0 0 760 306" style="display:block;width:100%;min-width:560px;height:auto" role="img" aria-label="Six top-level categories linked to FIBO and ISO 20022 by mapping annotations">
+          <g id="maps"></g>
+          <g id="cats"></g>
+          <g class="std"><rect class="box" x="580" y="30" width="170" height="80" rx="10"/><text class="t" x="596" y="62">FIBO</text><text class="s" x="596" y="84">Parties, agreements</text></g>
+          <g class="std"><rect class="box" x="580" y="140" width="170" height="80" rx="10"/><text class="t" x="596" y="172">ISO 20022</text><text class="s" x="596" y="194">Payment business model</text></g>
+          <text class="elbl" x="665" y="246" text-anchor="middle">linked by skos:closeMatch</text>
+          <g class="dots" id="dots"></g>
+          <g class="ovl" id="ovl" opacity="0"><rect x="150" y="132" width="460" height="42" rx="21"/><text x="380" y="158">owl:imports FIBO: thousands of classes, most unused</text></g>
+        </svg></div>
+      </div>
+
+      <div class="vpanel" data-v="4" hidden>
+        <div class="vbtns" id="ruleTabs">
+          <button type="button" class="vbtn" data-r="a" aria-pressed="true">Events, not status fields</button>
+          <button type="button" class="vbtn" data-r="b" aria-pressed="false">Codes as nodes</button>
+          <button type="button" class="vbtn" data-r="c" aria-pressed="false">One direction</button>
+          <button type="button" class="vbtn" data-r="d" aria-pressed="false">Shallow hierarchy</button>
+          <button type="button" class="vbtn" data-r="e" aria-pressed="false">Roles</button>
+        </div>
+        <div class="rule" data-r="a"><div class="pair">
+          <figure class="avoid"><figcaption><span class="x">Avoid</span>One node, a status that keeps being overwritten</figcaption>
+            <svg viewBox="0 0 300 200"><g class="mn bad"><rect x="50" y="26" width="200" height="140" rx="8"/><text class="t" x="66" y="52">Transaction</text><text class="s" x="66" y="80">status = 'charged_back'</text><text class="s" x="66" y="102">captured_at</text><text class="s" x="66" y="124">disputed_at</text><text class="s" x="66" y="146">refunded_at</text></g></svg></figure>
+          <figure class="do"><figcaption><span class="ok">Do</span>Each step is its own event with its own time</figcaption>
+            <svg viewBox="0 0 300 200">
+              <g class="mn good"><rect x="75" y="6" width="150" height="44" rx="8"/><text class="t" x="91" y="25">Chargeback</text><text class="s" x="91" y="42">opened_at</text></g>
+              <line class="ml good" x1="150" y1="50" x2="150" y2="77" marker-end="url(#mg-good)"/><text class="el good" x="160" y="68">DISPUTES</text>
+              <g class="mn good"><rect x="75" y="78" width="150" height="44" rx="8"/><text class="t" x="91" y="97">Capture</text><text class="s" x="91" y="114">captured_at</text></g>
+              <line class="ml good" x1="150" y1="122" x2="150" y2="149" marker-end="url(#mg-good)"/><text class="el good" x="160" y="140">CAPTURES</text>
+              <g class="mn good"><rect x="75" y="150" width="150" height="44" rx="8"/><text class="t" x="91" y="169">Authorization</text><text class="s" x="91" y="186">authorized_at</text></g>
+            </svg></figure>
+        </div></div>
+        <div class="rule" data-r="b" hidden><div class="pair">
+          <figure class="avoid"><figcaption><span class="x">Avoid</span>The code is buried in two unrelated properties</figcaption>
+            <svg viewBox="0 0 300 200"><g class="mn bad"><rect x="4" y="66" width="130" height="56" rx="8"/><text class="t" x="16" y="88">Chargeback</text><text class="s" x="16" y="108">reason_code = '10.4'</text></g><text class="big" x="150" y="104">?</text><g class="mn bad"><rect x="166" y="66" width="130" height="56" rx="8"/><text class="t" x="178" y="88">Chunk</text><text class="s" x="178" y="108">text: '… 10.4 …'</text></g><text class="el" x="150" y="150" text-anchor="middle">no link between them</text></svg></figure>
+          <figure class="do"><figcaption><span class="ok">Do</span>Documents and chargebacks meet at one node</figcaption>
+            <svg viewBox="0 0 300 200">
+              <g class="mn good"><rect x="10" y="12" width="120" height="38" rx="8"/><text class="t" x="24" y="36">Chargeback</text></g>
+              <g class="mn good"><rect x="170" y="12" width="120" height="38" rx="8"/><text class="t" x="184" y="36">Chunk</text></g>
+              <line class="ml good" x1="70" y1="50" x2="128" y2="139" marker-end="url(#mg-good)"/><text class="el good" x="94" y="100" text-anchor="end">HAS_REASON</text>
+              <line class="ml good" x1="230" y1="50" x2="172" y2="139" marker-end="url(#mg-good)"/><text class="el good" x="206" y="100">MENTIONS</text>
+              <g class="mn good"><rect x="85" y="140" width="130" height="46" rx="8"/><text class="t" x="99" y="160">ReasonCode</text><text class="s" x="99" y="177">10.4</text></g>
+            </svg></figure>
+        </div></div>
+        <div class="rule" data-r="c" hidden><div class="pair">
+          <figure class="avoid"><figcaption><span class="x">Avoid</span>Both directions stored, so they drift apart</figcaption>
+            <svg viewBox="0 0 300 200"><g class="mn bad"><rect x="10" y="80" width="110" height="38" rx="8"/><text class="t" x="24" y="104">Chargeback</text></g><g class="mn bad"><rect x="180" y="80" width="110" height="38" rx="8"/><text class="t" x="194" y="104">Capture</text></g>
+              <line class="ml" x1="120" y1="90" x2="179" y2="90" marker-end="url(#mg-mut)"/><text class="el" x="150" y="72" text-anchor="middle">DISPUTES</text>
+              <line class="ml" x1="180" y1="108" x2="121" y2="108" marker-end="url(#mg-mut)"/><text class="el" x="150" y="138" text-anchor="middle">DISPUTED_BY</text></svg></figure>
+          <figure class="do"><figcaption><span class="ok">Do</span>Store one direction; Cypher walks either way</figcaption>
+            <svg viewBox="0 0 300 200">
+              <g class="mn good"><rect x="10" y="80" width="110" height="38" rx="8"/><text class="t" x="24" y="104">Chargeback</text></g>
+              <line class="ml good" x1="120" y1="99" x2="179" y2="99" marker-end="url(#mg-good)"/><text class="el good" x="150" y="72" text-anchor="middle">DISPUTES</text>
+              <g class="mn good"><rect x="180" y="80" width="110" height="38" rx="8"/><text class="t" x="194" y="104">Capture</text></g>
+              <text class="el good" x="150" y="160" text-anchor="middle">(cap)&lt;-[:DISPUTES]-(cb)</text><text class="el" x="150" y="180" text-anchor="middle">walks it backwards</text>
+            </svg></figure>
+        </div></div>
+        <div class="rule" data-r="d" hidden><div class="pair">
+          <figure class="avoid"><figcaption><span class="x">Avoid</span>Six labels stamped on every node</figcaption>
+            <div class="chain"><code>:Chargeback</code><code>:NetworkDispute</code><code>:DisputeEvent</code><code>:PostSettlementEvent</code><code>:PaymentEvent</code><code>:BusinessEvent</code></div></figure>
+          <figure class="do"><figcaption><span class="ok">Do</span>Three or four levels at most</figcaption>
+            <div class="chain"><code>:Chargeback</code><code>:DisputeEvent</code><code>:PaymentEvent</code></div></figure>
+        </div></div>
+        <div class="rule" data-r="e" hidden><div class="pair">
+          <figure class="avoid"><figcaption><span class="x">Avoid</span>The same bank appears as two nodes</figcaption>
+            <svg viewBox="0 0 300 200"><g class="mn bad"><rect x="14" y="70" width="126" height="52" rx="8"/><text class="t" x="28" y="92">Issuer</text><text class="s" x="28" y="110">First Bay Bank</text></g><g class="mn bad"><rect x="160" y="70" width="126" height="52" rx="8"/><text class="t" x="174" y="92">Acquirer</text><text class="s" x="174" y="110">First Bay Bank</text></g><text class="el" x="150" y="156" text-anchor="middle">one company, two identities</text></svg></figure>
+          <figure class="do"><figcaption><span class="ok">Do</span>One entity, two roles</figcaption>
+            <svg viewBox="0 0 300 200">
+              <g class="mn good"><rect x="85" y="12" width="130" height="48" rx="8"/><text class="t" x="99" y="32">Organization</text><text class="s" x="99" y="50">First Bay Bank</text></g>
+              <line class="ml good" x1="118" y1="60" x2="78" y2="139" marker-end="url(#mg-good)"/><text class="el good" x="90" y="104" text-anchor="end">ACTS_AS</text>
+              <line class="ml good" x1="182" y1="60" x2="222" y2="139" marker-end="url(#mg-good)"/><text class="el good" x="210" y="104">ACTS_AS</text>
+              <g class="mn good"><rect x="10" y="140" width="126" height="52" rx="8"/><text class="t" x="24" y="162">Issuer</text><text class="s" x="24" y="180">:PartyRole</text></g>
+              <g class="mn good"><rect x="164" y="140" width="126" height="52" rx="8"/><text class="t" x="178" y="162">Acquirer</text><text class="s" x="178" y="180">:PartyRole</text></g>
+            </svg></figure>
+        </div></div>
+      </div>
+
+      <div class="vpanel" data-v="5" hidden>
+        <div class="anat">
+          <div>
+            <div class="ccard" id="ccard">
+              <div class="ct"><strong>Chargeback</strong><code>:DisputeEvent</code><code>:PaymentEvent</code></div>
+              <div class="row"><b>Definition</b><span>A dispute event in which the issuer, through the card network, reverses all or part of a captured transaction for the cardholder.</span></div>
+              <div class="row"><b>Example</b><span>A Visa 10.4 chargeback on a card-absent capture</span></div>
+              <div class="row"><b>Owner</b><span>Disputes team</span></div>
+              <div class="row"><b>Status</b><span><span class="pill">approved</span></span></div>
+              <div class="row"><b>Matches</b><span>ISO 20022 and FIBO concepts, via skos:closeMatch</span></div>
+            </div>
+            <div class="readers" id="readers"><span>Read by people on the docs site</span><span>Read by Claude to write Cypher</span></div>
+          </div>
+          <figure class="shape">
+            <figcaption>SHACL shape: what valid data looks like</figcaption>
+            <svg viewBox="0 0 380 282" id="shapesvg">
+              <line class="ml onto sh-e" x1="140" y1="120" x2="249" y2="40" marker-end="url(#mg-onto)"/>
+              <text class="el" x="170" y="66" text-anchor="middle">DISPUTES</text>
+              <g class="cbadge"><rect x="140" y="72" width="62" height="16" rx="8"/><text x="171" y="84">exactly 1</text></g>
+              <line class="ml onto sh-e" x1="140" y1="130" x2="249" y2="130" marker-end="url(#mg-onto)"/>
+              <text class="el" x="195" y="122" text-anchor="middle">HAS_REASON</text>
+              <g class="cbadge"><rect x="164" y="138" width="62" height="16" rx="8"/><text x="195" y="150">1 or more</text></g>
+              <line class="ml onto sh-e" x1="140" y1="140" x2="249" y2="218" marker-end="url(#mg-onto)"/>
+              <g class="cbadge"><rect x="150" y="186" width="58" height="16" rx="8"/><text x="179" y="198">required</text></g>
+              <g class="mn onto"><rect x="10" y="108" width="130" height="44" rx="8"/><text class="t" x="26" y="127">Chargeback</text><text class="s" x="26" y="143">every node checked</text></g>
+              <g class="mn good"><rect x="250" y="22" width="120" height="36" rx="8"/><text class="t" x="266" y="45">Capture</text></g>
+              <g class="mn good"><rect x="250" y="112" width="120" height="36" rx="8"/><text class="t" x="266" y="135">ReasonCode</text></g>
+              <g class="mn"><rect x="250" y="202" width="124" height="32" rx="16"/><text class="s" x="312" y="223" text-anchor="middle">opened_at: dateTime</text></g>
+              <g class="mn ghost" id="ghost" opacity="0"><rect x="10" y="222" width="160" height="44" rx="8"/><text class="t" x="24" y="241">Chargeback cb:991</text><text class="s" x="24" y="258">no capture linked</text></g>
+              <text class="rej" id="rej" x="178" y="264" opacity="0">rejected at load</text>
+            </svg>
+          </figure>
+        </div>
+        <div class="ttl"><button type="button" class="vbtn" id="ttlBtn" aria-expanded="false">Show the Turtle</button>
+<pre id="ttl" hidden>pay:Chargeback a owl:Class ;
+    rdfs:subClassOf pay:DisputeEvent ;
+    skos:prefLabel "Chargeback"@en ;
+    skos:definition """A dispute event in which the issuer, through the card network,
+      reverses all or part of a captured transaction for the cardholder."""@en ;
+    skos:example "A Visa 10.4 chargeback on a card-absent capture"@en ;
+    pay:owner "disputes" ;
+    pay:status "approved" .
+
+pay:ChargebackShape a sh:NodeShape ;
+    sh:targetClass pay:Chargeback ;
+    sh:property [ sh:path pay:disputes ; sh:class pay:Capture ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:property [ sh:path pay:hasReason ; sh:class pay:ReasonCode ; sh:minCount 1 ] ;
+    sh:property [ sh:path pay:openedAt ; sh:datatype xsd:dateTime ; sh:minCount 1 ] .</pre></div>
+      </div>
+
+      <div class="vpanel" data-v="6" hidden>
+        <div class="strip" id="strip"><span class="st">Generate schema</span><span class="ar">→</span><span class="st">Load a sample week</span><span class="ar">→</span><span class="st">Run 42 questions as Cypher</span><span class="ar">↺</span><span class="st">Fix the model</span></div>
+        <div class="vbtns"><button type="button" class="vbtn go" id="runBtn">Run the questions</button></div>
+        <div class="boardrow"><div class="board" id="board" aria-label="Competency question results"></div><div class="tag10" id="tag10">1.0<small>tagged</small></div></div>
+        <div class="blegend"><span><i class="sq pass"></i>Passes</span><span><i class="sq awk"></i>Awkward query</span><span><i class="sq bad"></i>Can't be written</span><span><i class="sq"></i>Not run yet</span></div>
+        <p class="rcount" id="rcount">Illustrative run with 42 competency questions.</p>
+        <ul class="rnotes" id="rnotes"></ul>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="twocol">
+    <div class="tc">
+      <h3>Who builds it</h3>
+      <div class="people">
+        <svg viewBox="0 0 300 300" id="peoplesvg" role="img" aria-label="A modeling group of five writes; every team reviews">
+          <circle class="ring" cx="150" cy="150" r="124"/>
+          <g id="revs"></g>
+          <circle class="inner" cx="150" cy="150" r="64"/>
+          <g id="pdots"></g>
+          <text class="ptext" x="150" y="192">writes</text>
+          <g id="tdots"></g>
+          <text class="otext" x="150" y="296">Every team reviews pull requests</text>
+        </svg>
+        <ul class="roles">
+          <li>Ontology lead</li><li>Authorization expert</li><li>Disputes expert</li><li>Settlement expert</li><li>Release gate: you</li><li class="out">Everyone else reviews</li>
+        </ul>
+      </div>
+      <div class="scopechips"><span><b>15 to 25</b> classes in v1</span><span><b>Weeks</b>, not quarters</span></div>
+    </div>
+    <div class="tc">
+      <h3>Authoring: Turtle or LinkML</h3>
+      <div class="tool"><p class="tname">Turtle in Git</p>
+        <div class="trow"><span class="tk hand">OWL classes</span><span class="tk hand">SHACL shapes</span><span class="ar">→</span><span class="tk mid">Your generator</span><span class="ar">→</span><span class="tk you">Pydantic</span><span class="tk you">Extraction schema</span><span class="tk you">Docs site</span><span class="tk you">Neptune CSV headers</span><span class="tk you">OpenSearch mappings</span></div></div>
+      <div class="tool"><p class="tname">LinkML</p>
+        <div class="trow"><span class="tk hand">LinkML YAML</span><span class="ar">→</span><span class="tk built">OWL</span><span class="tk built">SHACL</span><span class="tk built">Pydantic</span><span class="tk built">JSON Schema</span><span class="tk built">Docs site</span><span class="tk you">Neptune CSV headers</span><span class="tk you">OpenSearch mappings</span></div></div>
+      <div class="tlegend"><span><i class="hand"></i>You author</span><span><i class="built"></i>Built-in generator</span><span><i class="you"></i>Code you write</span></div>
+      <p class="note">Either way the published product is OWL. Try LinkML on five classes before committing.</p>
+      <a class="chlink" href="#authh">See both side by side</a>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="authoring" aria-labelledby="authh">
+  <h3 class="sech" id="authh">Turtle or LinkML, side by side</h3>
+  <p class="intro">The same slice of the payments ontology, written both ways. Pick a step, then watch the matching lines light up on both sides.</p>
+  <div class="stepper" id="cmpSteps" role="group" aria-label="Comparison steps"></div>
+  <div class="cmpchips" id="cmpChips" aria-label="What to compare"></div>
+  <div class="cmpgrid" id="cmpGrid">
+    <div class="cmpcol"><div class="cmphead" style="--c:var(--onto)"><b>Turtle in Git</b><span id="cmpTcap"></span></div><div class="ddcode" id="cmpTbox"><div class="ddband"></div><pre id="cmpT"></pre></div></div>
+    <div class="cmpcol"><div class="cmphead" style="--c:var(--query)"><b>LinkML</b><span id="cmpLcap"></span></div><div class="ddcode" id="cmpLbox"><div class="ddband"></div><pre id="cmpL"></pre></div></div>
+  </div>
+  <div class="cmpextra" id="cmpExtra" hidden></div>
+  <p class="reading" id="cmpNote" aria-live="polite"></p>
+  <div class="cmpverdict" id="cmpVerdict" hidden>
+    <div class="vlegend"><span><i class="t"></i>Turtle in Git</span><span><i class="l"></i>LinkML</span><span class="vcap" style="margin:0">our read, not a benchmark</span></div>
+    <div class="vrow"><span>Easy for every team to read and review</span><div class="vbars"><div class="vbar t"><i data-w="40"></i></div><div class="vbar l"><i data-w="80"></i></div></div></div>
+    <div class="vrow"><span>Full OWL expressiveness</span><div class="vbars"><div class="vbar t"><i data-w="100"></i></div><div class="vbar l"><i data-w="60"></i></div></div></div>
+    <div class="vrow"><span>Code and docs generated for free</span><div class="vbars"><div class="vbar t"><i data-w="20"></i></div><div class="vbar l"><i data-w="80"></i></div></div></div>
+    <div class="vrow"><span>Semantic-web tools: Protégé, ROBOT, reasoners</span><div class="vbars"><div class="vbar t"><i data-w="100"></i></div><div class="vbar l"><i data-w="60"></i></div></div></div>
+    <div class="vnote"><b>Either way,</b> we still write a small generator for the Neptune loader files and OpenSearch mappings.</div>
+    <div class="vrec"><b>Our suggestion</b><span>Start in LinkML and publish the generated OWL as the product. If you need OWL axioms LinkML can’t express, keep a small hand-written Turtle file and merge it in CI with robot merge.</span></div>
+  </div>
+</section>
+
+  <div class="check" data-ch="1"></div>
+  <div class="chnext" data-ch="1"></div>
+</section>
+
+<section class="chapter" id="ch2" data-ch="2" style="--c:var(--graph)" aria-labelledby="ch2h">
+  <header class="chhead">
+    <div class="chn" aria-hidden="true">2</div>
+    <div><h2 id="ch2h">Fill the graph</h2><p class="chidea">The pipeline follows the ontology to turn code, payment events and documents into graph data.</p><div class="chacts"><button type="button" class="vbtn watch" data-flow="ingest">Watch it on the map</button></div></div>
+    <figure class="minibox"><svg class="mini" data-ch="2" viewBox="10 26 1070 464" role="img" aria-label="Where chapter 2 sits in the platform"></svg><figcaption>Where this sits in the platform</figcaption></figure>
+  </header>
+<section class="block dd" id="dd2" data-next="#evh" data-next-label="Next: one pipeline, two jobs" aria-labelledby="dd2h">
+  <h3 class="sech" id="dd2h">Deep dive: how code becomes graph data</h3>
+  <p class="intro">Follow one Java class from the disputes service through parsing, fact extraction and mapping, until it becomes loader rules and one ontology proposal.</p>
+  <div class="stepper xsteps" role="group" aria-label="Deep dive steps"></div>
+  <div class="sdetail">
+    <div class="skeys xkeys" aria-live="polite"></div>
+    <div class="sviz">
+      <div class="xpanel" data-d="1">
+        <div class="ddcode" id="x2box"><div class="ddband"></div><pre id="x2code"></pre></div>
+        <p class="reading" id="x2cap"></p>
+        <div class="vbtns"><button type="button" class="vbtn go" id="x2play">Play the tour</button></div>
+      </div>
+      <div class="xpanel" data-d="2" hidden>
+        <div class="xwrap"><svg id="x2tree" class="xsvg" viewBox="0 0 760 290" role="img" aria-label="Syntax tree of the TxnDsptRec class: modifiers, name and a class body with four fields">
+          <path class="tl" d="M345,60 C345,84 110,80 110,104"/><path class="tl" d="M345,60 C345,84 290,80 290,104"/><path class="tl" d="M345,60 C345,84 515,80 515,104"/>
+          <path class="tl" d="M515,152 C515,184 300,178 300,210"/><path class="tl" d="M515,152 C515,184 425,178 425,210"/><path class="tl" d="M515,152 C515,184 550,178 550,210"/><path class="tl" d="M515,152 C515,184 675,178 675,210"/>
+          <g class="tn" data-lv="0"><rect class="evbox" x="250" y="16" width="190" height="44" rx="10"/><text class="evt mono" x="345" y="43" text-anchor="middle">class_declaration</text></g>
+          <g class="tn hitme" data-lv="1"><rect class="evbox" x="20" y="104" width="180" height="48" rx="10"/><text class="evt mono" x="110" y="124" text-anchor="middle">modifiers</text><text class="evs" x="110" y="142" text-anchor="middle">@Entity, @Table</text></g>
+          <g class="tn hitme" data-lv="1"><rect class="evbox" x="220" y="104" width="140" height="48" rx="10"/><text class="evt mono" x="290" y="124" text-anchor="middle">name</text><text class="evs" x="290" y="142" text-anchor="middle">TxnDsptRec</text></g>
+          <g class="tn" data-lv="1"><rect class="evbox" x="430" y="104" width="170" height="48" rx="10"/><text class="evt mono" x="515" y="124" text-anchor="middle">class_body</text><text class="evs" x="515" y="142" text-anchor="middle">4 fields</text></g>
+          <g class="tn" data-lv="2"><rect class="evbox" x="242" y="210" width="116" height="64" rx="10"/><text class="evt mono" x="300" y="231" text-anchor="middle">disputeId</text><text class="evs" x="300" y="248" text-anchor="middle">String</text><text class="evs" x="300" y="264" text-anchor="middle">@Id</text></g>
+          <g class="tn" data-lv="2"><rect class="evbox" x="367" y="210" width="116" height="64" rx="10"/><text class="evt mono" x="425" y="231" text-anchor="middle">capture</text><text class="evs" x="425" y="248" text-anchor="middle">CaptureRec</text><text class="evs" x="425" y="264" text-anchor="middle">@ManyToOne</text></g>
+          <g class="tn" data-lv="2"><rect class="evbox" x="492" y="210" width="116" height="64" rx="10"/><text class="evt mono" x="550" y="231" text-anchor="middle">reasonCd</text><text class="evs" x="550" y="248" text-anchor="middle">String</text><text class="evs" x="550" y="264" text-anchor="middle">no annotation</text></g>
+          <g class="tn" data-lv="2"><rect class="evbox" x="617" y="210" width="116" height="64" rx="10"/><text class="evt mono" x="675" y="231" text-anchor="middle">state</text><text class="evs" x="675" y="248" text-anchor="middle">DisputeState</text><text class="evs" x="675" y="264" text-anchor="middle">@Enumerated</text></g>
+        </svg></div>
+        <p class="vcap" style="margin-top:12px">A tree-sitter query that finds every @Entity class and its name</p>
+        <div class="ddcode"><pre id="x2q"></pre></div>
+      </div>
+      <div class="xpanel" data-d="3" hidden>
+        <table class="facts" id="x2facts">
+          <thead><tr><th>Fact</th><th>Name</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td><span class="fkind">entity</span></td><td><code>TxnDsptRec</code></td><td>stored in the dispute_record table</td></tr>
+            <tr><td><span class="fkind">link</span></td><td><code>capture</code></td><td>many-to-one, points to CaptureRec</td></tr>
+            <tr><td><span class="fkind">field</span></td><td><code>reasonCd</code></td><td>a string</td></tr>
+            <tr><td><span class="fkind">enum</span></td><td><code>DisputeState</code></td><td>OPEN, REPRESENTED, PRE_ARBITRATION, CLOSED</td></tr>
+          </tbody>
+        </table>
+        <p class="note">Same code in, same facts out, every time. No LLM has been involved yet.</p>
+      </div>
+      <div class="xpanel" data-d="4" hidden>
+        <div class="xwrap"><svg id="x2map" class="xsvg" viewBox="0 0 760 290" role="img" aria-label="Claude maps code facts to ontology terms with confidence scores; one value has no match">
+          <path class="mline" d="M240,42 L519,42"/><path class="mline" d="M240,112 L519,112"/><path class="mline" d="M240,182 L519,182"/><path class="mline gap" d="M240,252 L519,252"/>
+          <g class="mapn"><rect class="evbox" x="20" y="16" width="220" height="52" rx="10"/><text class="evt mono" x="36" y="38">TxnDsptRec</text><text class="evs" x="36" y="57">entity, dispute_record table</text></g>
+          <g class="mapn"><rect class="evbox" x="20" y="86" width="220" height="52" rx="10"/><text class="evt mono" x="36" y="108">capture</text><text class="evs" x="36" y="127">@ManyToOne to CaptureRec</text></g>
+          <g class="mapn"><rect class="evbox" x="20" y="156" width="220" height="52" rx="10"/><text class="evt mono" x="36" y="178">reasonCd</text><text class="evs" x="36" y="197">string field</text></g>
+          <g class="mapn"><rect class="evbox" x="20" y="226" width="220" height="52" rx="10"/><text class="evt mono" x="36" y="248">PRE_ARBITRATION</text><text class="evs" x="36" y="267">value of DisputeState</text></g>
+          <g class="mapo"><rect class="evbox" x="520" y="16" width="220" height="52" rx="10"/><rect x="528" y="26" width="3" height="32" rx="1.5" style="fill:var(--onto)"/><text class="evt" x="542" y="38">Chargeback</text><text class="evs" x="542" y="57">class</text></g>
+          <g class="mapo"><rect class="evbox" x="520" y="86" width="220" height="52" rx="10"/><rect x="528" y="96" width="3" height="32" rx="1.5" style="fill:var(--onto)"/><text class="evt mono" x="542" y="108">DISPUTES</text><text class="evs" x="542" y="127">relationship to Capture</text></g>
+          <g class="mapo"><rect class="evbox" x="520" y="156" width="220" height="52" rx="10"/><rect x="528" y="166" width="3" height="32" rx="1.5" style="fill:var(--onto)"/><text class="evt mono" x="542" y="178">HAS_REASON</text><text class="evs" x="542" y="197">relationship to ReasonCode</text></g>
+          <g class="mapo miss"><rect class="evbox" x="520" y="226" width="220" height="52" rx="10"/><text class="evt" x="536" y="248">No match</text><text class="evs" x="536" y="267">not in the ontology yet</text></g>
+          <g class="mbadge ok"><rect x="350" y="31" width="60" height="22" rx="11"/><text x="380" y="46">0.93</text></g>
+          <g class="mbadge ok"><rect x="350" y="101" width="60" height="22" rx="11"/><text x="380" y="116">0.97</text></g>
+          <g class="mbadge warn"><rect x="342" y="171" width="76" height="22" rx="11"/><text x="380" y="186">0.84 review</text></g>
+          <g class="mbadge bad"><rect x="350" y="241" width="60" height="22" rx="11"/><text x="380" y="256">gap</text></g>
+        </svg></div>
+        <p class="note">Why Chargeback? The class links to one capture, carries a reason code and lives in a table called dispute_record. Anything under 0.9 waits for a person, and a gap becomes a proposal. Reviews can take days, so the pipeline has to survive restarts while it waits.</p>
+      </div>
+      <div class="xpanel" data-d="5" hidden>
+        <div class="split2">
+          <div class="ocard"><div class="fh"><b>To the loader</b><span class="fk gen">mapping, reviewed once</span></div><div class="ddcode"><pre id="x2yaml"></pre></div><p class="note">Every run applies this mapping. The disputes team approved it once.</p></div>
+          <div class="ocard"><div class="fh"><b>To a pull request</b><span class="fk hand">needs a person</span></div>
+            <div class="prbox"><div class="prhead"><span class="prnum">PR #212</span><span class="tier" style="--c:var(--onto)">minor</span></div><h4>Add PreArbitration as a kind of DisputeEvent</h4>
+              <dl class="prf"><dt>Evidence</dt><dd>PRE_ARBITRATION in the DisputeState enum, disputes-svc</dd><dt>Status</dt><dd>Waiting for the disputes owner</dd></dl></div>
+            <p class="note">The same pull request you saw merge as v1.6.0 in chapter 1.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="where" aria-labelledby="whereh">
+  <h3 class="sech" id="whereh">What lives where</h3>
+  <p class="intro">Not every record belongs in the graph. Materialize what you walk through or reason over, leave high-volume data where it already sits and link to it by ID, and keep long text in search.</p>
+  <div class="vbtns"><button type="button" class="vbtn go" id="wlSort">Sort the data</button><button type="button" class="vbtn" id="wlReset">Reset</button></div>
+  <div class="wlpool" id="wlPool">
+    <span class="wchip" data-to="graph"><b>Chargeback cb:1001</b><small>lineage walks through it</small></span>
+    <span class="wchip" data-to="place"><b>Every authorization</b><small>billions a year, mostly counted</small></span>
+    <span class="wchip" data-to="graph"><b>Merchant m:88213</b><small>many links to follow</small></span>
+    <span class="wchip" data-to="search"><b>Visa rules, chapter 11</b><small>long text</small></span>
+    <span class="wchip" data-to="graph"><b>Authorization auth:5521</b><small>disputed, so it joins the graph</small></span>
+    <span class="wchip" data-to="place"><b>Daily settlement files</b><small>already in S3</small></span>
+    <span class="wchip" data-to="graph"><b>Reason code 10.4</b><small>where rules and disputes meet</small></span>
+    <span class="wchip" data-to="search"><b>Dispute runbook</b><small>long text</small></span>
+  </div>
+  <div class="wlbins">
+    <div class="wlbin" style="--c:var(--graph)"><header><b>Materialize in Neptune</b><small>you walk through it or reason over it</small></header><div class="wldrop" data-bin="graph"></div></div>
+    <div class="wlbin" style="--c:var(--muted)"><header><b>Read where it sits</b><small>huge and mostly counted, linked by ID</small></header><div class="wldrop" data-bin="place"></div></div>
+    <div class="wlbin" style="--c:var(--search)"><header><b>Search only</b><small>long text, a small stub in Neptune</small></header><div class="wldrop" data-bin="search"></div></div>
+  </div>
+  <p class="note" id="wlNote">A record moves into Neptune when a question needs to walk through it, like an authorization that becomes part of a dispute. Neptune can also read S3 data from inside an openCypher query, so reference data can stay in S3. AWS’s own guidance takes the same line: materialize only what needs reasoning or cross-domain links.</p>
+</section>
+
+<section class="block" id="evolve" aria-labelledby="evh">
+  <h3 class="sech" id="evh">One pipeline, two jobs</h3>
+  <p class="intro">The extraction pipeline has one main job and one side job. It never writes the ontology itself.</p>
+  <div class="diagram-wrap">
+    <svg id="evsvg" class="v1map" viewBox="0 0 1100 292" role="img" aria-label="The ontology constrains the extraction pipeline, which fills Neptune and OpenSearch; occasionally it proposes a change through a pull request that a person reviews, producing the next ontology version">
+      <g id="evpaths"></g>
+      <g><rect class="evbox onto" x="40" y="120" width="200" height="70" rx="10"/><text class="evt" x="58" y="148">Ontology</text><text class="evs" x="58" y="170">Written by people</text><text class="ver" id="ver" x="226" y="152">v1.4</text></g>
+      <g><rect class="evbox" x="370" y="120" width="200" height="70" rx="10"/><text class="evt" x="388" y="148">Extraction pipeline</text><text class="evs" x="388" y="170">Follows the ontology</text></g>
+      <g><rect class="evbox" x="820" y="120" width="240" height="70" rx="10"/><rect x="832" y="132" width="3" height="21" rx="1.5" style="fill:var(--graph)"/><rect x="832" y="157" width="3" height="21" rx="1.5" style="fill:var(--search)"/><text class="evt" x="848" y="148">Neptune + OpenSearch</text><text class="evs" x="848" y="170">Validated data</text></g>
+      <g><rect class="evbox" x="370" y="238" width="200" height="38" rx="10"/><text class="evs" x="470" y="262" text-anchor="middle">Code, events, documents</text></g>
+      <g class="prc" id="prc"><rect x="335" y="34" width="90" height="28" rx="14"/><text x="380" y="52">Pull request</text></g>
+      <g class="gt" id="gt"><polygon points="240,33 255,48 240,63 225,48"/><text class="chk" x="240" y="53">✓</text><text class="gl" x="240" y="22">Person reviews</text></g>
+      <text class="evlbl onto" x="305" y="144" text-anchor="middle">constrains</text>
+      <text class="evlbl graph" x="695" y="140" text-anchor="middle">main job: fills the graph</text>
+      <text class="evlbl onto" x="482" y="96">side job: proposes a change</text>
+      <g id="evpk" aria-hidden="true"></g>
+    </svg>
+  </div>
+  <div class="vbtns" style="margin-top:10px"><button type="button" class="vbtn" id="evReplay">Replay</button></div>
+  <div class="whys" id="whys">
+    <div class="why"><div class="wv"><code>TxnDsptRec</code><span class="q" id="wq">≟</span><code>ChargebackCase</code></div><h4>Code names aren't meanings</h4><p>Whether two names are one concept is a judgment call.</p></div>
+    <div class="why"><div class="wv"><svg viewBox="0 0 220 92" aria-hidden="true">
+      <line class="dl" x1="30" y1="20" x2="110" y2="46"/><line class="dl" x1="30" y1="72" x2="110" y2="46"/><line class="dl" x1="190" y1="20" x2="110" y2="46"/><line class="dl" id="brk" x1="190" y1="72" x2="110" y2="46"/>
+      <circle cx="30" cy="20" r="8" class="tdot"/><circle cx="30" cy="72" r="8" class="tdot"/><circle cx="190" cy="20" r="8" class="tdot"/><circle cx="190" cy="72" r="8" class="tdot"/>
+      <rect x="78" y="33" width="64" height="26" rx="8" style="fill:var(--raised);stroke:var(--onto);stroke-width:1.5"/><text x="110" y="50" style="font-size:11px;font-weight:700;fill:var(--onto);text-anchor:middle">Ontology</text>
+      <text id="brkx" x="158" y="72" style="font-size:14px;font-weight:800;fill:var(--bad);text-anchor:middle" opacity="0">✕</text>
+    </svg></div><h4>Other teams build on it</h4><p>An unreviewed change is a breaking change for them.</p></div>
+    <div class="why"><div class="wv"><code class="al">entities</code><span class="q">→</span><code class="tgt" id="aliasTgt">entities_v1_4</code></div><h4>Releases rebuild indexes</h4><p>Each version means new indexes and an alias swap.</p></div>
+  </div>
+  <p class="note">One exception: before v1 exists, the pipeline runs once to build the term inventory in step 2 above.</p>
+</section>
+  <div class="check" data-ch="2"></div>
+  <div class="chnext" data-ch="2"></div>
+</section>
+
+<section class="chapter" id="ch3" data-ch="3" style="--c:var(--search)" aria-labelledby="ch3h">
+  <header class="chhead">
+    <div class="chn" aria-hidden="true">3</div>
+    <div><h2 id="ch3h">Two stores, one join</h2><p class="chidea">Neptune holds what is true about payments. OpenSearch finds where to start. One ID joins them.</p><div class="chacts"><button type="button" class="vbtn watch" data-flow="sync">Watch it on the map</button></div></div>
+    <figure class="minibox"><svg class="mini" data-ch="3" viewBox="10 26 1070 464" role="img" aria-label="Where chapter 3 sits in the platform"></svg><figcaption>Where this sits in the platform</figcaption></figure>
+  </header>
+<section class="block dd" id="dd3" data-next="#own" data-next-label="Next: who owns what" aria-labelledby="dd3h">
+  <h3 class="sech" id="dd3h">Deep dive: one chargeback, two stores</h3>
+  <p class="intro">Maya's chargeback, stored twice: as connected nodes in Neptune and as a searchable document in OpenSearch. What each shape is good at, and what an embedding actually is.</p>
+  <div class="stepper xsteps" role="group" aria-label="Deep dive steps"></div>
+  <div class="sdetail">
+    <div class="skeys xkeys" aria-live="polite"></div>
+    <div class="sviz">
+      <div class="xpanel" data-d="1">
+        <div class="xwrap"><svg id="x3g" class="xsvg" viewBox="0 0 760 280" role="img" aria-label="Property graph: chargeback cb:1001 disputes capture cap:7731, which captures authorization auth:5521 at merchant m:88213; the chargeback has reason code 10.4">
+          <path class="rel" d="M92,124 L92,63" marker-end="url(#mg-onto)"/><path class="rel" d="M165,148 L209,148" marker-end="url(#mg-onto)"/><path class="rel" d="M355,148 L399,148" marker-end="url(#mg-onto)"/><path class="rel" d="M545,148 L589,148" marker-end="url(#mg-onto)"/>
+          <path class="lead" d="M92,172 L92,206"/><path class="lead" d="M282,172 L282,206"/><path class="lead" d="M472,172 L472,206"/><path class="lead" d="M662,172 L662,206"/>
+          <g class="gn"><rect class="evbox" x="20" y="14" width="145" height="48" rx="10"/><text class="evt mono" x="34" y="35">rc:visa:10.4</text><text class="evs" x="34" y="53">ReasonCode</text></g>
+          <g class="gn hot"><rect class="evbox" x="20" y="124" width="145" height="48" rx="10"/><text class="evt mono" x="34" y="145">cb:1001</text><text class="evs" x="34" y="163">Chargeback</text></g>
+          <g class="gn"><rect class="evbox" x="210" y="124" width="145" height="48" rx="10"/><text class="evt mono" x="224" y="145">cap:7731</text><text class="evs" x="224" y="163">Capture</text></g>
+          <g class="gn"><rect class="evbox" x="400" y="124" width="145" height="48" rx="10"/><text class="evt mono" x="414" y="145">auth:5521</text><text class="evs" x="414" y="163">Authorization</text></g>
+          <g class="gn"><rect class="evbox" x="590" y="124" width="145" height="48" rx="10"/><text class="evt mono" x="604" y="145">m:88213</text><text class="evs" x="604" y="163">Merchant</text></g>
+          <text class="rl" x="100" y="100">HAS_REASON</text><text class="rl" x="187" y="116" text-anchor="middle">DISPUTES</text><text class="rl" x="377" y="116" text-anchor="middle">CAPTURES</text><text class="rl" x="567" y="116" text-anchor="middle">AT_MERCHANT</text>
+          <g class="gp"><rect class="propbox" x="20" y="206" width="145" height="56" rx="8"/><text class="evs mono" x="32" y="228">opened: 2026-08-19</text><text class="evs mono" x="32" y="248">3 labels</text></g>
+          <g class="gp"><rect class="propbox" x="210" y="206" width="145" height="56" rx="8"/><text class="evs mono" x="222" y="228">amount: 42.50</text><text class="evs mono" x="222" y="248">captured: Aug 4</text></g>
+          <g class="gp"><rect class="propbox" x="400" y="206" width="145" height="56" rx="8"/><text class="evs mono" x="412" y="228">amount: 42.50</text><text class="evs mono" x="412" y="248">card not present</text></g>
+          <g class="gp"><rect class="propbox" x="590" y="206" width="145" height="56" rx="8"/><text class="evs mono" x="602" y="228">Harbor Grill #4</text><text class="evs mono" x="602" y="248">mcc: 5812</text></g>
+        </svg></div>
+        <p class="note">Boxes are nodes, arrows are relationships, and the dashed cards are properties stored on each node.</p>
+      </div>
+      <div class="xpanel" data-d="2" hidden>
+        <div class="xwrap"><svg id="x3chain" class="xsvg" viewBox="0 0 760 130" role="img" aria-label="A four-hop traversal from reason code to merchant">
+          <path class="rel" d="M164,66 L135,66" marker-end="url(#mg-onto)"/><path class="rel" d="M288,66 L317,66" marker-end="url(#mg-onto)"/><path class="rel" d="M442,66 L471,66" marker-end="url(#mg-onto)"/><path class="rel" d="M596,66 L625,66" marker-end="url(#mg-onto)"/>
+          <text class="rl" x="149" y="30" text-anchor="middle">HAS_REASON</text><text class="rl" x="303" y="30" text-anchor="middle">DISPUTES</text><text class="rl" x="457" y="30" text-anchor="middle">CAPTURES</text><text class="rl" x="611" y="30" text-anchor="middle">AT_MERCHANT</text>
+          <g class="cn"><rect class="evbox" x="10" y="40" width="124" height="52" rx="10"/><text class="evt mono" x="22" y="62">rc:visa:10.4</text><text class="evs" x="22" y="80">ReasonCode</text></g>
+          <g class="cn"><rect class="evbox" x="164" y="40" width="124" height="52" rx="10"/><text class="evt mono" x="176" y="62">cb:1001</text><text class="evs" x="176" y="80">Chargeback</text></g>
+          <g class="cn"><rect class="evbox" x="318" y="40" width="124" height="52" rx="10"/><text class="evt mono" x="330" y="62">cap:7731</text><text class="evs" x="330" y="80">Capture</text></g>
+          <g class="cn"><rect class="evbox" x="472" y="40" width="124" height="52" rx="10"/><text class="evt mono" x="484" y="62">auth:5521</text><text class="evs" x="484" y="80">Authorization</text></g>
+          <g class="cn"><rect class="evbox" x="626" y="40" width="124" height="52" rx="10"/><text class="evt mono" x="638" y="62">m:88213</text><text class="evs" x="638" y="80">Merchant</text></g>
+          <g id="x3pk"></g>
+          <text class="evs" id="x3hop" x="380" y="120" text-anchor="middle">hop 0 of 4</text>
+        </svg></div>
+        <div class="pat" id="x3pat"></div>
+        <div class="vbtns" style="margin-top:12px"><button type="button" class="vbtn go" id="x3walk">Walk it again</button></div>
+      </div>
+      <div class="xpanel" data-d="3" hidden>
+        <div class="doccard"><span class="vcap">A document in the entities index</span><p id="x3text">Chargeback on a Harbor Grill online order, reason 10.4 card-absent fraud</p></div>
+        <div class="toks" id="x3toks"></div>
+        <div class="ixgrid">
+          <table class="postings" id="x3post"><thead><tr><th>Term</th><th>Found in</th></tr></thead><tbody></tbody></table>
+          <div class="qbox"><span class="vcap">Someone searches, with a typo</span><div class="qline"><span id="x3q"></span><i class="caret"></i></div><p class="note" id="x3qn"></p><div class="qres" id="x3res"></div></div>
+        </div>
+      </div>
+      <div class="xpanel" data-d="4" hidden>
+        <div class="xwrap"><svg id="x3emb" class="xsvg" viewBox="0 0 760 320" role="img" aria-label="Texts plotted by meaning: fraud, settlement, onboarding and refund topics form clusters; a new question lands near the fraud cluster">
+          <rect class="plotbg" x="20" y="16" width="500" height="288" rx="12"/>
+          <g id="x3lines"></g><g id="x3pts"></g>
+          <g id="x3qg"><circle id="x3qp" cx="500" cy="296" r="8" style="fill:var(--onto)"/></g>
+          <text class="evs" id="x3ql" x="395" y="160" text-anchor="middle" opacity="0">“customer says the order wasn’t theirs”</text>
+          <text class="evt" x="540" y="40">Each text becomes a vector</text>
+          <text class="evs mono" x="540" y="62">[0.012, −0.087, 0.143, …]</text>
+          <text class="evs" x="540" y="82">256 to 3,072 numbers</text><text class="evs" x="540" y="104">for example Nova 2, Cohere Embed v4</text>
+          <text class="evt" x="540" y="130">Nearest to the question</text>
+          <text class="evs" id="x3n0" x="540" y="156" opacity="0"></text>
+          <text class="evs" id="x3n1" x="540" y="180" opacity="0"></text>
+          <text class="evs" id="x3n2" x="540" y="204" opacity="0"></text>
+          <g class="lg"><circle cx="40" cy="288" r="5" style="fill:var(--search)"/><text class="evs" x="50" y="292">fraud</text><circle cx="100" cy="288" r="5" style="fill:var(--graph)"/><text class="evs" x="110" y="292">settlement</text><circle cx="190" cy="288" r="5" style="fill:var(--muted)"/><text class="evs" x="200" y="292">onboarding</text><circle cx="285" cy="288" r="5" style="fill:var(--query)"/><text class="evs" x="295" y="292">refunds</text></g>
+        </svg></div>
+        <div class="vbtns"><button type="button" class="vbtn go" id="x3ask">Ask again</button></div>
+        <p class="note">A flattened picture: real embeddings have 256 to 3,072 dimensions, depending on the model. Cohere Embed v4 also reads tables and charts inside documents. The similarity scores are illustrative.</p>
+      </div>
+      <div class="xpanel" data-d="5" hidden>
+        <div class="joingrid">
+          <div class="hitcard"><span class="vcap">OpenSearch hit</span><dl class="prf"><dt>neptune_id</dt><dd><code class="idchip" id="x3id">cb:1001</code></dd><dt>score</dt><dd>0.86</dd><dt>labels</dt><dd>Chargeback</dd></dl></div>
+          <div class="joinmid"><span class="joinpill">same ID</span></div>
+          <svg id="x3j" class="xsvg" viewBox="0 0 330 230" role="img" aria-label="The chargeback node in Neptune and its neighbours">
+            <path class="rel jr" d="M120,90 L78,52"/><path class="rel jr" d="M210,90 L252,52"/><path class="rel jr" d="M210,136 L252,174"/><path class="rel jr" d="M120,136 L78,174"/>
+            <g class="jn"><rect class="evbox" x="10" y="10" width="110" height="42" rx="9"/><text class="evs mono" x="22" y="36">rc:visa:10.4</text></g>
+            <g class="jn"><rect class="evbox" x="210" y="10" width="110" height="42" rx="9"/><text class="evs mono" x="222" y="36">cap:7731</text></g>
+            <g class="jn"><rect class="evbox" x="210" y="174" width="110" height="42" rx="9"/><text class="evs mono" x="222" y="200">auth:5521</text></g>
+            <g class="jn"><rect class="evbox" x="10" y="174" width="110" height="42" rx="9"/><text class="evs mono" x="22" y="200">m:88213</text></g>
+            <g id="x3jc"><rect class="evbox" x="115" y="90" width="100" height="46" rx="10"/><text class="evt mono" x="130" y="118">cb:1001</text></g>
+          </svg>
+        </div>
+        <div class="vbtns" style="margin-top:12px"><button type="button" class="vbtn go" id="x3join">Follow the ID</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" aria-labelledby="own">
+  <h3 class="sech" id="own">Who owns what</h3>
+  <p class="intro">Most of the design follows from one split. Neptune is the system of record for payment facts and how they connect. OpenSearch is a derived index that turns words and meaning into Neptune IDs.</p>
+  <div class="split">
+    <div class="side" style="--c:var(--graph)">
+      <h3>Neptune</h3>
+      <p class="sub">What is true, and how it connects</p>
+      <ul>
+        <li><b>Identity</b><span>Parties, instruments and the events you reason over, with deterministic IDs so reloads are idempotent.</span></li>
+        <li><b>Lifecycle chains</b><span>Authorization to capture to settlement, refund or chargeback, as events linked by relationships.</span></li>
+        <li><b>Provenance</b><span>Source, extraction run and ontology version on every node; chunk stubs with MENTIONS edges.</span></li>
+        <li><b>The ontology itself</b><span>A small meta-graph of classes and allowed relationships that agents can read before writing Cypher.</span></li>
+        <li><b>Questions it answers</b><span>Paths, lineage, neighbors, counts over relationships.</span></li>
+      </ul>
+    </div>
+    <div class="join">
+      <div class="link"><div class="key">neptune_id</div></div>
+      <p>Every OpenSearch document carries the Neptune ID of what it describes, plus the ontology version. That is the only join between the stores.</p>
+    </div>
+    <div class="side" style="--c:var(--search)">
+      <h3>OpenSearch</h3>
+      <p class="sub">Where to start looking</p>
+      <ul>
+        <li><b>Words</b><span>Fuzzy merchant names, aliases, codes such as MCCs and reason codes.</span></li>
+        <li><b>Meaning</b><span>Vector similarity over entity summaries, document chunks and ontology definitions.</span></li>
+        <li><b>Filtering and ranking</b><span>Dates, classes, access classification, relevance scores.</span></li>
+        <li><b>Document text</b><span>Chunk text and embeddings, which Neptune never stores.</span></li>
+        <li><b>Questions it answers</b><span>Which thing did they mean, and what has been written about it.</span></li>
+      </ul>
+    </div>
+  </div>
+  <p class="rule">If OpenSearch disappeared tomorrow, you could rebuild it from Neptune and the source documents in S3. Never let the reverse become true.</p>
+</section>
+
+<section class="block" aria-labelledby="ixh">
+  <h3 class="sech" id="ixh">OpenSearch indexes</h3>
+  <p class="intro">Three indexes, all generated from the ontology and all rebuildable. Each index name is an alias that points at a versioned index, such as entities_v1_4.</p>
+  <div class="indexes">
+    <div class="ix">
+      <h3>entities <small>one per searchable node</small> <span class="tierb hot">hot tier</span></h3>
+      <p>Resolves names, codes and descriptions to Neptune IDs. Written only by the stream poller.</p>
+      <table>
+        <tr><td>neptune_id<span class="ty">keyword</span></td><td>The join key; also the document _id</td></tr>
+        <tr><td>labels<span class="ty">keyword</span></td><td>Full label chain, for class filters</td></tr>
+        <tr><td>name<span class="ty">text + keyword</span></td><td>Fuzzy and exact matching</td></tr>
+        <tr><td>aliases<span class="ty">text</span></td><td>Trading names, old names</td></tr>
+        <tr><td>codes<span class="ty">keyword</span></td><td>MCC, reason codes, BIN ranges</td></tr>
+        <tr><td>summary<span class="ty">text</span></td><td>Built from properties and neighbors</td></tr>
+        <tr><td>embedding<span class="ty">knn_vector</span></td><td>Same model as the other indexes</td></tr>
+        <tr><td>ontology_version<span class="ty">keyword</span></td><td>Release that shaped this document</td></tr>
+      </table>
+    </div>
+    <div class="ix">
+      <h3>chunks <small>one per document chunk</small> <span class="tierb cheap">S3 Vectors tier</span></h3>
+      <p>Holds the text Neptune doesn't. Written by the extraction pipeline.</p>
+      <table>
+        <tr><td>chunk_id<span class="ty">keyword</span></td><td>Stable per document version</td></tr>
+        <tr><td>doc_id, title<span class="ty">keyword, text</span></td><td>For citations</td></tr>
+        <tr><td>text<span class="ty">text</span></td><td>The chunk itself</td></tr>
+        <tr><td>embedding<span class="ty">knn_vector</span></td><td>Stored on the S3 Vectors engine</td></tr>
+        <tr><td>mentions<span class="ty">keyword</span></td><td>Neptune IDs of entities named</td></tr>
+        <tr><td>classification<span class="ty">keyword</span></td><td>Access filter on every query</td></tr>
+        <tr><td>ontology_version<span class="ty">keyword</span></td><td>For release rollbacks</td></tr>
+      </table>
+    </div>
+    <div class="ix">
+      <h3>ontology <small>one per class or relationship</small> <span class="tierb hot">hot tier</span></h3>
+      <p>Lets the retrieval service fetch only the schema a question needs before writing Cypher.</p>
+      <table>
+        <tr><td>iri<span class="ty">keyword</span></td><td>Versioned identifier</td></tr>
+        <tr><td>kind<span class="ty">keyword</span></td><td>Class, relationship or property</td></tr>
+        <tr><td>label, definition<span class="ty">text</span></td><td>What text-to-Cypher reads</td></tr>
+        <tr><td>domain, range<span class="ty">keyword</span></td><td>Allowed direction</td></tr>
+        <tr><td>parents<span class="ty">keyword</span></td><td>Superclass chain</td></tr>
+        <tr><td>cypher_pattern<span class="ty">keyword</span></td><td>A ready-made pattern to paste into the prompt</td></tr>
+        <tr><td>embedding<span class="ty">knn_vector</span></td><td>Match questions to classes</td></tr>
+      </table>
+    </div>
+  </div>
+  <p class="release"><strong>Releasing a new ontology version:</strong> build the next set of versioned indexes, backfill them from Neptune and the chunk store, run the evaluation questions against them, then move the three aliases together. Rolling back is moving the aliases back.</p>
+<div class="tiers" id="tiers">
+    <div class="tierc" style="--c:var(--search)"><b>Hot tier</b><span>Vectors held in memory (HNSW)</span>
+      <div class="meter"><em>Query speed</em><div class="mtrack"><i data-w="92"></i></div></div>
+      <div class="meter"><em>Storage cost</em><div class="mtrack"><i data-w="88"></i></div></div>
+      <small>For entities and the ontology: small, and queried on every question.</small></div>
+    <div class="tierc" style="--c:var(--graph)"><b>S3 Vectors engine</b><span>Vectors stored in S3; text, filters and hybrid search stay in OpenSearch</span>
+      <div class="meter"><em>Query speed</em><div class="mtrack"><i data-w="45"></i></div></div>
+      <div class="meter"><em>Storage cost</em><div class="mtrack"><i data-w="18"></i></div></div>
+      <small>For document chunks: large, and fine with slower vector queries.</small></div>
+  </div>
+  <p class="note">Bars are illustrative. For development and bursty workloads, the rebuilt OpenSearch Serverless can also scale to zero.</p>
+
+
+</section>
+
+  <div class="check" data-ch="3"></div>
+  <div class="chnext" data-ch="3"></div>
+</section>
+
+<section class="chapter" id="ch4" data-ch="4" style="--c:var(--query)" aria-labelledby="ch4h">
+  <header class="chhead">
+    <div class="chn" aria-hidden="true">4</div>
+    <div><h2 id="ch4h">Answer a question</h2><p class="chidea">Search finds the entry points, the graph does the reasoning, and every answer cites its sources.</p><div class="chacts"><button type="button" class="vbtn watch" data-flow="query">Watch it on the map</button><a class="vbtn go" href="retrieval.html" target="_blank" rel="noopener">Open the retrieval deep dive</a></div></div>
+    <figure class="minibox"><svg class="mini" data-ch="4" viewBox="10 26 1070 464" role="img" aria-label="Where chapter 4 sits in the platform"></svg><figcaption>Where this sits in the platform</figcaption></figure>
+  </header>
+<section class="block dd" id="dd4" data-next="#walkh" data-next-label="Next: one question, end to end" aria-labelledby="dd4h">
+  <h3 class="sech" id="dd4h">Deep dive: how hybrid search blends scores</h3>
+  <p class="intro">Four documents, one query: “10.4 card-absent fraud”. Watch keyword and vector search score them on different scales, then see how one number comes out.</p>
+  <div class="stepper xsteps" role="group" aria-label="Deep dive steps"></div>
+  <div class="sdetail">
+    <div class="skeys xkeys" aria-live="polite"></div>
+    <div class="sviz">
+      <div class="xpanel" data-d="1"><div class="scorecols" id="x4raw"></div><p class="note">Document C has no vector score and D has no keyword score: each search only returns its own top hits.</p></div>
+      <div class="xpanel" data-d="2" hidden><div class="formula">normalized = (score − lowest) ÷ (highest − lowest)</div><div class="scorecols" id="x4norm"></div></div>
+      <div class="xpanel" data-d="3" hidden>
+        <div class="wctl"><label for="x4w">Keyword weight</label><input type="range" id="x4w" min="0" max="1" step="0.05" value="0.4"><span id="x4wv"></span></div>
+        <div class="combo" id="x4combo"></div>
+        <div class="blegend"><span><i class="sw" style="background:var(--graph)"></i>Keyword part</span><span><i class="sw" style="background:var(--query)"></i>Vector part</span></div>
+      </div>
+      <div class="xpanel" data-d="4" hidden>
+        <div class="ddcode" id="x4box"><div class="ddband"></div><pre id="x4code"></pre></div>
+        <p class="reading" id="x4cap"></p>
+        <div class="vbtns"><button type="button" class="vbtn go" id="x4play">Play the tour</button></div>
+      </div>
+      <div class="xpanel" data-d="5" hidden>
+        <div class="why3" id="x4why">
+          <div class="w3 h"><span>Query</span><span>Keyword</span><span>Vector</span><span>Hybrid</span></div>
+          <div class="w3"><span><b>“10.4”</b><small>an exact code</small></span><span class="mk" data-v="1"></span><span class="mk" data-v="0"></span><span class="mk" data-v="1"></span></div>
+          <div class="w3"><span><b>“customer says the order wasn’t theirs”</b><small>same meaning, no shared words</small></span><span class="mk" data-v="0"></span><span class="mk" data-v="1"></span><span class="mk" data-v="1"></span></div>
+          <div class="w3"><span><b>“Harbor Grill disputes”</b><small>a name plus a topic</small></span><span class="mk" data-v="1"></span><span class="mk" data-v="1"></span><span class="mk" data-v="1"></span></div>
+        </div>
+        <p class="note">Vectors blur exact codes: 10.4 and 10.5 mean almost the same thing to an embedding. Keywords keep them apart.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" aria-labelledby="walkh">
+  <h3 class="sech" id="walkh">One question, end to end</h3>
+  <p class="intro">A dispute analyst's agent asks: which merchants had the most 10.4 chargebacks last month, and what do the network rules say about 10.4? Step through what each part of the system does.</p>
+  <div class="walk">
+    <ol class="steps" id="wsteps" aria-label="Walkthrough steps"></ol>
+    <div>
+      <p class="wtext" id="wtext"></p>
+      <div class="touches" id="touches">
+        <span class="touch" data-t="api" style="--c:var(--query)">Retrieval service</span>
+        <span class="touch" data-t="opensearch" style="--c:var(--search)">OpenSearch</span>
+        <span class="touch" data-t="bedrock" style="--c:var(--ink)">Bedrock</span>
+        <span class="touch" data-t="neptune" style="--c:var(--graph)">Neptune</span>
+      </div>
+      <div class="code" id="wcode"><div class="fband" id="fband"></div>
+        <div class="wpanel" data-w="0"><pre></pre></div>
+        <div class="wpanel" data-w="1" hidden><pre></pre></div>
+        <div class="wpanel" data-w="2" hidden><pre></pre></div>
+        <div class="wpanel" data-w="3" hidden><pre></pre></div>
+        <div class="wpanel" data-w="4" hidden><pre></pre></div>
+      </div>
+      <div class="frow"><button type="button" class="vbtn" id="followBtn">Follow along</button><p class="fcap" id="fcap" aria-live="polite"></p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="reuse" aria-labelledby="reuseh">
+  <h3 class="sech" id="reuseh">Build or reuse</h3>
+  <p class="intro">AWS Labs’ open-source BYOKG-RAG already answers questions over a graph you bring. Most of our retrieval steps map onto its strategies, so phase 4 starts on it and we build only what it lacks.</p>
+  <div class="rhead"><span>Our retrieval steps</span><span>BYOKG-RAG strategies</span></div>
+  <div class="xwrap"><svg id="rmap" class="xsvg" viewBox="0 0 760 250" role="img" aria-label="Our four retrieval steps mapped to BYOKG-RAG's four strategies">
+    <path class="rline" d="M280,39 L479,39"/><path class="rline" d="M280,99 L479,99"/><path class="rline" d="M280,159 L479,159"/><path class="rline new" d="M280,219 L479,219"/>
+    <g class="rb"><rect class="evbox" x="20" y="16" width="260" height="46" rx="10"/><text class="evt" x="36" y="36">Find entry points</text><text class="evs" x="36" y="53">hybrid search over entities</text></g>
+    <g class="rb"><rect class="evbox" x="20" y="76" width="260" height="46" rx="10"/><text class="evt" x="36" y="96">Walk from those IDs</text><text class="evs" x="36" y="113">multi-hop traversal</text></g>
+    <g class="rb"><rect class="evbox" x="20" y="136" width="260" height="46" rx="10"/><text class="evt" x="36" y="156">Count and rank</text><text class="evs" x="36" y="173">validated Cypher</text></g>
+    <g class="rb"><rect class="evbox ghostb" x="20" y="196" width="260" height="46" rx="10"/><text class="evt" x="36" y="216">Explore unclear paths</text><text class="evs" x="36" y="233">something we don’t do yet</text></g>
+    <g class="rb"><rect class="evbox" x="480" y="16" width="260" height="46" rx="10"/><rect x="488" y="26" width="3" height="26" rx="1.5" style="fill:var(--query)"/><text class="evt" x="502" y="36">Scoring-based triplets</text><text class="evs" x="502" y="53">semantic match on graph facts</text></g>
+    <g class="rb"><rect class="evbox" x="480" y="76" width="260" height="46" rx="10"/><rect x="488" y="86" width="3" height="26" rx="1.5" style="fill:var(--query)"/><text class="evt" x="502" y="96">Path-based retrieval</text><text class="evs" x="502" y="113">multi-hop entity paths</text></g>
+    <g class="rb"><rect class="evbox" x="480" y="136" width="260" height="46" rx="10"/><rect x="488" y="146" width="3" height="26" rx="1.5" style="fill:var(--query)"/><text class="evt" x="502" y="156">Query-based retrieval</text><text class="evs" x="502" y="173">Cypher from the question</text></g>
+    <g class="rb"><rect class="evbox" x="480" y="196" width="260" height="46" rx="10"/><rect x="488" y="206" width="3" height="26" rx="1.5" style="fill:var(--query)"/><text class="evt" x="502" y="216">Agentic retrieval</text><text class="evs" x="502" y="233">LLM-guided exploration</text></g>
+  </svg></div>
+  <div class="reuse2">
+    <div class="rcol"><b>Reuse from BYOKG-RAG</b><div class="rchips"><span>Four retrieval strategies</span><span>Blocks mutating Cypher</span><span>Neptune Database and Analytics</span><span>OpenSearch or S3 Vectors for vectors</span><span>Apache 2.0</span></div></div>
+    <div class="rcol"><b>Still ours to build</b><div class="rchips mine"><span>Ontology-checked Cypher</span><span>Hybrid search over document chunks</span><span>AgentCore Gateway and Policy</span><span>Answers with our citations</span><span>An evaluation set of real questions</span></div></div>
+  </div>
+</section>
+
+  <div class="check" data-ch="4"></div>
+  <div class="chnext" data-ch="4"></div>
+</section>
+
+<section class="chapter" id="ch5" data-ch="5" style="--c:var(--query)" aria-labelledby="ch5h">
+  <header class="chhead">
+    <div class="chn" aria-hidden="true">5</div>
+    <div><h2 id="ch5h">Who uses it</h2><p class="chidea">Agents, analysts, engineers and other teams each get their own way in, through one access policy.</p><div class="chacts"></div></div>
+    <figure class="minibox"><svg class="mini" data-ch="5" viewBox="10 26 1070 464" role="img" aria-label="Where chapter 5 sits in the platform"></svg><figcaption>Where this sits in the platform</figcaption></figure>
+  </header>
+<section class="block dd" id="dd5" data-next="#usersh" data-next-label="Next: four ways in" aria-labelledby="dd5h">
+  <h3 class="sech" id="dd5h">Deep dive: an agent's tool call</h3>
+  <p class="intro">What happens when an agent asks the knowledge layer about Maya's chargeback: the tools it sees, the messages on the wire under the 2026-07-28 MCP spec, the checks at the gateway, and how one agent hands work to another.</p>
+  <div class="stepper xsteps" role="group" aria-label="Deep dive steps"></div>
+  <div class="sdetail">
+    <div class="skeys xkeys" aria-live="polite"></div>
+    <div class="sviz">
+      <div class="xpanel" data-d="1">
+        <div class="toolcards" id="x5tools"></div>
+        <div class="ddcode" id="x5box"><div class="ddband"></div><pre id="x5def"></pre></div>
+        <p class="reading" id="x5cap"></p>
+      </div>
+      <div class="xpanel" data-d="2" hidden>
+        <div class="xwrap"><svg id="x5seq" class="xsvg" viewBox="0 0 760 300" role="img" aria-label="Sequence: the agent calls a tool through AgentCore Gateway, which checks policy and forwards the call to the retrieval service; the service queries OpenSearch and a structured result returns">
+          <g><rect class="evbox" x="20" y="10" width="140" height="46" rx="10"/><text class="evt" x="90" y="38" text-anchor="middle">Agent</text></g>
+          <g><rect class="evbox" x="200" y="10" width="180" height="46" rx="10"/><rect x="208" y="20" width="3" height="26" rx="1.5" style="fill:var(--onto)"/><text class="evt" x="296" y="30" text-anchor="middle">AgentCore Gateway</text><text class="evs" x="296" y="47" text-anchor="middle">identity and policy</text></g>
+          <g><rect class="evbox" x="410" y="10" width="160" height="46" rx="10"/><rect x="418" y="20" width="3" height="26" rx="1.5" style="fill:var(--query)"/><text class="evt" x="496" y="30" text-anchor="middle">Retrieval service</text><text class="evs" x="496" y="47" text-anchor="middle">MCP tools</text></g>
+          <g><rect class="evbox" x="600" y="10" width="140" height="46" rx="10"/><rect x="608" y="20" width="3" height="26" rx="1.5" style="fill:var(--search)"/><text class="evt" x="676" y="38" text-anchor="middle">OpenSearch</text></g>
+          <path class="life" d="M90,56 L90,290"/><path class="life" d="M290,56 L290,290"/><path class="life" d="M490,56 L490,290"/><path class="life" d="M670,56 L670,290"/>
+          <path class="msg" d="M90,88 L288,88" marker-end="url(#mg-onto)"/>
+          <path class="msg" d="M290,120 L488,120" marker-end="url(#mg-onto)"/>
+          <path class="msg" d="M490,152 L668,152" marker-end="url(#mg-onto)"/>
+          <path class="msg ret" d="M670,184 L492,184" marker-end="url(#mg-onto)"/>
+          <path class="msg ret" d="M490,216 L292,216" marker-end="url(#mg-onto)"/>
+          <path class="msg ret" d="M290,248 L92,248" marker-end="url(#mg-onto)"/>
+          <text class="rl mlab" x="190" y="80" text-anchor="middle">tools/call search_entities</text>
+          <text class="rl mlab" x="390" y="112" text-anchor="middle">policy allows it</text>
+          <text class="rl mlab" x="580" y="144" text-anchor="middle">hybrid query</text>
+          <text class="rl mlab" x="580" y="176" text-anchor="middle">hits with neptune_id</text>
+          <text class="rl mlab" x="390" y="208" text-anchor="middle">structured result</text>
+          <text class="rl mlab" x="190" y="240" text-anchor="middle">result: m:88213</text>
+          <g id="x5pk"></g>
+        </svg></div>
+        <p class="vcap" id="x5jl" style="margin-top:10px">The request, under the 2026-07-28 spec</p>
+        <div class="ddcode"><pre id="x5json"></pre></div>
+        <div class="vbtns" style="margin-top:12px"><button type="button" class="vbtn go" id="x5again">Send it again</button></div>
+      </div>
+      <div class="xpanel" data-d="3" hidden>
+        <p class="vcap">The question: “Why was Maya’s Harbor Grill order charged back, and is it a pattern?”</p>
+        <div class="callchain" id="x5chain"></div>
+        <div class="answer" id="x5ans"><span class="vcap">The agent’s answer</span><p>Maya’s order was charged back as 10.4, card-absent fraud. It isn’t a one-off: Harbor Grill has 41 chargebacks with that reason code this month. <code>[cb:1001]</code> <code>[cypher run q-7f3a]</code></p></div>
+      </div>
+      <div class="xpanel" data-d="4" hidden>
+        <div class="rules" id="x5g">
+          <div class="rrow rh"><span>Layers every tool call passes through</span><span>call 1</span><span>call 2</span></div>
+          <div class="rrow"><span><b>Gateway:</b> who is asking? The caller’s token is checked</span><span class="mk" data-r="0" data-c="a"></span><span class="mk" data-r="0" data-c="b"></span></div>
+          <div class="rrow"><span><b>AgentCore Policy:</b> is this call allowed? Default deny, forbid wins</span><span class="mk" data-r="1" data-c="a"></span><span class="mk" data-r="1" data-c="b"></span></div>
+          <div class="rrow"><span><b>Our validator:</b> valid for the ontology, read-only, bounded?</span><span class="mk" data-r="2" data-c="a"></span><span class="mk" data-r="2" data-c="b"></span></div>
+          <div class="rrow"><span><b>IAM role:</b> Neptune access is read-only</span><span class="mk" data-r="3" data-c="a"></span><span class="mk" data-r="3" data-c="b"></span></div>
+        </div>
+        <div class="calls2"><div><span class="vcap">Call 1</span><code>run_validated_cypher</code> counts 10.4 chargebacks</div><div><span class="vcap">Call 2</span><code>run_validated_cypher</code> <code>MATCH (n) DETACH DELETE n</code></div></div>
+        <div class="ddcode report" id="x5errbox"><pre id="x5err"></pre></div>
+        <div class="vbtns" style="margin-top:12px"><button type="button" class="vbtn go" id="x5check">Run the checks</button><button type="button" class="vbtn" id="x5polBtn" aria-expanded="false">Show the policy</button></div>
+        <div class="ddcode" id="x5polBox" hidden><pre id="x5pol"></pre></div>
+        <p class="note">Faded marks are layers call 2 never reaches, but each would refuse it too. The policy and error shown are illustrative; AgentCore Policy rules are Cedar and can also be written in plain language.</p>
+      </div>
+      <div class="xpanel" data-d="5" hidden>
+        <div class="xwrap"><svg id="x5a2a" class="xsvg" viewBox="0 0 760 160" role="img" aria-label="A fraud agent from another team sends an A2A task to our disputes agent, which uses MCP tools on the knowledge layer and returns the result">
+          <path id="a2aA" class="rel" d="M200,80 L289,80" marker-end="url(#mg-onto)"/>
+          <path id="a2aB" class="rel" d="M470,80 L559,80" marker-end="url(#mg-onto)"/>
+          <text class="rl" x="245" y="68" text-anchor="middle">A2A task</text>
+          <text class="rl" x="515" y="68" text-anchor="middle">MCP tools</text>
+          <g class="a2n"><rect class="evbox" x="20" y="50" width="180" height="60" rx="10"/><text class="evt" x="110" y="76" text-anchor="middle">Fraud agent</text><text class="evs" x="110" y="95" text-anchor="middle">another team</text></g>
+          <g class="a2n"><rect class="evbox" x="290" y="50" width="180" height="60" rx="10"/><rect x="298" y="62" width="3" height="36" rx="1.5" style="fill:var(--query)"/><text class="evt" x="386" y="76" text-anchor="middle">Disputes agent</text><text class="evs" x="386" y="95" text-anchor="middle">ours</text></g>
+          <g class="a2n"><rect class="evbox" x="560" y="50" width="180" height="60" rx="10"/><rect x="568" y="62" width="3" height="36" rx="1.5" style="fill:var(--graph)"/><text class="evt" x="656" y="76" text-anchor="middle">Knowledge layer</text><text class="evs" x="656" y="95" text-anchor="middle">via AgentCore Gateway</text></g>
+          <g id="a2apk"></g>
+        </svg></div>
+        <div class="tstates" id="x5ts"><span class="vcap">Task</span><span data-s="submitted">submitted</span><span class="ar">→</span><span data-s="working">working</span><span class="ar">→</span><span data-s="completed">completed</span></div>
+        <p class="vcap" style="margin-top:12px">The disputes agent’s agent card, which other agents read to discover it</p>
+        <div class="ddcode"><pre id="x5card"></pre></div>
+        <div class="vbtns" style="margin-top:12px"><button type="button" class="vbtn go" id="x5a2aBtn">Send the task again</button></div>
+        <p class="note">Agent cards are published at /.well-known/agent-card.json. This card is illustrative.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="users" aria-labelledby="usersh">
+  <h3 class="sech" id="usersh">Four ways in</h3>
+  <p class="intro">Everyone reaches the same knowledge, just not the same way. Agents and analysts go through the retrieval service, engineers explore the graph directly, and other teams consume the published ontology.</p>
+  <div class="diagram-wrap"><svg id="usesvg" class="loopsvg" viewBox="0 0 960 330" role="img" aria-label="Agents and the analyst UI reach Neptune and OpenSearch through the retrieval service; engineers use Graph Explorer; other teams use the published ontology">
+    <g id="upaths"></g>
+    <g class="unode"><rect class="evbox" x="20" y="16" width="210" height="56" rx="10"/><text class="evt" x="38" y="40">Agents</text><text class="evs" x="38" y="60">Through MCP tools</text></g>
+    <g class="unode"><rect class="evbox" x="20" y="90" width="210" height="56" rx="10"/><text class="evt" x="38" y="114">Analyst UI</text><text class="evs" x="38" y="134">Search and graph views</text></g>
+    <g class="unode"><rect class="evbox" x="20" y="182" width="210" height="56" rx="10"/><text class="evt" x="38" y="206">Engineers</text><text class="evs" x="38" y="226">Explore and debug</text></g>
+    <g class="unode"><rect class="evbox" x="20" y="258" width="210" height="56" rx="10"/><text class="evt" x="38" y="282">Other teams, partners</text><text class="evs" x="38" y="302">Pin an ontology version</text></g>
+    <g class="unode"><rect class="evbox" x="340" y="44" width="230" height="74" rx="10"/><rect x="348" y="56" width="3" height="50" rx="1.5" style="fill:var(--query)"/><text class="evt" x="362" y="70">Retrieval service</text><text class="evs" x="362" y="90">Behind AgentCore Gateway</text><text class="evs" x="362" y="108">Validated, read-only queries</text></g>
+    <g class="unode"><rect class="evbox" x="340" y="182" width="230" height="56" rx="10"/><rect x="348" y="192" width="3" height="36" rx="1.5" style="fill:var(--graph)"/><text class="evt" x="362" y="206">Graph Explorer</text><text class="evs" x="362" y="226">Free, runs in your VPC</text></g>
+    <g class="unode"><rect class="evbox" x="340" y="258" width="230" height="56" rx="10"/><rect x="348" y="268" width="3" height="36" rx="1.5" style="fill:var(--onto)"/><text class="evt" x="362" y="282">Published ontology</text><text class="evs" x="362" y="302">Versioned releases</text></g>
+    <g class="unode"><rect class="evbox" x="690" y="44" width="250" height="74" rx="10"/><rect x="698" y="56" width="3" height="22" rx="1.5" style="fill:var(--graph)"/><rect x="698" y="84" width="3" height="22" rx="1.5" style="fill:var(--search)"/><text class="evt" x="712" y="74">Neptune + OpenSearch</text><text class="evs" x="712" y="96">The knowledge layer</text></g>
+    <g id="upk" aria-hidden="true"></g>
+  </svg></div>
+  <div class="vbtns" style="margin-top:10px"><button type="button" class="vbtn" id="uReplay">Replay</button></div>
+  <h4 class="toolh">The agent toolset</h4>
+  <div class="tools"><code>search_entities</code><code>expand_subgraph</code><code>run_validated_cypher</code><code>get_ontology_class</code></div>
+  <p class="note">No raw Cypher tool for agents. Every call passes AgentCore Policy at the gateway, and every query is checked against the ontology, read-only and bounded. Agents from other teams hand work over A2A instead.</p>
+  <div class="aud">
+    <div><b>Graph Explorer</b><span>Engineers and the ontology team. Free, AWS open source, openCypher, with a schema view.</span></div>
+    <div><b>G.V()</b><span>Developers writing Cypher every day. A paid query IDE with graph views.</span></div>
+    <div><b>Linkurious Enterprise</b><span>Investigations at scale. Paid, and it brings its own access rules: a second policy to maintain.</span></div>
+  </div>
+</section>
+  <div class="check" data-ch="5"></div>
+  <div class="chnext" data-ch="5"></div>
+</section>
+
+<section class="chapter" id="ch6" data-ch="6" style="--c:var(--onto)" aria-labelledby="ch6h">
+  <header class="chhead">
+    <div class="chn" aria-hidden="true">6</div>
+    <div><h2 id="ch6h">Keep it current</h2><p class="chidea">Machines detect, draft and release changes. People decide wherever meaning changes.</p><div class="chacts"></div></div>
+    <figure class="minibox"><svg class="mini" data-ch="6" viewBox="10 26 1070 464" role="img" aria-label="Where chapter 6 sits in the platform"></svg><figcaption>Where this sits in the platform</figcaption></figure>
+  </header>
+<section class="block dd" id="dd6" data-next="#loop" data-next-label="Next: the continuous loop" aria-labelledby="dd6h">
+  <h3 class="sech" id="dd6h">Deep dive: versions and alias swaps</h3>
+  <p class="intro">How a version number tells every consumer what changed, and how OpenSearch switches to a rebuilt index without anyone noticing.</p>
+  <div class="stepper xsteps" role="group" aria-label="Deep dive steps"></div>
+  <div class="sdetail">
+    <div class="skeys xkeys" aria-live="polite"></div>
+    <div class="sviz">
+      <div class="xpanel" data-d="1">
+        <div class="verbig" id="x6ver"><div class="vd" data-i="0"><b>1</b><small>major</small></div><span class="vdot">.</span><div class="vd" data-i="1"><b>6</b><small>minor</small></div><span class="vdot">.</span><div class="vd" data-i="2"><b>0</b><small>patch</small></div></div>
+        <p class="vcap" style="text-align:center">Pick a change to see which number moves</p>
+        <div class="vbtns chg" id="x6chg">
+          <button type="button" class="vbtn" data-k="2" data-t="A typo fixed in a definition changes no structure: patch.">Fix a typo in a definition</button>
+          <button type="button" class="vbtn" data-k="2" data-t="An alias only helps search find a class: patch.">Add an alias</button>
+          <button type="button" class="vbtn" data-k="1" data-t="A new class adds meaning without breaking anyone: minor.">Add a class</button>
+          <button type="button" class="vbtn" data-k="1" data-t="A new relationship is additive, so existing queries still work: minor.">Add a relationship</button>
+          <button type="button" class="vbtn" data-k="0" data-t="Renaming breaks every query and mapping that used the old name: major.">Rename a class</button>
+          <button type="button" class="vbtn" data-k="0" data-t="Splitting Merchant changes what existing nodes mean: major.">Split Merchant</button>
+        </div>
+        <p class="reading" id="x6why" style="text-align:center"></p>
+      </div>
+      <div class="xpanel" data-d="2" hidden>
+        <div class="xwrap"><svg id="x6pins" class="xsvg" viewBox="0 0 760 266" role="img" aria-label="Release timeline with three consumers pinning different version ranges">
+          <path class="gmain" d="M40,50 L730,50"/>
+          <g class="rel6"><circle cx="90" cy="50" r="8"/><text x="90" y="30">1.5.0</text></g>
+          <g class="rel6"><circle cx="230" cy="50" r="8"/><text x="230" y="30">1.6.0</text></g>
+          <g class="rel6"><circle cx="370" cy="50" r="8"/><text x="370" y="30">1.6.1</text></g>
+          <g class="rel6"><circle cx="510" cy="50" r="8"/><text x="510" y="30">1.7.0</text></g>
+          <g class="rel6 major" id="x6major"><circle cx="660" cy="50" r="10"/><text x="660" y="30">2.0.0</text></g>
+          <g class="pin"><text class="evt" x="40" y="110">Analyst UI</text><text class="evs mono" x="40" y="128">^1.6, any 1.x from 1.6</text><path class="bracket" d="M230,118 L590,118"/><circle class="pinend" cx="230" cy="118" r="5"/><circle class="pinend" cx="590" cy="118" r="5"/></g>
+          <g class="pin"><text class="evt" x="40" y="170">Partner bank</text><text class="evs mono" x="40" y="188">=1.6.0, exact</text><circle class="pinend" cx="230" cy="178" r="7"/></g>
+          <g class="pin"><text class="evt" x="40" y="230">Retrieval service</text><text class="evs mono" x="40" y="248">follows the latest</text><path class="bracket follow" d="M230,238 L700,238"/><circle class="pinend" cx="230" cy="238" r="5"/></g>
+          <g class="mig" id="x6mig1" opacity="0"><rect x="600" y="106" width="130" height="24" rx="12"/><text x="665" y="122">migration needed</text></g>
+          <g class="mig" id="x6mig2" opacity="0"><rect x="600" y="166" width="130" height="24" rx="12"/><text x="665" y="182">migration needed</text></g>
+        </svg></div>
+        <div class="vbtns"><button type="button" class="vbtn go" id="x6rel">Release 2.0.0</button></div>
+      </div>
+      <div class="xpanel" data-d="3" hidden>
+        <div class="xwrap"><svg id="x6alias" class="xsvg" viewBox="0 0 760 230" role="img" aria-label="Queries use the alias entities, which points to one versioned index at a time">
+          <g><rect class="evbox" x="20" y="80" width="140" height="52" rx="10"/><text class="evt" x="90" y="104" text-anchor="middle">Queries</text><text class="evs" x="90" y="121" text-anchor="middle">agents, analysts</text></g>
+          <path class="rel" d="M160,106 L239,106" marker-end="url(#mg-onto)"/>
+          <g id="x6pill"><rect class="aliaspill" x="240" y="84" width="150" height="44" rx="22"/><text class="evt mono" x="315" y="111" text-anchor="middle">entities</text></g>
+          <path id="x6arA" class="aliasarr" d="M390,106 C440,106 440,52 499,52" marker-end="url(#mg-onto)"/>
+          <path id="x6arB" class="aliasarr" d="M390,106 C440,106 440,166 499,166" marker-end="url(#mg-onto)" opacity="0"/>
+          <g id="x6ixA"><rect class="evbox" x="500" y="24" width="240" height="56" rx="10"/><rect x="508" y="36" width="3" height="32" rx="1.5" style="fill:var(--search)"/><text class="evt mono" x="522" y="48">entities_v1_6</text><text class="evs" id="x6stA" x="522" y="68">live</text></g>
+          <g id="x6ixB" opacity="0.35"><rect class="evbox" x="500" y="138" width="240" height="56" rx="10"/><rect x="508" y="150" width="3" height="32" rx="1.5" style="fill:var(--search)"/><text class="evt mono" x="522" y="162">entities_v1_7</text><text class="evs" id="x6stB" x="522" y="182">not built yet</text><rect class="pbar" x="620" y="175" width="100" height="8" rx="4"/><rect class="pfill" id="x6fill" x="620" y="175" width="0" height="8" rx="4"/></g>
+        </svg></div>
+        <div class="vbtns"><button type="button" class="vbtn go" id="x6build">1. Build v1.7</button><button type="button" class="vbtn" id="x6swap" disabled>2. Swap the alias</button><button type="button" class="vbtn" id="x6back" disabled>3. Roll back</button></div>
+        <div class="ddcode"><pre id="x6json"></pre></div>
+      </div>
+      <div class="xpanel" data-d="4" hidden>
+        <ol class="runbook" id="x6run">
+          <li><b>Snapshot Neptune</b><span>A manual cluster snapshot, taken before anything changes</span></li>
+          <li><b>Build the new indexes</b><span>entities, chunks and ontology, suffixed _v1_7, backfilled from Neptune</span></li>
+          <li><b>Run the competency questions</b><span>Against the new indexes, before any traffic sees them</span></li>
+          <li><b>Swap the three aliases together</b><span>One atomic _aliases call</span></li>
+          <li><b>Watch, then clean up</b><span>Keep the v1_6 indexes until the new ones have proved themselves</span></li>
+        </ol>
+        <div class="rollback" id="x6rb"><b>If something goes wrong</b><span>Move the aliases back in one call. For graph data, restore the snapshot; Neptune restores to a new cluster, so the cutover is a switch too.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="loopsec" aria-labelledby="loop">
+  <h3 class="sech" id="loop">A continuous loop</h3>
+  <p class="intro">Machines detect, draft, test and release. People decide only where meaning changes, and the diff decides which lane a change takes. Send a change through.</p>
+  <div class="scen" id="scen" role="group" aria-label="Example changes">
+    <button type="button" class="vbtn" data-s="bulletin">Network adds a reason code</button>
+    <button type="button" class="vbtn" data-s="state">Code adds a dispute state</button>
+    <button type="button" class="vbtn" data-s="dup">Code adds a look-alike class</button>
+    <button type="button" class="vbtn" data-s="split">Questions keep failing</button>
+  </div>
+  <div class="loopgrid">
+    <div>
+      <div class="xwrap"><svg id="loopsvg" class="loopsvg" viewBox="0 0 740 545" role="img" aria-label="Drift signals feed a proposal bot and automated checks, then one of three approval lanes by risk, then a release train">
+        <g id="lpaths"></g><g id="lnodes"></g><g id="lpk" aria-hidden="true"></g>
+        <text class="lns" x="370" y="534" text-anchor="middle">↻ The new version constrains the next extraction run</text>
+      </svg></div>
+      <div class="hist" id="hist"><span class="hl">Releases</span><span class="hv"><b>v1.5.0</b>baseline</span></div>
+    </div>
+    <div class="prcard" id="prcard" aria-live="polite"><p class="prempty">Pick a change above to watch its pull request move through the loop.</p></div>
+  </div>
+  <div class="below">
+    <div class="tc">
+      <h3>Earn autonomy per change type</h3>
+      <div class="thrkey"><i></i>Promotion line: 95% of proposals accepted</div>
+      <div id="arows">
+        <div class="arow"><span>New code value</span><div class="track"><div class="fillbar" data-p="99" style="--c:var(--query)"></div><div class="thr"></div></div><span class="pv">99%</span><span class="lanechip" style="--c:var(--query)">Auto-merge</span></div>
+        <div class="arow"><span>New alias</span><div class="track"><div class="fillbar" data-p="97" style="--c:var(--query)"></div><div class="thr"></div></div><span class="pv">97%</span><span class="lanechip" style="--c:var(--query)">Auto-merge</span></div>
+        <div class="arow"><span>New class</span><div class="track"><div class="fillbar" data-p="72" style="--c:var(--onto)"></div><div class="thr"></div></div><span class="pv">72%</span><span class="lanechip" style="--c:var(--onto)">Owner approves</span></div>
+        <div class="arow"><span>New relationship</span><div class="track"><div class="fillbar" data-p="64" style="--c:var(--onto)"></div><div class="thr"></div></div><span class="pv">64%</span><span class="lanechip" style="--c:var(--onto)">Owner approves</span></div>
+        <div class="arow"><span>Rename, remove, split</span><div class="track always"></div><span class="pv">n/a</span><span class="lanechip" style="--c:var(--ink)">Change board</span></div>
+      </div>
+      <p class="note">Illustrative numbers. Example policy: a change type moves to auto-merge after 50 proposals above the line. Breaking changes never do.</p>
+    </div>
+    <div class="tc">
+      <h3>Is the loop healthy?</h3>
+      <div class="tiles" id="tiles">
+        <div class="tile" style="--c:var(--query)"><div><b>Signal to merge</b><span>How fast the ontology catches up. Lower is better.</span></div><svg class="spark" viewBox="0 0 120 40" aria-hidden="true"><path d="M4,8 L22,12 L40,11 L58,20 L76,24 L94,29 L116,31"/></svg></div>
+        <div class="tile" style="--c:var(--onto)"><div><b>Acceptance rate</b><span>Is the bot proposing useful changes? Higher is better.</span></div><svg class="spark" viewBox="0 0 120 40" aria-hidden="true"><path d="M4,32 L22,29 L40,30 L58,21 L76,17 L94,12 L116,9"/></svg></div>
+        <div class="tile" style="--c:var(--graph)"><div><b>Unanswered questions</b><span>Does the ontology cover what people ask? Lower is better.</span></div><svg class="spark" viewBox="0 0 120 40" aria-hidden="true"><path d="M4,10 L22,9 L40,15 L58,14 L76,23 L94,26 L116,30"/></svg></div>
+      </div>
+      <p class="note">Illustrative trends from a healthy loop.</p>
+    </div>
+  </div>
+</section>
+
+  <div class="check" data-ch="6"></div>
+  <div class="chnext" data-ch="6"></div>
+</section>
+
+<section class="chapter" id="ch7" data-ch="7" style="--c:var(--ink)" aria-labelledby="ch7h">
+  <header class="chhead">
+    <div class="chn" aria-hidden="true">7</div>
+    <div><h2 id="ch7h">Build it</h2><p class="chidea">Graph first, then search, then agents, with a handful of decisions settled early.</p><div class="chacts"></div></div>
+    <figure class="minibox"><svg class="mini" data-ch="7" viewBox="10 26 1070 464" role="img" aria-label="Where chapter 7 sits in the platform"></svg><figcaption>Where this sits in the platform</figcaption></figure>
+  </header>
+<section class="block" aria-labelledby="phh">
+  <h3 class="sech" id="phh">Build order</h3>
+  <p class="intro">Get the graph right before adding search, and search right before adding agents. Each phase has a test that tells you it's done.</p>
+  <ol class="phases">
+    <li><div><h3>Ontology core and generator</h3><p>Model 15 to 25 core classes: parties, instruments, lifecycle events, reason codes. Build the SHACL gate and a generator that emits Neptune CSV headers, the extraction schema and OpenSearch mappings. <a href="#v1">See how v1 is made.</a></p><p class="done"><b>Done when</b> renaming a class in the LinkML source regenerates every artifact, and CI fails if a committed artifact is stale.</p></div></li>
+    <li><div><h3>Graph first</h3><p>Load one month of disputes into Neptune with deterministic IDs, plus the parties, cards and events they touch. Leave the full authorization stream in the lake. Answer chargeback lineage questions by hand in Cypher before any LLM is involved.</p><p class="done"><b>Done when</b> reloading the same month changes nothing, and the lineage queries return what your dispute team expects.</p></div></li>
+    <li><div><h3>Search layer</h3><p>Deploy the stream poller and the entities index, then the chunks index for network rules and runbooks. Build hybrid search that returns Neptune IDs.</p><p class="done"><b>Done when</b> misspelled merchant names and bare codes resolve to the right Neptune IDs.</p></div></li>
+    <li><div><h3>Retrieval service and agents</h3><p>Start from AWS Labs’ BYOKG-RAG, put the tools behind AgentCore Gateway and Policy, and add ontology-checked Cypher where it falls short. Collect real questions from dispute and operations teams as an evaluation set before tuning anything.</p><p class="done"><b>Done when</b> the evaluation set passes at a threshold those teams agreed to.</p></div></li>
+    <li><div><h3>Extend</h3><p>Run code extraction across repositories at scale, publish ontology releases to other teams, and load Neptune Analytics snapshots for graph algorithms such as fraud-ring detection.</p><p class="done"><b>Done when</b> another team builds on a pinned ontology version without asking you what a class means.</p></div></li>
+  </ol>
+</section>
+
+<section class="block" aria-labelledby="dech">
+  <h3 class="sech" id="dech">Decide these early</h3>
+  <p class="intro">Each of these is cheap to settle now and expensive to change after data is loaded.</p>
+  <div class="decide">
+    <article style="--c:var(--query)"><h3>Join in the service, not in the query</h3><p>Neptune's built-in OpenSearch full-text search works from Gremlin and SPARQL queries, not openCypher. Your retrieval service searches OpenSearch first, then passes the IDs into Cypher as parameters.</p></article>
+    <article style="--c:var(--search)"><h3>Fork the replication poller</h3><p>AWS's Neptune-to-OpenSearch stack writes a document shape designed for that full-text search feature. Since you won't query it from openCypher, change the poller to write your entities documents instead.</p></article>
+    <article style="--c:var(--ink)"><h3>Pin one embedding model</h3><p>Entities, chunks and ontology definitions must share it. Switching models means rebuilding all three indexes, so treat it like an ontology major version.</p></article>
+    <article style="--c:var(--onto)"><h3>Version both stores together</h3><p>Stamp ontology_version on nodes and documents. New release, new indexes, alias swap. Pair it with a Neptune snapshot so a rollback covers both stores.</p></article>
+    <article style="--c:var(--graph)"><h3>Enforce access in layers</h3><p>Neptune has no row-level security. Put the rules in AgentCore Policy at the gateway, give the query role read-only IAM access, and tag OpenSearch documents with a classification the service filters on.</p></article>
+    <article style="--c:var(--graph)"><h3>Decide what lives in Neptune</h3><p>Materialize what questions walk through or reason over. Leave high-volume authorizations in the lake, linked by ID, and pull a record in when a dispute or fraud report touches it. For wider risk walks, load daily summary edges from Snowflake, such as a device seen at a merchant.</p></article>
+    <article style="--c:var(--query)"><h3>Make long waits survive crashes</h3><p>LangGraph checkpoints save state, but a run lives in one process. Run the pipeline on Lambda durable functions instead: each step is checkpointed and retried, and a wait for a reviewer can last up to a year at no compute cost.</p></article>
+    <article style="--c:var(--graph)"><h3>Own the graph instead of using managed GraphRAG</h3><p>Bedrock Knowledge Bases GraphRAG builds its own graph in Neptune Analytics with its own entity extraction. Because your ontology is the product, you build and govern the graph; bring in Neptune Analytics later for algorithms.</p></article>
+  </div>
+</section>
+
+<section class="block" id="watch" aria-labelledby="watchh">
+  <h3 class="sech" id="watchh">Watch list</h3>
+  <p class="intro">What changed around this build over the past year, and what to keep an eye on. Checked in September 2026.</p>
+  <div class="xwrap"><svg id="wtl" class="xsvg" viewBox="0 0 760 200" role="img" aria-label="Timeline from December 2025 to November 2026 of changes relevant to the platform">
+    <path class="gmain" d="M30,100 L610,100"/>
+    <path class="wfut" d="M610,100 L730,100"/>
+    <g class="wev"><circle cx="60" cy="100" r="8"/><text class="evt" x="40" y="42">Dec 2025</text><text class="evs" x="40" y="60">MCP to Linux Foundation</text><text class="evs" x="40" y="76">S3 Vectors GA</text></g>
+    <g class="wev"><circle cx="200" cy="100" r="8"/><text class="evt" x="200" y="136" text-anchor="middle">Mar 2026</text><text class="evs" x="200" y="154" text-anchor="middle">AgentCore Policy GA</text><text class="evs" x="200" y="170" text-anchor="middle">Neptune reads S3</text></g>
+    <g class="wev"><circle cx="300" cy="100" r="8"/><text class="evt" x="300" y="42" text-anchor="middle">May 2026</text><text class="evs" x="300" y="60" text-anchor="middle">OpenSearch Serverless</text><text class="evs" x="300" y="76" text-anchor="middle">rebuilt, scales to zero</text></g>
+    <g class="wev"><circle cx="430" cy="100" r="8"/><text class="evt" x="430" y="136" text-anchor="middle">Jul 28, 2026</text><text class="evs" x="430" y="154" text-anchor="middle">MCP 2026-07-28 spec</text><text class="evs" x="430" y="170" text-anchor="middle">stateless calls</text></g>
+    <g class="wev"><circle cx="500" cy="100" r="8"/><text class="evt" x="500" y="42" text-anchor="middle">Aug 2026</text><text class="evs" x="500" y="60" text-anchor="middle">A2A joins MCP</text><text class="evs" x="500" y="76" text-anchor="middle">at the same foundation</text></g>
+    <g class="wev fut"><circle cx="690" cy="100" r="9"/><text class="evt" x="730" y="136" text-anchor="end">Nov 14, 2026</text><text class="evs" x="730" y="154" text-anchor="end">ISO 20022 addresses</text><text class="evs" x="730" y="170" text-anchor="end">must be structured</text></g>
+    <text class="evs" x="620" y="92">coming up</text>
+  </svg></div>
+  <div class="wcards">
+    <div class="wcard"><span class="wtag">draft</span><b>SHACL 1.2 and RDF 1.2</b><span>SHACL 1.2 is a Working Draft; RDF 1.2 is a Candidate Recommendation. Keep using SHACL 1.0 core; revisit when SHACL Rules is final, since it could replace custom inference.</span></div>
+    <div class="wcard"><span class="wtag">trend</span><b>Ontologies with rules and actions</b><span>Platforms now model actions next to entities. Planned for a later phase: action types in the ontology become MCP tools that call the owning system, behind policy and human approval. Version 1 stays read-only.</span></div>
+    <div class="wcard"><span class="wtag due">14 Nov 2026</span><b>ISO 20022 structured addresses</b><span>If cross-border payments are in scope, give Party a structured PostalAddress with town and country now.</span></div>
+    <div class="wcard"><span class="wtag">not yet</span><b>GQL in Neptune</b><span>No announcement found. openCypher is converging on GQL, so today’s queries should carry over.</span></div>
+  </div>
+</section>
+
+  <div class="check" data-ch="7"></div>
+  <div class="chnext" data-ch="7"></div>
+</section>
+
+<footer>
+  A learning sketch of a payments knowledge layer, built from public documentation for Neptune, OpenSearch and Bedrock as of September 2026. Check the Neptune release notes before building around the openCypher full-text search gap, since AWS may close it.
+</footer>
+</main>
+<script type="module" src="/src/platform/main.ts"></script>
+</body>
+</html>
