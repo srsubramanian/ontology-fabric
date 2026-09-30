@@ -1,5 +1,5 @@
 {
-  "ontology_version": "1.8.0",
+  "ontology_version": "1.9.0",
   "labels": {
     "Acquirer": [
       "Acquirer",
@@ -8,6 +8,10 @@
     "Arbitration": [
       "Arbitration",
       "DisputeEvent",
+      "PaymentEvent"
+    ],
+    "Authentication": [
+      "Authentication",
       "PaymentEvent"
     ],
     "Authorization": [
@@ -92,6 +96,10 @@
       "DisputeEvent",
       "PaymentEvent"
     ],
+    "Reversal": [
+      "Reversal",
+      "PaymentEvent"
+    ],
     "Settlement": [
       "Settlement",
       "PaymentEvent"
@@ -124,6 +132,13 @@
       "type": "AT_MERCHANT",
       "from": "Authorization",
       "to": "Merchant",
+      "multivalued": false,
+      "properties": []
+    },
+    {
+      "type": "AUTHENTICATED_BY",
+      "from": "Authorization",
+      "to": "Authentication",
       "multivalued": false,
       "properties": []
     },
@@ -215,6 +230,13 @@
       "type": "RESPONDS_TO",
       "from": "DisputeEvent",
       "to": "DisputeEvent",
+      "multivalued": false,
+      "properties": []
+    },
+    {
+      "type": "REVERSES",
+      "from": "Reversal",
+      "to": "Authorization",
       "multivalued": false,
       "properties": []
     },

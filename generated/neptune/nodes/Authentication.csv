@@ -1,0 +1,1 @@
+:ID,:LABEL,authenticated_at:DateTime,authentication_result:String,challenged:Bool,ontology_version:String

@@ -26,7 +26,7 @@
 id: https://ontology.example.com/payments
 name: payments
 title: Payments ontology (illustrative draft)
-version: 1.8.0
+version: 1.9.0
 prefixes:
   pay: https://ontology.example.com/payments/
   linkml: https://w3id.org/linkml/
@@ -135,7 +135,7 @@ classes:
     description: A business that accepts cards, as its acquirer knows it.
     aliases: [store, merchant outlet]
     close_mappings: [fibo-be-fct-fct:Merchant]
-    slots: [name, mcc, acquired_by]
+    slots: [name, mcc, country, acquired_by]
     annotations:
       owner: core
       lives_in: graph
@@ -161,7 +161,7 @@ classes:
       string, so authorizations can be grouped by it.
     aliases: [BIN, IIN]
     close_mappings: [fibo-fbc-fct-usjrga:IssuerIdentificationNumber]
-    slots: [id, prefix, assigned_to]
+    slots: [id, prefix, funding_source, country, assigned_to]
     annotations:
       owner: authorization
       lives_in: graph
@@ -195,7 +195,7 @@ classes:
     description: The issuer's approval or decline of a payment request.
     aliases: [auth, approval]
     close_mappings: [iso20022:cain.001.001.05]
-    slots: [authorized_at, amount, currency, channel, at_merchant, with_card, from_device, has_response]
+    slots: [authorized_at, amount, currency, channel, credential, token_requestor, at_merchant, with_card, from_device, has_response, authenticated_by]
     slot_usage:
       at_merchant:
         required: true
@@ -208,6 +208,40 @@ classes:
       lives_in: warehouse
       id_rule: "auth:{authorization_id}"
       example: "auth:5521, Aug 3, $42.50, card not present"
+
+  Authentication:
+    is_a: PaymentEvent
+    description: >-
+      The issuer checking that the cardholder is who they say, before an
+      authorization, such as a 3-D Secure attempt.
+    aliases: [3-D Secure, 3DS, cardholder authentication]
+    slots: [authenticated_at, authentication_result, challenged]
+    slot_usage:
+      authentication_result:
+        required: true
+    annotations:
+      owner: authorization
+      lives_in: warehouse
+      id_rule: "authn:{authentication_id}"
+      no_standard: >-
+        3-D Secure is an EMVCo protocol. No ISO 20022 message or FIBO concept
+        stands for an authentication on its own.
+
+  Reversal:
+    is_a: PaymentEvent
+    description: >-
+      The acquirer cancelling all or part of an authorization, so the issuer
+      releases the hold on the cardholder's funds.
+    aliases: [authorization reversal]
+    close_mappings: [iso20022:cain.005.001.05]
+    slots: [reversed_at, amount, currency, reverses]
+    slot_usage:
+      reverses:
+        required: true
+    annotations:
+      owner: authorization
+      lives_in: warehouse
+      id_rule: "rev:{reversal_id}"
 
   Capture:
     is_a: PaymentEvent
@@ -488,6 +522,32 @@ slots:
   channel:
     description: Whether the card was present.
     range: Channel
+  credential:
+    description: What stood in for the card number in an authorization.
+    range: Credential
+  token_requestor:
+    description: >-
+      The Token Requestor ID of the wallet or merchant a network token was
+      issued to: 11 digits, assigned under EMVCo's payment tokenisation.
+    pattern: "^\\d{11}$"
+  funding_source:
+    description: >-
+      Where the money behind the cards in a BIN range comes from, as the
+      network's BIN table reports it.
+    range: FundingSource
+  country:
+    description: >-
+      A country, as an ISO 3166-1 alpha-2 code such as US: where a merchant
+      trades, or where a BIN range is licensed.
+    pattern: "^[A-Z]{2}$"
+  authentication_result:
+    description: How an authentication ended, as EMV 3-D Secure's final transaction status reports it.
+    range: AuthenticationResult
+  challenged:
+    description: >-
+      Whether the issuer challenged the cardholder, such as with a one-time
+      code, rather than letting the payment through without friction.
+    range: boolean
   authorized_at:
     description: When the issuer answered.
     range: datetime
@@ -499,6 +559,12 @@ slots:
     range: datetime
   refunded_at:
     description: When the refund was made.
+    range: datetime
+  reversed_at:
+    description: When the acquirer sent the reversal.
+    range: datetime
+  authenticated_at:
+    description: When the cardholder was authenticated.
     range: datetime
   reported_at:
     description: When the fraud was reported.
@@ -558,6 +624,12 @@ slots:
   has_response:
     description: The issuer's answer to an authorization.
     range: ResponseCode
+  authenticated_by:
+    description: The authentication an authorization relied on.
+    range: Authentication
+  reverses:
+    description: The authorization a reversal cancels.
+    range: Authorization
   captures:
     description: The authorization a capture claims funds for.
     range: Authorization
@@ -611,6 +683,42 @@ enums:
     permissible_values:
       card_present:
       card_not_present:
+
+  Credential:
+    description: What stood in for the card number in an authorization.
+    permissible_values:
+      pan:
+        description: The card number itself.
+      card_on_file_token:
+        description: A network token a merchant or processor keeps on file.
+      wallet_token:
+        description: A network token held in a digital wallet, such as a phone's.
+
+  FundingSource:
+    description: Where the money behind a card comes from, as networks' BIN tables report it.
+    permissible_values:
+      credit:
+        description: A line of credit.
+        close_mappings: [fibo-loan-spc-crd:CreditCard]
+      debit:
+        description: A deposit account.
+        close_mappings: [fibo-loan-spc-crd:DebitCard]
+      prepaid:
+        description: Funds loaded onto the card in advance.
+
+  AuthenticationResult:
+    description: How a cardholder authentication ended, following EMV 3-D Secure's final transaction status.
+    permissible_values:
+      authenticated:
+        description: The cardholder was verified (status Y).
+      attempted:
+        description: Not verified, but proof of an attempt is provided (status A).
+      not_authenticated:
+        description: Not verified, and the transaction is denied (status N).
+      rejected:
+        description: The issuer rejected it and asks that no authorization be attempted (status R).
+      unavailable:
+        description: It couldn't be performed, for a technical or other reason (status U).
 
   DisputeSide:
     description: The two sides of a card dispute. Each bank stands in for its customer.

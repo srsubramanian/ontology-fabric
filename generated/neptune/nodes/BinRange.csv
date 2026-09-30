@@ -1,1 +1,1 @@
-:ID,:LABEL,prefix:String,ontology_version:String
+:ID,:LABEL,prefix:String,funding_source:String,country:String,ontology_version:String

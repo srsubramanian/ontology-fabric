@@ -13,6 +13,8 @@ export const POS: Record<string, [number, number]> = {
   FraudReport: [240, 210], Settlement: [436, 210], Representment: [640, 210],
   Merchant: [24, 282], Authorization: [240, 282], Capture: [436, 282], Chargeback: [640, 282],
   Acquirer: [24, 354], Refund: [436, 354], PreArbitration: [640, 354],
+  // Authorization's other events, under Refund, clear of the lines leaving Authorization's foot.
+  Authentication: [436, 426], Reversal: [436, 498],
   // The rest of the dispute chain, below pre-arbitration: arbitration, the outcome, and the retrieval
   // request that can come before a chargeback.
   Arbitration: [640, 426], DisputeOutcome: [640, 498], RetrievalRequest: [640, 570],
@@ -64,6 +66,8 @@ const PORTS: Record<string, { from: Port; to?: Port; stub?: [number, number]; la
   'Authorization.with_card': { from: ['bottom', 0.3], to: ['top', 0.3] },
   'Authorization.has_response': { from: ['bottom', 0.85], to: ['top', 0.3], label: { at: 0.62 } },
   'Capture.captures': { from: ['left', 0.5], to: ['right', 0.5] },
+  'Authorization.authenticated_by': { from: ['right', 0.85], to: ['left', 0.3], label: { at: 0.2 } },
+  'Reversal.reverses': { from: ['left', 0.3], to: ['bottom', 0.95], label: { at: 0.15 } },
   'Settlement.settles': { from: ['bottom', 0.5], to: ['top', 0.5] },
   'Refund.refunds': { from: ['top', 0.5], to: ['bottom', 0.5] },
   'FraudReport.reports': { from: ['bottom', 0.5], to: ['top', 0.5] },

@@ -94,10 +94,21 @@ pay:BinRange a owl:Class,
             owl:onProperty pay:prefix ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
+            owl:onProperty pay:funding_source ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
             owl:onProperty pay:assigned_to ],
         [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:country ],
+        [ a owl:Restriction ;
             owl:cardinality 1 ;
-            owl:onProperty pay:id ] ;
+            owl:onProperty pay:id ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom [ a rdfs:Datatype ;
+                    owl:onDatatype xsd:string ;
+                    owl:withRestrictions ( [ xsd:pattern "^[A-Z]{2}$" ] ) ] ;
+            owl:onProperty pay:country ] ;
     skos:altLabel "BIN",
         "IIN" ;
     skos:closeMatch fibo-fbc-fct-usjrga:IssuerIdentificationNumber ;
@@ -290,12 +301,12 @@ pay:Refund a owl:Class,
         linkml:ClassDefinition ;
     rdfs:label "Refund" ;
     rdfs:subClassOf [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:currency ],
+        [ a owl:Restriction ;
             owl:allValuesFrom [ a rdfs:Datatype ;
                     owl:onDatatype xsd:string ;
                     owl:withRestrictions ( [ xsd:pattern "^[A-Z]{3}$" ] ) ] ;
-            owl:onProperty pay:currency ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
             owl:onProperty pay:currency ],
         [ a owl:Restriction ;
             owl:cardinality 1 ;
@@ -363,6 +374,35 @@ pay:RetrievalRequest a owl:Class,
     pay:lives_in "graph" ;
     pay:owner "disputes" .
 
+pay:Reversal a owl:Class,
+        linkml:ClassDefinition ;
+    rdfs:label "Reversal" ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:allValuesFrom [ a rdfs:Datatype ;
+                    owl:onDatatype xsd:string ;
+                    owl:withRestrictions ( [ xsd:pattern "^[A-Z]{3}$" ] ) ] ;
+            owl:onProperty pay:currency ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:currency ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:reversed_at ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:amount ],
+        [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onProperty pay:reverses ],
+        pay:PaymentEvent ;
+    skos:altLabel "authorization reversal" ;
+    skos:closeMatch iso20022:cain.005.001.05 ;
+    skos:definition "The acquirer cancelling all or part of an authorization, so the issuer releases the hold on the cardholder's funds." ;
+    skos:inScheme <https://ontology.example.com/payments> ;
+    pay:id_rule "rev:{reversal_id}" ;
+    pay:lives_in "warehouse" ;
+    pay:owner "authorization" .
+
 pay:Settlement a owl:Class,
         linkml:ClassDefinition ;
     rdfs:label "Settlement" ;
@@ -401,6 +441,27 @@ pay:at_merchant a owl:ObjectProperty,
     skos:definition "Where an authorization was requested." ;
     skos:inScheme <https://ontology.example.com/payments> .
 
+pay:authenticated_at a owl:ObjectProperty,
+        linkml:SlotDefinition ;
+    rdfs:label "authenticated_at" ;
+    rdfs:range linkml:Datetime ;
+    skos:definition "When the cardholder was authenticated." ;
+    skos:inScheme <https://ontology.example.com/payments> .
+
+pay:authenticated_by a owl:ObjectProperty,
+        linkml:SlotDefinition ;
+    rdfs:label "authenticated_by" ;
+    rdfs:range pay:Authentication ;
+    skos:definition "The authentication an authorization relied on." ;
+    skos:inScheme <https://ontology.example.com/payments> .
+
+pay:authentication_result a owl:ObjectProperty,
+        linkml:SlotDefinition ;
+    rdfs:label "authentication_result" ;
+    rdfs:range pay:AuthenticationResult ;
+    skos:definition "How an authentication ended, as EMV 3-D Secure's final transaction status reports it." ;
+    skos:inScheme <https://ontology.example.com/payments> .
+
 pay:authorized_at a owl:ObjectProperty,
         linkml:SlotDefinition ;
     rdfs:label "authorized_at" ;
@@ -422,6 +483,13 @@ pay:captures a owl:ObjectProperty,
     skos:definition "The authorization a capture claims funds for." ;
     skos:inScheme <https://ontology.example.com/payments> .
 
+pay:challenged a owl:ObjectProperty,
+        linkml:SlotDefinition ;
+    rdfs:label "challenged" ;
+    rdfs:range linkml:Boolean ;
+    skos:definition "Whether the issuer challenged the cardholder, such as with a one-time code, rather than letting the payment through without friction." ;
+    skos:inScheme <https://ontology.example.com/payments> .
+
 pay:channel a owl:ObjectProperty,
         linkml:SlotDefinition ;
     rdfs:label "channel" ;
@@ -436,11 +504,25 @@ pay:closure a owl:ObjectProperty,
     skos:definition "How a dispute ended." ;
     skos:inScheme <https://ontology.example.com/payments> .
 
+pay:credential a owl:ObjectProperty,
+        linkml:SlotDefinition ;
+    rdfs:label "credential" ;
+    rdfs:range pay:Credential ;
+    skos:definition "What stood in for the card number in an authorization." ;
+    skos:inScheme <https://ontology.example.com/payments> .
+
 pay:from_device a owl:ObjectProperty,
         linkml:SlotDefinition ;
     rdfs:label "from_device" ;
     rdfs:range pay:Device ;
     skos:definition "The device an authorization came from." ;
+    skos:inScheme <https://ontology.example.com/payments> .
+
+pay:funding_source a owl:ObjectProperty,
+        linkml:SlotDefinition ;
+    rdfs:label "funding_source" ;
+    rdfs:range pay:FundingSource ;
+    skos:definition "Where the money behind the cards in a BIN range comes from, as the network's BIN table reports it." ;
     skos:inScheme <https://ontology.example.com/payments> .
 
 pay:has_reason a owl:ObjectProperty,
@@ -526,6 +608,20 @@ pay:respond_by a owl:ObjectProperty,
     skos:definition "When the other side must answer this step by, under the network's rules for the stage. Missing it decides the dispute against that side." ;
     skos:inScheme <https://ontology.example.com/payments> .
 
+pay:reversed_at a owl:ObjectProperty,
+        linkml:SlotDefinition ;
+    rdfs:label "reversed_at" ;
+    rdfs:range linkml:Datetime ;
+    skos:definition "When the acquirer sent the reversal." ;
+    skos:inScheme <https://ontology.example.com/payments> .
+
+pay:reverses a owl:ObjectProperty,
+        linkml:SlotDefinition ;
+    rdfs:label "reverses" ;
+    rdfs:range pay:Authorization ;
+    skos:definition "The authorization a reversal cancels." ;
+    skos:inScheme <https://ontology.example.com/payments> .
+
 pay:settled_at a owl:ObjectProperty,
         linkml:SlotDefinition ;
     rdfs:label "settled_at" ;
@@ -566,6 +662,54 @@ pay:Acquirer a owl:Class,
     pay:no_standard "FIBO has no acquirer. ISO 20022 names the acquirer only as a party inside card messages, with no identifier of its own." ;
     pay:owner "core" .
 
+pay:Authentication a owl:Class,
+        linkml:ClassDefinition ;
+    rdfs:label "Authentication" ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onProperty pay:authentication_result ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:challenged ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:authenticated_at ],
+        pay:PaymentEvent ;
+    skos:altLabel "3-D Secure",
+        "3DS",
+        "cardholder authentication" ;
+    skos:definition "The issuer checking that the cardholder is who they say, before an authorization, such as a 3-D Secure attempt." ;
+    skos:inScheme <https://ontology.example.com/payments> ;
+    pay:id_rule "authn:{authentication_id}" ;
+    pay:lives_in "warehouse" ;
+    pay:no_standard "3-D Secure is an EMVCo protocol. No ISO 20022 message or FIBO concept stands for an authentication on its own." ;
+    pay:owner "authorization" .
+
+<https://ontology.example.com/payments/AuthenticationResult#attempted> a owl:NamedIndividual,
+        pay:AuthenticationResult ;
+    rdfs:label "attempted" ;
+    skos:definition "Not verified, but proof of an attempt is provided (status A)." .
+
+<https://ontology.example.com/payments/AuthenticationResult#authenticated> a owl:NamedIndividual,
+        pay:AuthenticationResult ;
+    rdfs:label "authenticated" ;
+    skos:definition "The cardholder was verified (status Y)." .
+
+<https://ontology.example.com/payments/AuthenticationResult#not_authenticated> a owl:NamedIndividual,
+        pay:AuthenticationResult ;
+    rdfs:label "not_authenticated" ;
+    skos:definition "Not verified, and the transaction is denied (status N)." .
+
+<https://ontology.example.com/payments/AuthenticationResult#rejected> a owl:NamedIndividual,
+        pay:AuthenticationResult ;
+    rdfs:label "rejected" ;
+    skos:definition "The issuer rejected it and asks that no authorization be attempted (status R)." .
+
+<https://ontology.example.com/payments/AuthenticationResult#unavailable> a owl:NamedIndividual,
+        pay:AuthenticationResult ;
+    rdfs:label "unavailable" ;
+    skos:definition "It couldn't be performed, for a technical or other reason (status U)." .
+
 pay:Cardholder a owl:Class,
         linkml:ClassDefinition ;
     rdfs:label "Cardholder" ;
@@ -585,6 +729,21 @@ pay:Cardholder a owl:Class,
 <https://ontology.example.com/payments/Channel#card_present> a owl:NamedIndividual,
         pay:Channel ;
     rdfs:label "card_present" .
+
+<https://ontology.example.com/payments/Credential#card_on_file_token> a owl:NamedIndividual,
+        pay:Credential ;
+    rdfs:label "card_on_file_token" ;
+    skos:definition "A network token a merchant or processor keeps on file." .
+
+<https://ontology.example.com/payments/Credential#pan> a owl:NamedIndividual,
+        pay:Credential ;
+    rdfs:label "pan" ;
+    skos:definition "The card number itself." .
+
+<https://ontology.example.com/payments/Credential#wallet_token> a owl:NamedIndividual,
+        pay:Credential ;
+    rdfs:label "wallet_token" ;
+    skos:definition "A network token held in a digital wallet, such as a phone's." .
 
 <https://ontology.example.com/payments/DisputeClosure#accepted> a owl:NamedIndividual,
         pay:DisputeClosure ;
@@ -648,6 +807,23 @@ pay:Document a owl:Class,
         pay:DocumentKind ;
     rdfs:label "runbook" .
 
+<https://ontology.example.com/payments/FundingSource#credit> a owl:NamedIndividual,
+        pay:FundingSource ;
+    rdfs:label "credit" ;
+    skos:closeMatch fibo-loan-spc-crd:CreditCard ;
+    skos:definition "A line of credit." .
+
+<https://ontology.example.com/payments/FundingSource#debit> a owl:NamedIndividual,
+        pay:FundingSource ;
+    rdfs:label "debit" ;
+    skos:closeMatch fibo-loan-spc-crd:DebitCard ;
+    skos:definition "A deposit account." .
+
+<https://ontology.example.com/payments/FundingSource#prepaid> a owl:NamedIndividual,
+        pay:FundingSource ;
+    rdfs:label "prepaid" ;
+    skos:definition "Funds loaded onto the card in advance." .
+
 pay:Issuer a owl:Class,
         linkml:ClassDefinition ;
     rdfs:label "Issuer" ;
@@ -708,6 +884,15 @@ pay:network a owl:ObjectProperty,
     skos:definition "The card network whose rules apply." ;
     skos:inScheme <https://ontology.example.com/payments> .
 
+pay:token_requestor a owl:ObjectProperty,
+        linkml:SlotDefinition ;
+    rdfs:label "token_requestor" ;
+    rdfs:range [ a rdfs:Datatype ;
+            owl:onDatatype xsd:string ;
+            owl:withRestrictions ( [ xsd:pattern "^\\d{11}$" ] ) ] ;
+    skos:definition "The Token Requestor ID of the wallet or merchant a network token was issued to: 11 digits, assigned under EMVCo's payment tokenisation." ;
+    skos:inScheme <https://ontology.example.com/payments> .
+
 pay:visa-10.4 a owl:NamedIndividual,
         pay:VisaReasonCode ;
     rdfs:label "10.4" ;
@@ -725,49 +910,6 @@ fibo-loan-spc-crd:MastercardNetwork a owl:NamedIndividual,
 fibo-loan-spc-crd:VisaNetwork a owl:NamedIndividual,
         pay:CardNetwork ;
     rdfs:label "visa" .
-
-pay:Authorization a owl:Class,
-        linkml:ClassDefinition ;
-    rdfs:label "Authorization" ;
-    rdfs:subClassOf [ a owl:Restriction ;
-            owl:allValuesFrom [ a rdfs:Datatype ;
-                    owl:onDatatype xsd:string ;
-                    owl:withRestrictions ( [ xsd:pattern "^[A-Z]{3}$" ] ) ] ;
-            owl:onProperty pay:currency ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty pay:currency ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty pay:from_device ],
-        [ a owl:Restriction ;
-            owl:cardinality 1 ;
-            owl:onProperty pay:has_response ],
-        [ a owl:Restriction ;
-            owl:cardinality 1 ;
-            owl:onProperty pay:with_card ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty pay:channel ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty pay:amount ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty pay:authorized_at ],
-        [ a owl:Restriction ;
-            owl:cardinality 1 ;
-            owl:onProperty pay:at_merchant ],
-        pay:PaymentEvent ;
-    skos:altLabel "approval",
-        "auth" ;
-    skos:closeMatch iso20022:cain.001.001.05 ;
-    skos:definition "The issuer's approval or decline of a payment request." ;
-    skos:inScheme <https://ontology.example.com/payments> ;
-    pay:example "auth:5521, Aug 3, $42.50, card not present" ;
-    pay:id_rule "auth:{authorization_id}" ;
-    pay:lives_in "warehouse" ;
-    pay:owner "authorization" .
 
 pay:CardNetwork a owl:Class,
         linkml:EnumDefinition ;
@@ -814,6 +956,14 @@ pay:Merchant a owl:Class,
                     owl:onDatatype xsd:string ;
                     owl:withRestrictions ( [ xsd:pattern "^\\d{4}$" ] ) ] ;
             owl:onProperty pay:mcc ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:country ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom [ a rdfs:Datatype ;
+                    owl:onDatatype xsd:string ;
+                    owl:withRestrictions ( [ xsd:pattern "^[A-Z]{2}$" ] ) ] ;
+            owl:onProperty pay:country ],
         pay:PartyRole ;
     skos:altLabel "merchant outlet",
         "store" ;
@@ -837,6 +987,63 @@ pay:opened_at a owl:ObjectProperty,
     rdfs:range linkml:Datetime ;
     skos:definition "When the dispute step began." ;
     skos:inScheme <https://ontology.example.com/payments> .
+
+pay:Authorization a owl:Class,
+        linkml:ClassDefinition ;
+    rdfs:label "Authorization" ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:allValuesFrom [ a rdfs:Datatype ;
+                    owl:onDatatype xsd:string ;
+                    owl:withRestrictions ( [ xsd:pattern "^[A-Z]{3}$" ] ) ] ;
+            owl:onProperty pay:currency ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:currency ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:from_device ],
+        [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onProperty pay:has_response ],
+        [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onProperty pay:with_card ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:channel ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:amount ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:credential ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom [ a rdfs:Datatype ;
+                    owl:onDatatype xsd:string ;
+                    owl:withRestrictions ( [ xsd:pattern "^\\d{11}$" ] ) ] ;
+            owl:onProperty pay:token_requestor ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:authenticated_by ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:authorized_at ],
+        [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onProperty pay:at_merchant ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:token_requestor ],
+        pay:PaymentEvent ;
+    skos:altLabel "approval",
+        "auth" ;
+    skos:closeMatch iso20022:cain.001.001.05 ;
+    skos:definition "The issuer's approval or decline of a payment request." ;
+    skos:inScheme <https://ontology.example.com/payments> ;
+    pay:example "auth:5521, Aug 3, $42.50, card not present" ;
+    pay:id_rule "auth:{authorization_id}" ;
+    pay:lives_in "warehouse" ;
+    pay:owner "authorization" .
 
 pay:Capture a owl:Class,
         linkml:ClassDefinition ;
@@ -869,6 +1076,16 @@ pay:Capture a owl:Class,
     pay:lives_in "warehouse" ;
     pay:owner "settlement" .
 
+pay:Credential a owl:Class,
+        linkml:EnumDefinition ;
+    rdfs:label "Credential" ;
+    owl:oneOf ( <https://ontology.example.com/payments/Credential#pan> <https://ontology.example.com/payments/Credential#card_on_file_token> <https://ontology.example.com/payments/Credential#wallet_token> ) ;
+    skos:definition "What stood in for the card number in an authorization." ;
+    skos:inScheme <https://ontology.example.com/payments> ;
+    linkml:permissible_values <https://ontology.example.com/payments/Credential#card_on_file_token>,
+        <https://ontology.example.com/payments/Credential#pan>,
+        <https://ontology.example.com/payments/Credential#wallet_token> .
+
 pay:DocumentKind a owl:Class,
         linkml:EnumDefinition ;
     rdfs:label "DocumentKind" ;
@@ -878,6 +1095,25 @@ pay:DocumentKind a owl:Class,
     linkml:permissible_values <https://ontology.example.com/payments/DocumentKind#evidence>,
         <https://ontology.example.com/payments/DocumentKind#network_rules>,
         <https://ontology.example.com/payments/DocumentKind#runbook> .
+
+pay:FundingSource a owl:Class,
+        linkml:EnumDefinition ;
+    rdfs:label "FundingSource" ;
+    owl:oneOf ( <https://ontology.example.com/payments/FundingSource#credit> <https://ontology.example.com/payments/FundingSource#debit> <https://ontology.example.com/payments/FundingSource#prepaid> ) ;
+    skos:definition "Where the money behind a card comes from, as networks' BIN tables report it." ;
+    skos:inScheme <https://ontology.example.com/payments> ;
+    linkml:permissible_values <https://ontology.example.com/payments/FundingSource#credit>,
+        <https://ontology.example.com/payments/FundingSource#debit>,
+        <https://ontology.example.com/payments/FundingSource#prepaid> .
+
+pay:country a owl:ObjectProperty,
+        linkml:SlotDefinition ;
+    rdfs:label "country" ;
+    rdfs:range [ a rdfs:Datatype ;
+            owl:onDatatype xsd:string ;
+            owl:withRestrictions ( [ xsd:pattern "^[A-Z]{2}$" ] ) ] ;
+    skos:definition "A country, as an ISO 3166-1 alpha-2 code such as US: where a merchant trades, or where a BIN range is licensed." ;
+    skos:inScheme <https://ontology.example.com/payments> .
 
 pay:disputes a owl:ObjectProperty,
         linkml:SlotDefinition ;
@@ -917,17 +1153,17 @@ pay:responds_to a owl:ObjectProperty,
     skos:definition "The earlier dispute event this one answers." ;
     skos:inScheme <https://ontology.example.com/payments> .
 
-pay:PaymentEvent a owl:Class,
-        linkml:ClassDefinition ;
-    rdfs:label "PaymentEvent" ;
-    rdfs:subClassOf [ owl:unionOf ( pay:Authorization pay:Capture pay:DisputeEvent pay:FraudReport pay:Refund pay:Settlement ) ],
-        [ a owl:Restriction ;
-            owl:cardinality 1 ;
-            owl:onProperty pay:id ] ;
-    skos:definition "Something that happened to a payment, at a time. Each step is its own event, instead of a status field that keeps being overwritten." ;
+pay:AuthenticationResult a owl:Class,
+        linkml:EnumDefinition ;
+    rdfs:label "AuthenticationResult" ;
+    owl:oneOf ( <https://ontology.example.com/payments/AuthenticationResult#authenticated> <https://ontology.example.com/payments/AuthenticationResult#attempted> <https://ontology.example.com/payments/AuthenticationResult#not_authenticated> <https://ontology.example.com/payments/AuthenticationResult#rejected> <https://ontology.example.com/payments/AuthenticationResult#unavailable> ) ;
+    skos:definition "How a cardholder authentication ended, following EMV 3-D Secure's final transaction status." ;
     skos:inScheme <https://ontology.example.com/payments> ;
-    pay:lives_in "graph" ;
-    pay:owner "core" .
+    linkml:permissible_values <https://ontology.example.com/payments/AuthenticationResult#attempted>,
+        <https://ontology.example.com/payments/AuthenticationResult#authenticated>,
+        <https://ontology.example.com/payments/AuthenticationResult#not_authenticated>,
+        <https://ontology.example.com/payments/AuthenticationResult#rejected>,
+        <https://ontology.example.com/payments/AuthenticationResult#unavailable> .
 
 pay:amount a owl:ObjectProperty,
         linkml:SlotDefinition ;
@@ -969,6 +1205,24 @@ pay:DisputeEvent a owl:Class,
     pay:lives_in "graph" ;
     pay:owner "disputes" .
 
+pay:PaymentEvent a owl:Class,
+        linkml:ClassDefinition ;
+    rdfs:label "PaymentEvent" ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onProperty pay:id ],
+        [ owl:unionOf ( pay:Authentication pay:Authorization pay:Capture pay:DisputeEvent pay:FraudReport pay:Refund pay:Reversal pay:Settlement ) ] ;
+    skos:definition "Something that happened to a payment, at a time. Each step is its own event, instead of a status field that keeps being overwritten." ;
+    skos:inScheme <https://ontology.example.com/payments> ;
+    pay:lives_in "graph" ;
+    pay:owner "core" .
+
+pay:id a owl:ObjectProperty,
+        linkml:SlotDefinition ;
+    rdfs:label "id" ;
+    skos:definition "The one ID used in Neptune, OpenSearch and Snowflake." ;
+    skos:inScheme <https://ontology.example.com/payments> .
+
 pay:currency a owl:ObjectProperty,
         linkml:SlotDefinition ;
     rdfs:label "currency" ;
@@ -978,16 +1232,10 @@ pay:currency a owl:ObjectProperty,
     skos:definition "The transaction currency, as an ISO 4217 alphabetic code such as USD." ;
     skos:inScheme <https://ontology.example.com/payments> .
 
-pay:id a owl:ObjectProperty,
-        linkml:SlotDefinition ;
-    rdfs:label "id" ;
-    skos:definition "The one ID used in Neptune, OpenSearch and Snowflake." ;
-    skos:inScheme <https://ontology.example.com/payments> .
-
 <https://ontology.example.com/payments> a owl:Ontology ;
     rdfs:label "payments" ;
     dcterms:title "Payments ontology (illustrative draft)" ;
-    pav:version "1.8.0" ;
+    pav:version "1.9.0" ;
     pay:commons_release "https://www.omg.org/spec/Commons/20250801/" ;
     pay:fibo_release "https://spec.edmcouncil.org/fibo/ontology/master/2026Q2/" .
 

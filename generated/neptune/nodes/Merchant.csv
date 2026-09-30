@@ -1,1 +1,1 @@
-:ID,:LABEL,name:String,mcc:String,ontology_version:String
+:ID,:LABEL,name:String,mcc:String,country:String,ontology_version:String
