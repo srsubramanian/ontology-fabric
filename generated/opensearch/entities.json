@@ -24,6 +24,9 @@
       "amount": {
         "type": "double"
       },
+      "category": {
+        "type": "keyword"
+      },
       "closure": {
         "type": "keyword"
       },
@@ -45,6 +48,9 @@
       "mcc": {
         "type": "keyword"
       },
+      "month": {
+        "type": "keyword"
+      },
       "name": {
         "type": "text",
         "fields": {
@@ -63,11 +69,20 @@
       "prefix": {
         "type": "keyword"
       },
+      "program": {
+        "type": "keyword"
+      },
+      "ratio": {
+        "type": "double"
+      },
       "reported_at": {
         "type": "date"
       },
       "respond_by": {
         "type": "date"
+      },
+      "tier": {
+        "type": "keyword"
       },
       "won_by": {
         "type": "keyword"

@@ -1,1 +1,1 @@
-:ID,:LABEL,network:String,code:String,ontology_version:String
+:ID,:LABEL,network:String,code:String,category:String,ontology_version:String

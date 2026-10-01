@@ -30,7 +30,7 @@ from pydantic import (
 
 
 metamodel_version = "1.11.0"
-version = "1.11.0"
+version = "1.12.0"
 
 
 class ConfiguredBaseModel(BaseModel):
@@ -188,6 +188,64 @@ class Decider(str, Enum):
     """
 
 
+class DisputeCategory(str, Enum):
+    """
+    The four kinds of dispute both networks group their reason codes into. Visa numbers them 10 to 13; Mastercard calls processing errors point-of-interaction errors.
+    """
+    fraud = "fraud"
+    """
+    The cardholder didn't take part in the transaction (Visa 10.x).
+    """
+    authorization = "authorization"
+    """
+    The transaction wasn't properly authorized (Visa 11.x).
+    """
+    processing_error = "processing_error"
+    """
+    The transaction was processed wrongly, such as late or twice (Visa 12.x).
+    """
+    consumer_dispute = "consumer_dispute"
+    """
+    The cardholder disputes what they got, such as goods not received (Visa 13.x).
+    """
+
+
+class MonitoringProgram(str, Enum):
+    """
+    Network programs that monitor merchants' disputes and fraud.
+    """
+    vamp = "vamp"
+    """
+    Visa Acquirer Monitoring Program, counting fraud reports and disputes.
+    """
+    mastercard_ecp = "mastercard_ecp"
+    """
+    Mastercard's Excessive Chargeback Program.
+    """
+    mastercard_efm = "mastercard_efm"
+    """
+    Mastercard's Excessive Fraud Merchant program.
+    """
+
+
+class MonitoringTier(str, Enum):
+    """
+    The tier a merchant is identified in, where a program has tiers.
+    """
+    excessive = "excessive"
+    """
+    VAMP's merchant tier.
+    """
+    ecm = "ecm"
+    """
+    Mastercard's Excessive Chargeback Merchant, the lower ECP tier.
+    """
+    hecm = "hecm"
+    """
+    Mastercard's High Excessive Chargeback Merchant, the higher ECP tier.
+    """
+
+
 class FeeType(str, Enum):
     """
     What kind of fee a program sets.
@@ -340,6 +398,7 @@ class Party(ConfiguredBaseModel):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -369,6 +428,7 @@ class Person(Party):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -398,6 +458,7 @@ class Organization(Party):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -426,6 +487,7 @@ class PartyRole(ConfiguredBaseModel):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -453,6 +515,7 @@ class Cardholder(PartyRole):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -480,6 +543,7 @@ class Issuer(PartyRole):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -511,6 +575,7 @@ class Acquirer(PartyRole):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -545,6 +610,7 @@ class Merchant(PartyRole):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -599,6 +665,7 @@ class Card(ConfiguredBaseModel):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -629,6 +696,7 @@ class BinRange(ConfiguredBaseModel):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -676,6 +744,7 @@ class Device(ConfiguredBaseModel):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -706,6 +775,7 @@ class PaymentEvent(ConfiguredBaseModel):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -774,6 +844,7 @@ class Authorization(PaymentEvent):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -837,6 +908,7 @@ class Authentication(PaymentEvent):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -886,6 +958,7 @@ class Reversal(PaymentEvent):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -954,6 +1027,7 @@ class Capture(PaymentEvent):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -1015,6 +1089,7 @@ class Settlement(PaymentEvent):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -1082,6 +1157,7 @@ class Adjustment(PaymentEvent):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -1149,6 +1225,7 @@ class Payout(PaymentEvent):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -1215,6 +1292,7 @@ class Refund(PaymentEvent):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -1258,6 +1336,7 @@ class FraudReport(PaymentEvent):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -1307,6 +1386,7 @@ class DisputeEvent(PaymentEvent):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -1372,6 +1452,7 @@ class RetrievalRequest(DisputeEvent):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -1444,6 +1525,7 @@ class Chargeback(DisputeEvent):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -1516,6 +1598,7 @@ class Representment(DisputeEvent):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -1585,6 +1668,7 @@ class PreArbitration(DisputeEvent):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -1653,6 +1737,7 @@ class Arbitration(DisputeEvent):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -1728,6 +1813,7 @@ class DisputeOutcome(DisputeEvent):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -1751,6 +1837,63 @@ class DisputeOutcome(DisputeEvent):
         return v
 
 
+class MonitoringNotice(ConfiguredBaseModel):
+    """
+    A card network identifying a merchant in one of its monitoring programs for a month, such as Visa's VAMP, with the tier and the ratio it measured.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'aliases': ['program identification', 'VAMP notice', 'ECM notice'],
+         'annotations': {'example': {'tag': 'example',
+                                     'value': 'Sunset Tickets m:10442, VAMP, 2026-08, '
+                                              'excessive, ratio 1.65%'},
+                         'id_rule': {'tag': 'id_rule',
+                                     'value': 'mon:{program}:{merchant_id}:{month}'},
+                         'lives_in': {'tag': 'lives_in', 'value': 'graph'},
+                         'no_standard': {'tag': 'no_standard',
+                                         'value': 'Monitoring programs are card '
+                                                  'network rules, with no ISO 20022 '
+                                                  'message or FIBO concept of their '
+                                                  'own.'},
+                         'owner': {'tag': 'owner', 'value': 'disputes'}},
+         'from_schema': 'https://ontology.example.com/payments',
+         'slot_usage': {'identifies': {'name': 'identifies', 'required': True},
+                        'month': {'name': 'month', 'required': True},
+                        'program': {'name': 'program', 'required': True}}})
+
+    id: str = Field(default=..., description="""The one ID used in Neptune, OpenSearch and Snowflake.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Party',
+                       'PartyRole',
+                       'Card',
+                       'BinRange',
+                       'Device',
+                       'PaymentEvent',
+                       'MonitoringNotice',
+                       'ClearingBatch',
+                       'Reconciliation',
+                       'FeeCollection',
+                       'FeeProgram',
+                       'ReasonCode',
+                       'ResponseCode',
+                       'Document',
+                       'Chunk']} })
+    month: str = Field(default=..., description="""The month a notice covers, as YYYY-MM.""", json_schema_extra = { "linkml_meta": {'domain_of': ['MonitoringNotice']} })
+    program: MonitoringProgram = Field(default=..., description="""The network monitoring program.""", json_schema_extra = { "linkml_meta": {'domain_of': ['MonitoringNotice']} })
+    tier: Optional[MonitoringTier] = Field(default=None, description="""The program's tier the merchant was identified in, where the program has tiers.""", json_schema_extra = { "linkml_meta": {'domain_of': ['MonitoringNotice']} })
+    ratio: Optional[Decimal] = Field(default=None, description="""The ratio the program measured for the month, as a fraction (0.0165 is 1.65%).""", json_schema_extra = { "linkml_meta": {'domain_of': ['MonitoringNotice']} })
+    identifies: str = Field(default=..., description="""The merchant a monitoring notice identifies.""", json_schema_extra = { "linkml_meta": {'domain_of': ['MonitoringNotice']} })
+
+    @field_validator('month')
+    def pattern_month(cls, v):
+        pattern=re.compile(r"^\d{4}-\d{2}$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.match(element):
+                    err_msg = f"Invalid month format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.match(v):
+            err_msg = f"Invalid month format: {v}"
+            raise ValueError(err_msg)
+        return v
+
+
 class ClearingBatch(ConfiguredBaseModel):
     """
     A batch of captures sent for clearing and settlement in one exchange, such as an acquirer's clearing file.
@@ -1769,6 +1912,7 @@ class ClearingBatch(ConfiguredBaseModel):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -1801,6 +1945,7 @@ class Reconciliation(ConfiguredBaseModel):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -1857,6 +2002,7 @@ class FeeCollection(ConfiguredBaseModel):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -1923,6 +2069,7 @@ class FeeProgram(ConfiguredBaseModel):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -1961,6 +2108,7 @@ class ReasonCode(ConfiguredBaseModel):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -1971,6 +2119,7 @@ class ReasonCode(ConfiguredBaseModel):
                        'Chunk']} })
     network: Optional[CardNetwork] = Field(default=None, description="""The card network whose rules apply.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Card', 'FeeProgram', 'ReasonCode']} })
     code: Optional[str] = Field(default=None, description="""The code as the network or issuer writes it.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeeProgram', 'ReasonCode', 'ResponseCode']} })
+    category: Optional[DisputeCategory] = Field(default=None, description="""The kind of dispute a reason code stands for, the same across networks, so chargebacks can be grouped without knowing each network's codes.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ReasonCode']} })
 
 
 class ResponseCode(ConfiguredBaseModel):
@@ -1992,6 +2141,7 @@ class ResponseCode(ConfiguredBaseModel):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -2020,6 +2170,7 @@ class Document(ConfiguredBaseModel):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -2052,6 +2203,7 @@ class Chunk(ConfiguredBaseModel):
                        'BinRange',
                        'Device',
                        'PaymentEvent',
+                       'MonitoringNotice',
                        'ClearingBatch',
                        'Reconciliation',
                        'FeeCollection',
@@ -2094,6 +2246,7 @@ Representment.model_rebuild()
 PreArbitration.model_rebuild()
 Arbitration.model_rebuild()
 DisputeOutcome.model_rebuild()
+MonitoringNotice.model_rebuild()
 ClearingBatch.model_rebuild()
 Reconciliation.model_rebuild()
 FeeCollection.model_rebuild()

@@ -16,19 +16,19 @@ export const STORE: Record<LivesIn, { color: string; label: string }> = {
 /** An ID rule, shortened to fit a box: m:{merchant_id} becomes m:{id}. */
 const shortRule = (rule = '') => rule.replace(/\{[a-z_]*_id\}/, '{id}');
 
-/** The widest a class name runs inside its box. */
-const NAME_MAX = NODE.w - 22;
+/** The widest a class name or subtitle runs inside its box. */
+const TEXT_MAX = NODE.w - 22;
 
 /**
- * Squeezes a class name that would run past its box, such as RetrievalRequest. It measures once the name is in
- * the page, and again once the web fonts have loaded, since they change its width.
+ * Squeezes a class name or subtitle that would run past its box, such as RetrievalRequest. It measures once the
+ * text is in the page, and again once the web fonts have loaded, since they change its width.
  */
-function fitName(el: SVGTextElement | null) {
+function fitText(el: SVGTextElement | null) {
   if (!el) return;
   const fit = () => {
     el.removeAttribute('textLength');
-    if (el.isConnected && el.getComputedTextLength() > NAME_MAX) {
-      el.setAttribute('textLength', String(NAME_MAX));
+    if (el.isConnected && el.getComputedTextLength() > TEXT_MAX) {
+      el.setAttribute('textLength', String(TEXT_MAX));
       el.setAttribute('lengthAdjust', 'spacingAndGlyphs');
     }
   };
@@ -147,8 +147,9 @@ export function ClassMap({ model, lens, lit, litEdges, selected, focusKey, stagg
                 aria-label={`${c.name}, ${subtitle(c, lens) || 'class'}`}>
                 <rect className="box" x={b.x} y={b.y} width={NODE.w} height={NODE.h} rx={9} />
                 <rect className="bar" x={b.x + 8} y={b.y + 11} width={3} height={NODE.h - 22} rx={1.5} style={{ fill: color }} />
-                <text className="t" x={b.x + 18} y={b.y + 21} ref={fitName}>{c.name}</text>
-                <text className="s" x={b.x + 18} y={b.y + 37}>{subtitle(c, lens)}</text>
+                <text className="t" x={b.x + 18} y={b.y + 21} ref={fitText}>{c.name}</text>
+                {/* Keyed by its words, so a lens that changes them remounts it and fitText measures again. */}
+                <text key={subtitle(c, lens)} className="s" x={b.x + 18} y={b.y + 37} ref={fitText}>{subtitle(c, lens)}</text>
               </motion.g>
             </motion.g>
           );
