@@ -1,6 +1,6 @@
 # Generated from the ontology
 
-Everything here is generated from `ontology/payments.yaml` (version 1.11.0) by
+Everything here is generated from `ontology/payments.yaml` (version 1.12.0) by
 `tools/generate.py`. Don't edit these files: change the ontology, then run
 
 ```bash
@@ -34,6 +34,7 @@ Files:
 - `neptune/edges/HAS_REASON.csv`
 - `neptune/edges/HAS_RESPONSE.csv`
 - `neptune/edges/HELD_BY.csv`
+- `neptune/edges/IDENTIFIES.csv`
 - `neptune/edges/INCREMENTS.csv`
 - `neptune/edges/IN_BIN_RANGE.csv`
 - `neptune/edges/MENTIONS.csv`
@@ -64,6 +65,7 @@ Files:
 - `neptune/nodes/FraudReport.csv`
 - `neptune/nodes/Issuer.csv`
 - `neptune/nodes/Merchant.csv`
+- `neptune/nodes/MonitoringNotice.csv`
 - `neptune/nodes/Organization.csv`
 - `neptune/nodes/Payout.csv`
 - `neptune/nodes/Person.csv`

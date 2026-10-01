@@ -647,6 +647,17 @@
             "title": "Device",
             "type": "object"
         },
+        "DisputeCategory": {
+            "description": "The four kinds of dispute both networks group their reason codes into. Visa numbers them 10 to 13; Mastercard calls processing errors point-of-interaction errors.",
+            "enum": [
+                "fraud",
+                "authorization",
+                "processing_error",
+                "consumer_dispute"
+            ],
+            "title": "DisputeCategory",
+            "type": "string"
+        },
         "DisputeClosure": {
             "description": "How a dispute ended.",
             "enum": [
@@ -1052,6 +1063,68 @@
             "title": "Merchant",
             "type": "object"
         },
+        "MonitoringNotice": {
+            "additionalProperties": false,
+            "description": "A card network identifying a merchant in one of its monitoring programs for a month, such as Visa's VAMP, with the tier and the ratio it measured.",
+            "properties": {
+                "id": {
+                    "description": "The one ID used in Neptune, OpenSearch and Snowflake.",
+                    "type": "string"
+                },
+                "identifies": {
+                    "description": "The merchant a monitoring notice identifies.",
+                    "type": "string"
+                },
+                "month": {
+                    "description": "The month a notice covers, as YYYY-MM.",
+                    "pattern": "^\\d{4}-\\d{2}$",
+                    "type": "string"
+                },
+                "program": {
+                    "$ref": "#/$defs/MonitoringProgram",
+                    "description": "The network monitoring program."
+                },
+                "ratio": {
+                    "description": "The ratio the program measured for the month, as a fraction (0.0165 is 1.65%).",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "tier": {
+                    "$ref": "#/$defs/MonitoringTier",
+                    "description": "The program's tier the merchant was identified in, where the program has tiers."
+                }
+            },
+            "required": [
+                "id",
+                "month",
+                "program",
+                "identifies"
+            ],
+            "title": "MonitoringNotice",
+            "type": "object"
+        },
+        "MonitoringProgram": {
+            "description": "Network programs that monitor merchants' disputes and fraud.",
+            "enum": [
+                "vamp",
+                "mastercard_ecp",
+                "mastercard_efm"
+            ],
+            "title": "MonitoringProgram",
+            "type": "string"
+        },
+        "MonitoringTier": {
+            "description": "The tier a merchant is identified in, where a program has tiers.",
+            "enum": [
+                "excessive",
+                "ecm",
+                "hecm"
+            ],
+            "title": "MonitoringTier",
+            "type": "string"
+        },
         "Organization": {
             "additionalProperties": false,
             "description": "A company or institution. One bank is one Organization, however many roles it plays.",
@@ -1303,6 +1376,10 @@
             "additionalProperties": false,
             "description": "A network's reason for a dispute. A node, so chargebacks and the documents that explain the code meet at one place.",
             "properties": {
+                "category": {
+                    "$ref": "#/$defs/DisputeCategory",
+                    "description": "The kind of dispute a reason code stands for, the same across networks, so chargebacks can be grouped without knowing each network's codes."
+                },
                 "code": {
                     "description": "The code as the network or issuer writes it.",
                     "type": [
@@ -1699,5 +1776,5 @@
     "metamodel_version": "1.11.0",
     "title": "payments",
     "type": "object",
-    "version": "1.11.0"
+    "version": "1.12.0"
 }

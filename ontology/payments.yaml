@@ -28,7 +28,7 @@
 id: https://ontology.example.com/payments
 name: payments
 title: Payments ontology (illustrative draft)
-version: 1.11.0
+version: 1.12.0
 prefixes:
   pay: https://ontology.example.com/payments/
   linkml: https://w3id.org/linkml/
@@ -468,6 +468,31 @@ classes:
         The ISO 20022 card messages carry the steps of a dispute, but none
         stands for its outcome. Networks record it in their own case systems.
 
+  # ---------- Network programs ----------
+
+  MonitoringNotice:
+    description: >-
+      A card network identifying a merchant in one of its monitoring programs
+      for a month, such as Visa's VAMP, with the tier and the ratio it
+      measured.
+    aliases: [program identification, VAMP notice, ECM notice]
+    slots: [id, month, program, tier, ratio, identifies]
+    slot_usage:
+      identifies:
+        required: true
+      program:
+        required: true
+      month:
+        required: true
+    annotations:
+      owner: disputes
+      lives_in: graph
+      id_rule: "mon:{program}:{merchant_id}:{month}"
+      example: "Sunset Tickets m:10442, VAMP, 2026-08, excessive, ratio 1.65%"
+      no_standard: >-
+        Monitoring programs are card network rules, with no ISO 20022 message
+        or FIBO concept of their own.
+
   # ---------- Money between the members: warehouse only (decision 2) ----------
 
   ClearingBatch:
@@ -539,7 +564,7 @@ classes:
       A network's reason for a dispute. A node, so chargebacks and the
       documents that explain the code meet at one place.
     aliases: [dispute reason]
-    slots: [id, network, code]
+    slots: [id, network, code, category]
     annotations:
       owner: disputes
       lives_in: graph
@@ -725,6 +750,23 @@ slots:
   fee_type:
     description: What kind of fee a program sets.
     range: FeeType
+  category:
+    description: >-
+      The kind of dispute a reason code stands for, the same across networks,
+      so chargebacks can be grouped without knowing each network's codes.
+    range: DisputeCategory
+  month:
+    description: The month a notice covers, as YYYY-MM.
+    pattern: "^\\d{4}-\\d{2}$"
+  program:
+    description: The network monitoring program.
+    range: MonitoringProgram
+  tier:
+    description: The program's tier the merchant was identified in, where the program has tiers.
+    range: MonitoringTier
+  ratio:
+    description: The ratio the program measured for the month, as a fraction (0.0165 is 1.65%).
+    range: decimal
   reversed_at:
     description: When the acquirer sent the reversal.
     range: datetime
@@ -830,6 +872,9 @@ slots:
   under:
     description: The fee program a collection charges.
     range: FeeProgram
+  identifies:
+    description: The merchant a monitoring notice identifies.
+    range: Merchant
   disputes:
     description: Links a dispute event to the capture it contests.
     range: Capture
@@ -918,6 +963,41 @@ enums:
         description: The network's stand-in processing answered for the issuer, such as Visa's STIP.
       processor_stand_in:
         description: The issuer's processor answered with its own stand-in rules.
+
+  DisputeCategory:
+    description: >-
+      The four kinds of dispute both networks group their reason codes into.
+      Visa numbers them 10 to 13; Mastercard calls processing errors
+      point-of-interaction errors.
+    permissible_values:
+      fraud:
+        description: The cardholder didn't take part in the transaction (Visa 10.x).
+      authorization:
+        description: The transaction wasn't properly authorized (Visa 11.x).
+      processing_error:
+        description: The transaction was processed wrongly, such as late or twice (Visa 12.x).
+      consumer_dispute:
+        description: The cardholder disputes what they got, such as goods not received (Visa 13.x).
+
+  MonitoringProgram:
+    description: Network programs that monitor merchants' disputes and fraud.
+    permissible_values:
+      vamp:
+        description: Visa Acquirer Monitoring Program, counting fraud reports and disputes.
+      mastercard_ecp:
+        description: Mastercard's Excessive Chargeback Program.
+      mastercard_efm:
+        description: Mastercard's Excessive Fraud Merchant program.
+
+  MonitoringTier:
+    description: The tier a merchant is identified in, where a program has tiers.
+    permissible_values:
+      excessive:
+        description: VAMP's merchant tier.
+      ecm:
+        description: Mastercard's Excessive Chargeback Merchant, the lower ECP tier.
+      hecm:
+        description: Mastercard's High Excessive Chargeback Merchant, the higher ECP tier.
 
   FeeType:
     description: What kind of fee a program sets.

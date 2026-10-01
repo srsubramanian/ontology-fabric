@@ -403,18 +403,27 @@ questions:
   - id: CQ-32
     domain: disputes
     question: Which chargebacks were fraud disputes, and which were consumer disputes?
+    walks: [Chargeback.has_reason]
     answered_in: neptune
-    gap: >-
-      Reason codes have no category, such as fraud, authorization, processing error or consumer
-      dispute, to group them across networks.
+    query: |
+      MATCH (cb:Chargeback)-[:HAS_REASON]->(rc:ReasonCode)
+      WHERE cb.opened_at >= $since
+      RETURN rc.category AS category, count(DISTINCT cb) AS chargebacks,
+             collect(DISTINCT rc.id)[0..10] AS reason_codes
+      ORDER BY chargebacks DESC
+      LIMIT 10
 
   - id: CQ-33
     domain: disputes
     question: Which merchants are in a network's dispute monitoring program this month, and at what tier?
-    answered_in: snowflake
-    gap: >-
-      Monitoring programs, their tiers and their thresholds aren't modelled. The retrieval
-      walkthrough computes a VAMP-style ratio, but no class says which program a merchant is in.
+    walks: [MonitoringNotice.identifies]
+    answered_in: neptune
+    query: |
+      MATCH (n:MonitoringNotice)-[:IDENTIFIES]->(m:Merchant)
+      WHERE n.month = $month
+      RETURN m.id AS merchant, m.name AS name, n.program AS program, n.tier AS tier, n.ratio AS ratio
+      ORDER BY ratio DESC
+      LIMIT 100
 
   - id: CQ-34
     domain: disputes

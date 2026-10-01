@@ -317,6 +317,50 @@ pay:FraudReport a sh:NodeShape ;
             sh:path pay:id ] ;
     sh:targetClass pay:FraudReport .
 
+pay:MonitoringNotice a sh:NodeShape ;
+    rdfs:comment "A card network identifying a merchant in one of its monitoring programs for a month, such as Visa's VAMP, with the tier and the ratio it measured." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "The program's tier the merchant was identified in, where the program has tiers." ;
+            sh:in ( "excessive" "ecm" "hecm" ) ;
+            sh:maxCount 1 ;
+            sh:order 3 ;
+            sh:path pay:tier ],
+        [ sh:description "The network monitoring program." ;
+            sh:in ( "vamp" "mastercard_ecp" "mastercard_efm" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 2 ;
+            sh:path pay:program ],
+        [ sh:datatype xsd:decimal ;
+            sh:description "The ratio the program measured for the month, as a fraction (0.0165 is 1.65%)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path pay:ratio ],
+        [ sh:class pay:Merchant ;
+            sh:description "The merchant a monitoring notice identifies." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path pay:identifies ],
+        [ sh:datatype xsd:string ;
+            sh:description "The one ID used in Neptune, OpenSearch and Snowflake." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path pay:id ],
+        [ sh:datatype xsd:string ;
+            sh:description "The month a notice covers, as YYYY-MM." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path pay:month ;
+            sh:pattern "^\\d{4}-\\d{2}$" ] ;
+    sh:targetClass pay:MonitoringNotice .
+
 pay:Organization a sh:NodeShape ;
     rdfs:comment "A company or institution. One bank is one Organization, however many roles it plays." ;
     sh:closed true ;
@@ -1237,7 +1281,12 @@ pay:ReasonCode a sh:NodeShape ;
     rdfs:comment "A network's reason for a dispute. A node, so chargebacks and the documents that explain the code meet at one place." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:description "The card network whose rules apply." ;
+    sh:property [ sh:description "The kind of dispute a reason code stands for, the same across networks, so chargebacks can be grouped without knowing each network's codes." ;
+            sh:in ( "fraud" "authorization" "processing_error" "consumer_dispute" ) ;
+            sh:maxCount 1 ;
+            sh:order 3 ;
+            sh:path pay:category ],
+        [ sh:description "The card network whose rules apply." ;
             sh:in ( fibo-loan-spc-crd:VisaNetwork fibo-loan-spc-crd:MastercardNetwork ) ;
             sh:maxCount 1 ;
             sh:order 1 ;

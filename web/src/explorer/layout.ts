@@ -9,8 +9,9 @@ export const VIEW = { w: 848, h: 1112 };
 
 /** Top-left corner of each concrete class. */
 export const POS: Record<string, [number, number]> = {
-  // Money between the members, and the fee programs captures qualify for, at the top left.
-  FeeCollection: [44, 12], Reconciliation: [260, 12], FeeProgram: [260, 84],
+  // Money between the members, the fee programs captures qualify for, and the networks' monitoring
+  // notices about merchants, at the top left.
+  FeeCollection: [44, 12], Reconciliation: [260, 12], MonitoringNotice: [44, 84], FeeProgram: [260, 84],
   Chunk: [558, 12], Document: [456, 84], ReasonCode: [660, 84],
   Device: [44, 150],
   FraudReport: [260, 210], Settlement: [456, 210], Representment: [660, 210],
@@ -95,8 +96,10 @@ const PORTS: Record<string, { from?: Port; to?: Port; via?: Point[]; stub?: Poin
   'Capture.qualifies_for': { from: ['left', 0.1], via: [[420, 286.8], [420, 108]], to: ['right', 0.5], label: { seg: 1, side: 'left' } },
   'Reconciliation.reconciles': { from: ['right', 0.5], via: [[436, 36], [436, 234]], to: ['left', 0.5], label: { seg: 1, at: 0.2, side: 'left' } },
   'FeeCollection.under': { from: ['right', 0.75], to: ['left', 0.5] },
-  // Down the left margin, outside every box, to the party roles' frame. Its label sits between FeeCollection and Device.
-  'FeeCollection.collected_from': { from: ['left', 0.5], via: [[18, 36], [18, 420]], to: ['left', (420 - 252) / 718], label: { seg: 1, at: (106 - 36) / 384 } },
+  // Down the left margin, outside every box: to the party roles' frame on the outside, and to Merchant
+  // inside it, so neither crosses the other. Labels sit in the gaps between the boxes in the first column.
+  'FeeCollection.collected_from': { from: ['left', 0.5], via: [[8, 36], [8, 420]], to: ['left', (420 - 252) / 718], label: { seg: 1, at: (72 - 36) / 384 } },
+  'MonitoringNotice.identifies': { from: ['left', 0.5], via: [[18, 108], [18, 306]], to: ['left', 0.5], label: { seg: 1, at: (236 - 108) / 198 } },
   // Up the corridor between Capture's column and the dispute frame: the line that meets Capture highest
   // runs furthest right, so none crosses another.
   'Payout.funds': { from: ['left', 0.5], via: [[628, 690], [628, 315.6]], to: ['right', 0.7], label: { seg: 0 } },

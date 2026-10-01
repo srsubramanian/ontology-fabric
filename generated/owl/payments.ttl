@@ -72,6 +72,43 @@ pay:FeeCollection a owl:Class,
     pay:lives_in "warehouse" ;
     pay:owner "settlement" .
 
+pay:MonitoringNotice a owl:Class,
+        linkml:ClassDefinition ;
+    rdfs:label "MonitoringNotice" ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:allValuesFrom [ a rdfs:Datatype ;
+                    owl:onDatatype xsd:string ;
+                    owl:withRestrictions ( [ xsd:pattern "^\\d{4}-\\d{2}$" ] ) ] ;
+            owl:onProperty pay:month ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:tier ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:ratio ],
+        [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onProperty pay:month ],
+        [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onProperty pay:identifies ],
+        [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onProperty pay:id ],
+        [ a owl:Restriction ;
+            owl:cardinality 1 ;
+            owl:onProperty pay:program ] ;
+    skos:altLabel "ECM notice",
+        "VAMP notice",
+        "program identification" ;
+    skos:definition "A card network identifying a merchant in one of its monitoring programs for a month, such as Visa's VAMP, with the tier and the ratio it measured." ;
+    skos:inScheme <https://ontology.example.com/payments> ;
+    pay:example "Sunset Tickets m:10442, VAMP, 2026-08, excessive, ratio 1.65%" ;
+    pay:id_rule "mon:{program}:{merchant_id}:{month}" ;
+    pay:lives_in "graph" ;
+    pay:no_standard "Monitoring programs are card network rules, with no ISO 20022 message or FIBO concept of their own." ;
+    pay:owner "disputes" .
+
 pay:Reconciliation a owl:Class,
         linkml:ClassDefinition ;
     rdfs:label "Reconciliation" ;
@@ -437,6 +474,9 @@ pay:ReasonCode a owl:Class,
     rdfs:label "ReasonCode" ;
     rdfs:subClassOf [ a owl:Restriction ;
             owl:maxCardinality 1 ;
+            owl:onProperty pay:category ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
             owl:onProperty pay:network ],
         [ a owl:Restriction ;
             owl:maxCardinality 1 ;
@@ -651,6 +691,13 @@ pay:captures a owl:ObjectProperty,
     skos:definition "The authorization a capture claims funds for." ;
     skos:inScheme <https://ontology.example.com/payments> .
 
+pay:category a owl:ObjectProperty,
+        linkml:SlotDefinition ;
+    rdfs:label "category" ;
+    rdfs:range pay:DisputeCategory ;
+    skos:definition "The kind of dispute a reason code stands for, the same across networks, so chargebacks can be grouped without knowing each network's codes." ;
+    skos:inScheme <https://ontology.example.com/payments> .
+
 pay:challenged a owl:ObjectProperty,
         linkml:SlotDefinition ;
     rdfs:label "challenged" ;
@@ -763,6 +810,13 @@ pay:held_by a owl:ObjectProperty,
     skos:definition "Who a card is issued to." ;
     skos:inScheme <https://ontology.example.com/payments> .
 
+pay:identifies a owl:ObjectProperty,
+        linkml:SlotDefinition ;
+    rdfs:label "identifies" ;
+    rdfs:range pay:Merchant ;
+    skos:definition "The merchant a monitoring notice identifies." ;
+    skos:inScheme <https://ontology.example.com/payments> .
+
 pay:in_batch a owl:ObjectProperty,
         linkml:SlotDefinition ;
     rdfs:label "in_batch" ;
@@ -832,11 +886,25 @@ pay:prefix a owl:ObjectProperty,
     skos:definition "The leading digits every card in the range shares." ;
     skos:inScheme <https://ontology.example.com/payments> .
 
+pay:program a owl:ObjectProperty,
+        linkml:SlotDefinition ;
+    rdfs:label "program" ;
+    rdfs:range pay:MonitoringProgram ;
+    skos:definition "The network monitoring program." ;
+    skos:inScheme <https://ontology.example.com/payments> .
+
 pay:qualifies_for a owl:ObjectProperty,
         linkml:SlotDefinition ;
     rdfs:label "qualifies_for" ;
     rdfs:range pay:FeeProgram ;
     skos:definition "The interchange program a capture qualified for." ;
+    skos:inScheme <https://ontology.example.com/payments> .
+
+pay:ratio a owl:ObjectProperty,
+        linkml:SlotDefinition ;
+    rdfs:label "ratio" ;
+    rdfs:range linkml:Decimal ;
+    skos:definition "The ratio the program measured for the month, as a fraction (0.0165 is 1.65%)." ;
     skos:inScheme <https://ontology.example.com/payments> .
 
 pay:reconciled_at a owl:ObjectProperty,
@@ -935,6 +1003,13 @@ pay:standing_instruction a owl:ObjectProperty,
     rdfs:label "standing_instruction" ;
     rdfs:range pay:StandingInstruction ;
     skos:definition "The agreement a merchant-initiated payment follows, such as a subscription." ;
+    skos:inScheme <https://ontology.example.com/payments> .
+
+pay:tier a owl:ObjectProperty,
+        linkml:SlotDefinition ;
+    rdfs:label "tier" ;
+    rdfs:range pay:MonitoringTier ;
+    skos:definition "The program's tier the merchant was identified in, where the program has tiers." ;
     skos:inScheme <https://ontology.example.com/payments> .
 
 pay:under a owl:ObjectProperty,
@@ -1088,6 +1163,26 @@ pay:Cardholder a owl:Class,
     rdfs:label "processor_stand_in" ;
     skos:definition "The issuer's processor answered with its own stand-in rules." .
 
+<https://ontology.example.com/payments/DisputeCategory#authorization> a owl:NamedIndividual,
+        pay:DisputeCategory ;
+    rdfs:label "authorization" ;
+    skos:definition "The transaction wasn't properly authorized (Visa 11.x)." .
+
+<https://ontology.example.com/payments/DisputeCategory#consumer_dispute> a owl:NamedIndividual,
+        pay:DisputeCategory ;
+    rdfs:label "consumer_dispute" ;
+    skos:definition "The cardholder disputes what they got, such as goods not received (Visa 13.x)." .
+
+<https://ontology.example.com/payments/DisputeCategory#fraud> a owl:NamedIndividual,
+        pay:DisputeCategory ;
+    rdfs:label "fraud" ;
+    skos:definition "The cardholder didn't take part in the transaction (Visa 10.x)." .
+
+<https://ontology.example.com/payments/DisputeCategory#processing_error> a owl:NamedIndividual,
+        pay:DisputeCategory ;
+    rdfs:label "processing_error" ;
+    skos:definition "The transaction was processed wrongly, such as late or twice (Visa 12.x)." .
+
 <https://ontology.example.com/payments/DisputeClosure#accepted> a owl:NamedIndividual,
         pay:DisputeClosure ;
     rdfs:label "accepted" ;
@@ -1227,6 +1322,36 @@ pay:Issuer a owl:Class,
     pay:lives_in "graph" ;
     pay:owner "core" .
 
+<https://ontology.example.com/payments/MonitoringProgram#mastercard_ecp> a owl:NamedIndividual,
+        pay:MonitoringProgram ;
+    rdfs:label "mastercard_ecp" ;
+    skos:definition "Mastercard's Excessive Chargeback Program." .
+
+<https://ontology.example.com/payments/MonitoringProgram#mastercard_efm> a owl:NamedIndividual,
+        pay:MonitoringProgram ;
+    rdfs:label "mastercard_efm" ;
+    skos:definition "Mastercard's Excessive Fraud Merchant program." .
+
+<https://ontology.example.com/payments/MonitoringProgram#vamp> a owl:NamedIndividual,
+        pay:MonitoringProgram ;
+    rdfs:label "vamp" ;
+    skos:definition "Visa Acquirer Monitoring Program, counting fraud reports and disputes." .
+
+<https://ontology.example.com/payments/MonitoringTier#ecm> a owl:NamedIndividual,
+        pay:MonitoringTier ;
+    rdfs:label "ecm" ;
+    skos:definition "Mastercard's Excessive Chargeback Merchant, the lower ECP tier." .
+
+<https://ontology.example.com/payments/MonitoringTier#excessive> a owl:NamedIndividual,
+        pay:MonitoringTier ;
+    rdfs:label "excessive" ;
+    skos:definition "VAMP's merchant tier." .
+
+<https://ontology.example.com/payments/MonitoringTier#hecm> a owl:NamedIndividual,
+        pay:MonitoringTier ;
+    rdfs:label "hecm" ;
+    skos:definition "Mastercard's High Excessive Chargeback Merchant, the higher ECP tier." .
+
 pay:Party a owl:Class,
         linkml:ClassDefinition ;
     rdfs:label "Party" ;
@@ -1305,6 +1430,15 @@ pay:mcc a owl:ObjectProperty,
     skos:definition "Merchant category code, from ISO 18245." ;
     skos:inScheme <https://ontology.example.com/payments> .
 
+pay:month a owl:ObjectProperty,
+        linkml:SlotDefinition ;
+    rdfs:label "month" ;
+    rdfs:range [ a rdfs:Datatype ;
+            owl:onDatatype xsd:string ;
+            owl:withRestrictions ( [ xsd:pattern "^\\d{4}-\\d{2}$" ] ) ] ;
+    skos:definition "The month a notice covers, as YYYY-MM." ;
+    skos:inScheme <https://ontology.example.com/payments> .
+
 pay:token_requestor a owl:ObjectProperty,
         linkml:SlotDefinition ;
     rdfs:label "token_requestor" ;
@@ -1378,42 +1512,6 @@ pay:Initiator a owl:Class,
     linkml:permissible_values <https://ontology.example.com/payments/Initiator#cardholder>,
         <https://ontology.example.com/payments/Initiator#merchant> .
 
-pay:Merchant a owl:Class,
-        linkml:ClassDefinition ;
-    rdfs:label "Merchant" ;
-    rdfs:subClassOf [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty pay:name ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty pay:acquired_by ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty pay:mcc ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom [ a rdfs:Datatype ;
-                    owl:onDatatype xsd:string ;
-                    owl:withRestrictions ( [ xsd:pattern "^\\d{4}$" ] ) ] ;
-            owl:onProperty pay:mcc ],
-        [ a owl:Restriction ;
-            owl:maxCardinality 1 ;
-            owl:onProperty pay:country ],
-        [ a owl:Restriction ;
-            owl:allValuesFrom [ a rdfs:Datatype ;
-                    owl:onDatatype xsd:string ;
-                    owl:withRestrictions ( [ xsd:pattern "^[A-Z]{2}$" ] ) ] ;
-            owl:onProperty pay:country ],
-        pay:PartyRole ;
-    skos:altLabel "merchant outlet",
-        "store" ;
-    skos:closeMatch fibo-be-fct-fct:Merchant ;
-    skos:definition "A business that accepts cards, as its acquirer knows it." ;
-    skos:inScheme <https://ontology.example.com/payments> ;
-    pay:example "m:88213, Harbor Grill #4, MCC 5812" ;
-    pay:id_rule "m:{merchant_id}" ;
-    pay:lives_in "graph" ;
-    pay:owner "core" .
-
 pay:code a owl:ObjectProperty,
         linkml:SlotDefinition ;
     rdfs:label "code" ;
@@ -1473,6 +1571,62 @@ pay:FundingSource a owl:Class,
     linkml:permissible_values <https://ontology.example.com/payments/FundingSource#credit>,
         <https://ontology.example.com/payments/FundingSource#debit>,
         <https://ontology.example.com/payments/FundingSource#prepaid> .
+
+pay:Merchant a owl:Class,
+        linkml:ClassDefinition ;
+    rdfs:label "Merchant" ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:name ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:acquired_by ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:mcc ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom [ a rdfs:Datatype ;
+                    owl:onDatatype xsd:string ;
+                    owl:withRestrictions ( [ xsd:pattern "^\\d{4}$" ] ) ] ;
+            owl:onProperty pay:mcc ],
+        [ a owl:Restriction ;
+            owl:maxCardinality 1 ;
+            owl:onProperty pay:country ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom [ a rdfs:Datatype ;
+                    owl:onDatatype xsd:string ;
+                    owl:withRestrictions ( [ xsd:pattern "^[A-Z]{2}$" ] ) ] ;
+            owl:onProperty pay:country ],
+        pay:PartyRole ;
+    skos:altLabel "merchant outlet",
+        "store" ;
+    skos:closeMatch fibo-be-fct-fct:Merchant ;
+    skos:definition "A business that accepts cards, as its acquirer knows it." ;
+    skos:inScheme <https://ontology.example.com/payments> ;
+    pay:example "m:88213, Harbor Grill #4, MCC 5812" ;
+    pay:id_rule "m:{merchant_id}" ;
+    pay:lives_in "graph" ;
+    pay:owner "core" .
+
+pay:MonitoringProgram a owl:Class,
+        linkml:EnumDefinition ;
+    rdfs:label "MonitoringProgram" ;
+    owl:oneOf ( <https://ontology.example.com/payments/MonitoringProgram#vamp> <https://ontology.example.com/payments/MonitoringProgram#mastercard_ecp> <https://ontology.example.com/payments/MonitoringProgram#mastercard_efm> ) ;
+    skos:definition "Network programs that monitor merchants' disputes and fraud." ;
+    skos:inScheme <https://ontology.example.com/payments> ;
+    linkml:permissible_values <https://ontology.example.com/payments/MonitoringProgram#mastercard_ecp>,
+        <https://ontology.example.com/payments/MonitoringProgram#mastercard_efm>,
+        <https://ontology.example.com/payments/MonitoringProgram#vamp> .
+
+pay:MonitoringTier a owl:Class,
+        linkml:EnumDefinition ;
+    rdfs:label "MonitoringTier" ;
+    owl:oneOf ( <https://ontology.example.com/payments/MonitoringTier#excessive> <https://ontology.example.com/payments/MonitoringTier#ecm> <https://ontology.example.com/payments/MonitoringTier#hecm> ) ;
+    skos:definition "The tier a merchant is identified in, where a program has tiers." ;
+    skos:inScheme <https://ontology.example.com/payments> ;
+    linkml:permissible_values <https://ontology.example.com/payments/MonitoringTier#ecm>,
+        <https://ontology.example.com/payments/MonitoringTier#excessive>,
+        <https://ontology.example.com/payments/MonitoringTier#hecm> .
 
 pay:StandingInstruction a owl:Class,
         linkml:EnumDefinition ;
@@ -1591,6 +1745,17 @@ pay:AuthorizationType a owl:Class,
         <https://ontology.example.com/payments/AuthorizationType#final>,
         <https://ontology.example.com/payments/AuthorizationType#incremental>,
         <https://ontology.example.com/payments/AuthorizationType#undefined> .
+
+pay:DisputeCategory a owl:Class,
+        linkml:EnumDefinition ;
+    rdfs:label "DisputeCategory" ;
+    owl:oneOf ( <https://ontology.example.com/payments/DisputeCategory#fraud> <https://ontology.example.com/payments/DisputeCategory#authorization> <https://ontology.example.com/payments/DisputeCategory#processing_error> <https://ontology.example.com/payments/DisputeCategory#consumer_dispute> ) ;
+    skos:definition "The four kinds of dispute both networks group their reason codes into. Visa numbers them 10 to 13; Mastercard calls processing errors point-of-interaction errors." ;
+    skos:inScheme <https://ontology.example.com/payments> ;
+    linkml:permissible_values <https://ontology.example.com/payments/DisputeCategory#authorization>,
+        <https://ontology.example.com/payments/DisputeCategory#consumer_dispute>,
+        <https://ontology.example.com/payments/DisputeCategory#fraud>,
+        <https://ontology.example.com/payments/DisputeCategory#processing_error> .
 
 pay:DisputeClosure a owl:Class,
         linkml:EnumDefinition ;
@@ -1748,7 +1913,7 @@ pay:currency a owl:ObjectProperty,
 <https://ontology.example.com/payments> a owl:Ontology ;
     rdfs:label "payments" ;
     dcterms:title "Payments ontology (illustrative draft)" ;
-    pav:version "1.11.0" ;
+    pav:version "1.12.0" ;
     pay:commons_release "https://www.omg.org/spec/Commons/20250801/" ;
     pay:fibo_release "https://spec.edmcouncil.org/fibo/ontology/master/2026Q2/" .
 
