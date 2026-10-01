@@ -19,7 +19,7 @@ const ANSWERED: Record<Store, { name: string; color: string; why: string }> = {
   snowflake: { name: 'Snowflake', color: 'var(--wh)', why: 'It counts over big tables and time, so the warehouse answers it, using the classes and relationships the ontology names.' },
 };
 
-/** The node file headers tools/generate.py writes, one per concrete class, read at build time. */
+/** The node file headers tools/generate.py writes, one per concrete class that loads into Neptune, read at build time. */
 const HEADERS = import.meta.glob('../../../generated/neptune/nodes/*.csv', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 const loaderHeader = (c: ClassInfo) => {
   const header = HEADERS[`../../../generated/neptune/nodes/${c.name}.csv`];
@@ -184,7 +184,7 @@ function ClassDetails({ model, c, onPick, onQuestion, onHome }: { model: Model; 
         <QuestionList questions={questions} onQuestion={onQuestion} />
       </Section>
 
-      {!c.abstract && (
+      {!c.abstract && !c.neverInGraph && (
         <Section title="Generated for Neptune">
           <CodeBlock code={loaderHeader(c)} lang="none" />
           <p className="muted">The node file header our generator writes. Relationships become edges, not columns.</p>
