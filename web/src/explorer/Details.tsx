@@ -100,7 +100,7 @@ function ClassDetails({ model, c, onPick, onQuestion, onHome }: { model: Model; 
       <p>{c.description}</p>
       {c.aliases.length > 0 && <p className="muted">Also called {c.aliases.map((a, i) => <span key={a}>{i > 0 && ', '}<b>{a}</b></span>)}</p>}
 
-      <Section title="Labels in Neptune">
+      <Section title={c.neverInGraph ? 'Where it sits' : 'Labels in Neptune'}>
         <div className="chain">
           {c.chain.map((name, i) => (
             <span key={name}>{i > 0 && <i>›</i>}<ClassLink name={name} onPick={onPick} /></span>
@@ -109,7 +109,9 @@ function ClassDetails({ model, c, onPick, onQuestion, onHome }: { model: Model; 
         <p className="muted">
           {c.abstract
             ? 'Abstract: never a node on its own. Its label goes on every subclass.'
-            : <>Each node carries all of them: <code>:{c.chain.join(':')}</code></>}
+            : c.neverInGraph
+              ? 'Never a node: it stays in Snowflake (decision 2).'
+              : <>Each node carries all of them: <code>:{c.chain.join(':')}</code></>}
         </p>
         {c.children.length > 0 && <p className="muted">Subclasses: {c.children.map((k, i) => <span key={k}>{i > 0 && ', '}<ClassLink name={k} onPick={onPick} /></span>)}</p>}
       </Section>
