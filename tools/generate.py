@@ -63,6 +63,8 @@ class Ontology:
         self.any = {n for n, c in self.sv.all_classes().items() if c.class_uri == "linkml:Any"}
         self.classes = {n: c for n, c in sorted(self.sv.all_classes().items()) if n not in self.any}
         self.concrete = [n for n, c in self.classes.items() if not c.abstract]
+        # Warehouse classes that never load into Neptune, such as reconciliation (decision 2).
+        self.never_in_graph = {n for n in self.concrete if self.annotation(self.classes[n], "graph_load") == "never"}
 
     def annotation(self, element, key):
         anns = element.annotations
@@ -176,17 +178,18 @@ def edge_properties(onto, slot):
 
 def neptune_outputs(onto):
     files = {}
-    for name in onto.concrete:
+    nodes = [n for n in onto.concrete if n not in onto.never_in_graph]
+    for name in nodes:
         columns = [f"{s.name}:{neptune_type(onto, s, name)}" for s in onto.attributes(name)]
         files[f"neptune/nodes/{name}.csv"] = ",".join([":ID", ":LABEL", *columns, "ontology_version:String"]) + "\n"
-    rels = onto.relationships()
+    rels = [r for r in onto.relationships() if not {r[1], r[2]} & onto.never_in_graph]
     for slot, _, _ in rels:
         # Edge IDs are built from their ends and type, so reloading the same data changes nothing.
         files[f"neptune/edges/{slot.name.upper()}.csv"] = ",".join(
             [":ID", ":START_ID", ":END_ID", ":TYPE", *edge_properties(onto, slot), "ontology_version:String"]) + "\n"
     schema = {
         "ontology_version": onto.version,
-        "labels": {name: onto.chain(name) for name in onto.concrete},
+        "labels": {name: onto.chain(name) for name in nodes},
         "edge_id_rule": "{start_id}|{TYPE}|{end_id}",
         "relationships": [
             {"type": slot.name.upper(), "from": frm, "to": to, "multivalued": bool(slot.multivalued),

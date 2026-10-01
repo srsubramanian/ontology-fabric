@@ -17,6 +17,8 @@
 #   example      an instance from the pages' running examples, where one exists
 #   no_standard  why a concrete class has no close_mappings
 #   search_index which OpenSearch index holds a search class's documents
+#   graph_load   never, for a warehouse class that never loads into Neptune,
+#                such as settlement files and reconciliation (decision 2)
 #
 # And on relationships, read by tools/generate.py:
 #   edge_properties  properties the edge carries, as name:NeptuneType
@@ -26,7 +28,7 @@
 id: https://ontology.example.com/payments
 name: payments
 title: Payments ontology (illustrative draft)
-version: 1.10.0
+version: 1.11.0
 prefixes:
   pay: https://ontology.example.com/payments/
   linkml: https://w3id.org/linkml/
@@ -250,7 +252,7 @@ classes:
     description: The merchant claiming the funds an authorization approved.
     aliases: [clearing, presentment]
     close_mappings: [iso20022:cain.003.001.05]
-    slots: [captured_at, amount, currency, captures]
+    slots: [captured_at, amount, currency, conversion_rate, interchange_fee, captures, qualifies_for, in_batch]
     slot_usage:
       captures:
         required: true
@@ -264,7 +266,7 @@ classes:
     is_a: PaymentEvent
     description: Funds moving between the banks for a batch of captures.
     close_mappings: [fibo-fbc-fi-stl:SettlementEvent]
-    slots: [settled_at, settles]
+    slots: [settled_at, amount, currency, settles]
     slot_usage:
       settles:
         required: true
@@ -272,6 +274,43 @@ classes:
       owner: settlement
       lives_in: warehouse
       id_rule: "stl:{settlement_id}"
+
+  Adjustment:
+    is_a: PaymentEvent
+    description: >-
+      A correction to a capture after it cleared, such as a changed amount,
+      made under the network's rules.
+    aliases: [clearing adjustment, correction]
+    slots: [adjusted_at, amount, currency, adjusts]
+    slot_usage:
+      adjusts:
+        required: true
+    annotations:
+      owner: settlement
+      lives_in: warehouse
+      id_rule: "adj:{adjustment_id}"
+      no_standard: >-
+        ISO 20022's Amendment (cain.020) reports a corrected message, not a
+        change to a settled amount. Networks run adjustments under their own
+        rules.
+
+  Payout:
+    is_a: PaymentEvent
+    description: >-
+      The acquirer paying a merchant for its settled captures, less fees and
+      any amount held back in reserve.
+    aliases: [merchant funding, deposit, remittance]
+    slots: [paid_at, amount, currency, reserve_amount, funds]
+    slot_usage:
+      funds:
+        required: true
+    annotations:
+      owner: settlement
+      lives_in: warehouse
+      id_rule: "po:{payout_id}"
+      no_standard: >-
+        Acquirers pay merchants by ordinary bank transfer, outside the card
+        messages, and FIBO has no merchant funding concept.
 
   Refund:
     is_a: PaymentEvent
@@ -429,7 +468,71 @@ classes:
         The ISO 20022 card messages carry the steps of a dispute, but none
         stands for its outcome. Networks record it in their own case systems.
 
+  # ---------- Money between the members: warehouse only (decision 2) ----------
+
+  ClearingBatch:
+    description: >-
+      A batch of captures sent for clearing and settlement in one exchange,
+      such as an acquirer's clearing file.
+    aliases: [clearing file, settlement file, batch]
+    close_mappings: [iso20022:caad.003.001.04]
+    slots: [id, sent_at]
+    annotations:
+      owner: settlement
+      lives_in: warehouse
+      graph_load: never
+      id_rule: "batch:{batch_id}"
+
+  Reconciliation:
+    description: >-
+      A member checking its totals for a settlement against the network's,
+      and recording any difference.
+    aliases: [recon, settlement reconciliation]
+    close_mappings: [iso20022:caad.005.001.05]
+    slots: [id, reconciled_at, matched, difference, currency, reconciles]
+    slot_usage:
+      reconciles:
+        required: true
+      matched:
+        required: true
+    annotations:
+      owner: settlement
+      lives_in: warehouse
+      graph_load: never
+      id_rule: "rec:{reconciliation_id}"
+
+  FeeCollection:
+    description: >-
+      The network collecting fees from a member, an issuer or an acquirer,
+      such as its monthly assessments.
+    aliases: [network fees, assessments, network billing]
+    close_mappings: [iso20022:cafc.001.001.04]
+    slots: [id, collected_at, amount, currency, collected_from, under]
+    slot_usage:
+      collected_from:
+        required: true
+    annotations:
+      owner: settlement
+      lives_in: warehouse
+      graph_load: never
+      id_rule: "fc:{collection_id}"
+
   # ---------- Codes and documents ----------
+
+  FeeProgram:
+    description: >-
+      A fee a network publishes, such as an interchange category a capture
+      qualifies for. A node, so captures and the fees charged meet at one
+      place; the amounts stay in Snowflake (decision 2).
+    aliases: [interchange category, interchange program, fee schedule]
+    slots: [id, network, code, name, fee_type]
+    annotations:
+      owner: settlement
+      lives_in: graph
+      id_rule: "fee:{network}:{code}"
+      no_standard: >-
+        Each network publishes its own interchange programs and fees; no ISO
+        list or FIBO concept covers them.
 
   ReasonCode:
     description: >-
@@ -583,6 +686,45 @@ slots:
   refunded_at:
     description: When the refund was made.
     range: datetime
+  adjusted_at:
+    description: When the adjustment was made.
+    range: datetime
+  paid_at:
+    description: When the acquirer paid the merchant.
+    range: datetime
+  sent_at:
+    description: When the batch was sent.
+    range: datetime
+  reconciled_at:
+    description: When the totals were checked.
+    range: datetime
+  collected_at:
+    description: When the network collected the fees.
+    range: datetime
+  conversion_rate:
+    description: >-
+      The rate that converted a capture's amount into its settlement's
+      currency, when the two differ.
+    range: decimal
+  interchange_fee:
+    description: >-
+      The interchange the capture paid, in its settlement's currency. The
+      amount stays in Snowflake; the program it qualified for is a node.
+    range: decimal
+  reserve_amount:
+    description: >-
+      The amount held back from a payout into the merchant's reserve;
+      negative when the acquirer releases reserve.
+    range: decimal
+  matched:
+    description: Whether the member's totals matched the network's.
+    range: boolean
+  difference:
+    description: The amount by which the totals differed.
+    range: decimal
+  fee_type:
+    description: What kind of fee a program sets.
+    range: FeeType
   reversed_at:
     description: When the acquirer sent the reversal.
     range: datetime
@@ -666,6 +808,28 @@ slots:
   refunds:
     description: The capture a refund returns money from.
     range: Capture
+  adjusts:
+    description: The capture an adjustment corrects.
+    range: Capture
+  funds:
+    description: The captures a payout pays the merchant for.
+    range: Capture
+    multivalued: true
+  qualifies_for:
+    description: The interchange program a capture qualified for.
+    range: FeeProgram
+  in_batch:
+    description: The batch that carried a capture to the network.
+    range: ClearingBatch
+  reconciles:
+    description: The settlement whose totals were checked.
+    range: Settlement
+  collected_from:
+    description: The member the fees were collected from, an issuer or an acquirer.
+    range: PartyRole
+  under:
+    description: The fee program a collection charges.
+    range: FeeProgram
   disputes:
     description: Links a dispute event to the capture it contests.
     range: Capture
@@ -754,6 +918,14 @@ enums:
         description: The network's stand-in processing answered for the issuer, such as Visa's STIP.
       processor_stand_in:
         description: The issuer's processor answered with its own stand-in rules.
+
+  FeeType:
+    description: What kind of fee a program sets.
+    permissible_values:
+      interchange:
+        description: Paid by the acquirer to the issuer on each capture.
+      network_fee:
+        description: Charged by the network to its members, such as assessments.
 
   Credential:
     description: What stood in for the card number in an authorization.

@@ -12,13 +12,14 @@ const LIVES_TEXT = {
   warehouse: 'Stays in the lake or Snowflake, linked by ID. A record joins Neptune when a question walks through it, such as a disputed authorization.',
   search: 'Text and embeddings live in OpenSearch; Neptune keeps a small stub with the ID.',
 };
+const NEVER_IN_GRAPH = 'Stays in Snowflake and never loads into Neptune (decision 2). Questions reach it through the warehouse, joined by ID.';
 
 const ANSWERED: Record<Store, { name: string; color: string; why: string }> = {
   neptune: { name: 'Neptune', color: 'var(--graph)', why: 'It walks or counts along relationships, so the graph answers it.' },
   snowflake: { name: 'Snowflake', color: 'var(--wh)', why: 'It counts over big tables and time, so the warehouse answers it, using the classes and relationships the ontology names.' },
 };
 
-/** The node file headers tools/generate.py writes, one per concrete class, read at build time. */
+/** The node file headers tools/generate.py writes, one per concrete class that loads into Neptune, read at build time. */
 const HEADERS = import.meta.glob('../../../generated/neptune/nodes/*.csv', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 const loaderHeader = (c: ClassInfo) => {
   const header = HEADERS[`../../../generated/neptune/nodes/${c.name}.csv`];
@@ -99,7 +100,7 @@ function ClassDetails({ model, c, onPick, onQuestion, onHome }: { model: Model; 
       <p>{c.description}</p>
       {c.aliases.length > 0 && <p className="muted">Also called {c.aliases.map((a, i) => <span key={a}>{i > 0 && ', '}<b>{a}</b></span>)}</p>}
 
-      <Section title="Labels in Neptune">
+      <Section title={c.neverInGraph ? 'Where it sits' : 'Labels in Neptune'}>
         <div className="chain">
           {c.chain.map((name, i) => (
             <span key={name}>{i > 0 && <i>›</i>}<ClassLink name={name} onPick={onPick} /></span>
@@ -108,7 +109,9 @@ function ClassDetails({ model, c, onPick, onQuestion, onHome }: { model: Model; 
         <p className="muted">
           {c.abstract
             ? 'Abstract: never a node on its own. Its label goes on every subclass.'
-            : <>Each node carries all of them: <code>:{c.chain.join(':')}</code></>}
+            : c.neverInGraph
+              ? 'Never a node: it stays in Snowflake (decision 2).'
+              : <>Each node carries all of them: <code>:{c.chain.join(':')}</code></>}
         </p>
         {c.children.length > 0 && <p className="muted">Subclasses: {c.children.map((k, i) => <span key={k}>{i > 0 && ', '}<ClassLink name={k} onPick={onPick} /></span>)}</p>}
       </Section>
@@ -120,7 +123,7 @@ function ClassDetails({ model, c, onPick, onQuestion, onHome }: { model: Model; 
       )}
 
       <Section title="Where it lives">
-        <p><span className="store" style={vars({ '--c': STORE[c.livesIn].color })}>{STORE[c.livesIn].label}</span> {LIVES_TEXT[c.livesIn]}</p>
+        <p><span className="store" style={vars({ '--c': STORE[c.livesIn].color })}>{STORE[c.livesIn].label}</span> {c.neverInGraph ? NEVER_IN_GRAPH : LIVES_TEXT[c.livesIn]}</p>
       </Section>
 
       <Section title="Owner">
@@ -183,7 +186,7 @@ function ClassDetails({ model, c, onPick, onQuestion, onHome }: { model: Model; 
         <QuestionList questions={questions} onQuestion={onQuestion} />
       </Section>
 
-      {!c.abstract && (
+      {!c.abstract && !c.neverInGraph && (
         <Section title="Generated for Neptune">
           <CodeBlock code={loaderHeader(c)} lang="none" />
           <p className="muted">The node file header our generator writes. Relationships become edges, not columns.</p>

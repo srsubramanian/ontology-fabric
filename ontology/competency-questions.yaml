@@ -1296,63 +1296,131 @@ questions:
   - id: CQ-84
     domain: settlement
     question: What interchange did each capture pay?
+    walks: [Capture.qualifies_for, Capture.captures, Authorization.at_merchant]
     answered_in: snowflake
-    gap: >-
-      Fee amounts stay in Snowflake (decision 2), but the ontology has no fee program or
-      interchange category to join them on.
+    query: |
+      SELECT c.capture_id, p.network, p.code AS program, p.name,
+             c.amount, c.currency, c.interchange_fee
+      FROM fct_capture c
+      JOIN dim_fee_program p ON p.fee_program_id = c.fee_program_id       -- Capture.qualifies_for
+      JOIN fct_authorization a ON a.authorization_id = c.authorization_id -- Capture.captures
+      WHERE a.merchant_id = :merchant_id                                  -- Authorization.at_merchant
+        AND c.captured_at >= DATEADD('day', -7, CURRENT_DATE)
+      ORDER BY c.captured_at DESC
+      LIMIT 100;
 
   - id: CQ-85
     domain: settlement
     question: Which settlement file or batch carried this capture?
+    walks: [Capture.in_batch, Settlement.settles]
     answered_in: snowflake
-    gap: >-
-      Settlement files and batches stay in Snowflake (decision 2) and aren't modelled, so a
-      capture can't be traced to its file.
+    query: |
+      SELECT c.capture_id, b.batch_id, b.sent_at, s.settlement_id, s.settled_at
+      FROM fct_capture c
+      JOIN dim_clearing_batch b ON b.batch_id = c.batch_id               -- Capture.in_batch
+      LEFT JOIN fct_settlement_item si ON si.capture_id = c.capture_id   -- Settlement.settles
+      LEFT JOIN fct_settlement s ON s.settlement_id = si.settlement_id
+      WHERE c.capture_id = :capture_id
+      LIMIT 10;
 
   - id: CQ-86
     domain: settlement
     question: What exchange rate converted this capture into the settlement currency?
+    walks: [Settlement.settles]
     answered_in: snowflake
-    gap: >-
-      A settlement has no amount, currency or conversion rate of its own.
+    query: |
+      SELECT c.capture_id, c.amount, c.currency, c.conversion_rate,
+             c.amount * c.conversion_rate AS settled_amount, s.currency AS settlement_currency
+      FROM fct_capture c
+      JOIN fct_settlement_item si ON si.capture_id = c.capture_id   -- Settlement.settles
+      JOIN fct_settlement s ON s.settlement_id = si.settlement_id
+      WHERE c.capture_id = :capture_id
+      LIMIT 10;
 
   - id: CQ-87
     domain: settlement
     question: When was this merchant paid for yesterday's captures?
+    walks: [Capture.captures, Authorization.at_merchant, Payout.funds]
     answered_in: snowflake
-    gap: >-
-      Merchant funding, the acquirer paying the merchant, isn't modelled. Settlement covers
-      funds between banks only.
+    query: |
+      SELECT p.payout_id, p.paid_at, p.amount, p.currency, p.reserve_amount,
+             COUNT(DISTINCT c.capture_id) AS captures
+      FROM fct_capture c
+      JOIN fct_authorization a ON a.authorization_id = c.authorization_id   -- Capture.captures
+      JOIN fct_payout_item pi ON pi.capture_id = c.capture_id               -- Payout.funds
+      JOIN fct_payout p ON p.payout_id = pi.payout_id
+      WHERE a.merchant_id = :merchant_id                                    -- Authorization.at_merchant
+        AND c.captured_at >= DATEADD('day', -1, CURRENT_DATE) AND c.captured_at < CURRENT_DATE
+      GROUP BY 1, 2, 3, 4, 5
+      ORDER BY p.paid_at
+      LIMIT 20;
 
   - id: CQ-88
     domain: settlement
     question: Which captures were adjusted after they settled?
+    walks: [Adjustment.adjusts, Settlement.settles]
     answered_in: snowflake
-    gap: >-
-      Adjustments and corrections aren't modelled as events.
+    query: |
+      SELECT c.capture_id, c.amount AS captured, adj.amount AS adjustment,
+             adj.adjusted_at, si.settled_at
+      FROM fct_adjustment adj
+      JOIN fct_capture c ON c.capture_id = adj.capture_id             -- Adjustment.adjusts
+      JOIN fct_settlement_item si ON si.capture_id = c.capture_id     -- Settlement.settles
+      WHERE adj.adjusted_at > si.settled_at
+        AND adj.adjusted_at >= DATEADD('day', -30, CURRENT_DATE)
+      ORDER BY adj.adjusted_at DESC
+      LIMIT 100;
 
   - id: CQ-89
     domain: settlement
     question: What reserve is the acquirer holding back for this merchant?
+    walks: [Payout.funds, Capture.captures, Authorization.at_merchant]
     answered_in: snowflake
-    gap: >-
-      Merchant reserves and holdbacks aren't modelled.
+    query: |
+      SELECT p.currency, SUM(p.reserve_amount) AS reserve_held
+      FROM fct_payout p
+      WHERE p.payout_id IN (
+        SELECT pi.payout_id
+        FROM fct_payout_item pi
+        JOIN fct_capture c ON c.capture_id = pi.capture_id                  -- Payout.funds
+        JOIN fct_authorization a ON a.authorization_id = c.authorization_id -- Capture.captures
+        WHERE a.merchant_id = :merchant_id                                  -- Authorization.at_merchant
+      )
+      GROUP BY 1
+      LIMIT 10;
 
   - id: CQ-90
     domain: settlement
     question: Which settlements didn't reconcile with the network's totals?
+    walks: [Reconciliation.reconciles]
     answered_in: snowflake
-    gap: >-
-      Reconciliation stays in Snowflake (decision 2) and has no class. ISO 20022's
-      ReconciliationInitiation (caad.005) could map a reconciliation event.
+    query: |
+      SELECT s.settlement_id, s.settled_at, s.amount, s.currency,
+             r.reconciled_at, r.difference
+      FROM fct_reconciliation r
+      JOIN fct_settlement s ON s.settlement_id = r.settlement_id   -- Reconciliation.reconciles
+      WHERE NOT r.matched
+        AND r.reconciled_at >= DATEADD('day', -30, CURRENT_DATE)
+      ORDER BY ABS(r.difference) DESC
+      LIMIT 100;
 
   - id: CQ-91
     domain: settlement
     question: What fees did the network collect from this acquirer last month?
+    walks: [FeeCollection.collected_from, FeeCollection.under]
     answered_in: snowflake
-    gap: >-
-      Network fees aren't modelled. ISO 20022's FeeCollectionInitiation (cafc.001) could map a
-      fee collection event.
+    query: |
+      SELECT p.network, p.code AS program, p.name, f.currency,
+             SUM(f.amount) AS collected
+      FROM fct_fee_collection f
+      JOIN dim_acquirer q ON q.acquirer_id = f.member_id               -- FeeCollection.collected_from
+      JOIN dim_fee_program p ON p.fee_program_id = f.fee_program_id    -- FeeCollection.under
+      WHERE q.acquirer_id = :acquirer_id
+        AND f.collected_at >= DATEADD('month', -1, DATE_TRUNC('month', CURRENT_DATE))
+        AND f.collected_at < DATE_TRUNC('month', CURRENT_DATE)
+      GROUP BY 1, 2, 3, 4
+      ORDER BY collected DESC
+      LIMIT 50;
 
   # ---------- Risk ----------
 
