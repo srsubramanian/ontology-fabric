@@ -2,18 +2,18 @@
 // every relationship routed, no two boxes overlap, a frame holds only its own subclasses, no line passes through
 // a box, no two lines cross, and no label sits on a box or another label. web/scripts/check-layout.ts runs it for
 // tools/check_ontology.py, and the studio runs it live on a proposal's layout patch.
-import { boxes, edgeGeometry, isPlaced, isRouted, VIEW, type Box, type LayoutPatch } from './layout.ts';
+import { boxes, edgeGeometry, isPlaced, isRouted, viewOf, type Box, type LayoutPatch } from './layout.ts';
 import type { Model } from './model.ts';
 
-type Point = [number, number];
+export type Point = [number, number];
 export type LayoutReport = { problems: string[]; boxes: number; lines: number };
 
-const overlap = (a: Box, b: Box, gap = 0) =>
+export const overlap = (a: Box, b: Box, gap = 0) =>
   a.x < b.x + b.w + gap && b.x < a.x + a.w + gap && a.y < b.y + b.h + gap && b.y < a.y + a.h + gap;
-const inset = (b: Box, d: number): Box => ({ x: b.x + d, y: b.y + d, w: b.w - 2 * d, h: b.h - 2 * d });
-const segments = (points: Point[]) => points.slice(1).map((p, i) => [points[i], p] as [Point, Point]);
+export const inset = (b: Box, d: number): Box => ({ x: b.x + d, y: b.y + d, w: b.w - 2 * d, h: b.h - 2 * d });
+export const segments = (points: Point[]) => points.slice(1).map((p, i) => [points[i], p] as [Point, Point]);
 
-function segmentHitsBox([[x1, y1], [x2, y2]]: [Point, Point], b: Box): boolean {
+export function segmentHitsBox([[x1, y1], [x2, y2]]: [Point, Point], b: Box): boolean {
   // Liang-Barsky clipping: does any part of the segment lie strictly inside the box?
   let t0 = 0, t1 = 1;
   const dx = x2 - x1, dy = y2 - y1;
@@ -25,7 +25,7 @@ function segmentHitsBox([[x1, y1], [x2, y2]]: [Point, Point], b: Box): boolean {
   return t1 - t0 > 1e-6;
 }
 
-function cross([[ax, ay], [bx, by]]: [Point, Point], [[cx, cy], [dx, dy]]: [Point, Point]): boolean {
+export function cross([[ax, ay], [bx, by]]: [Point, Point], [[cx, cy], [dx, dy]]: [Point, Point]): boolean {
   const d = (bx - ax) * (dy - cy) - (by - ay) * (dx - cx);
   if (Math.abs(d) < 1e-9) return false;
   const t = ((cx - ax) * (dy - cy) - (cy - ay) * (dx - cx)) / d;
@@ -33,10 +33,18 @@ function cross([[ax, ay], [bx, by]]: [Point, Point], [[cx, cy], [dx, dy]]: [Poin
   return t > 1e-6 && t < 1 - 1e-6 && u > 1e-6 && u < 1 - 1e-6;
 }
 
+/** Where a relationship's label sits. Labels are 9.5px JetBrains Mono: about 5.8 units a character, 8 tall. */
+export function labelBox(type: string, g: { label: [number, number]; anchor: 'start' | 'middle' | 'end' }): Box {
+  const w = type.length * 5.8;
+  const x = g.anchor === 'start' ? g.label[0] : g.anchor === 'end' ? g.label[0] - w : g.label[0] - w / 2;
+  return { x, y: g.label[1] - 8, w, h: 9 };
+}
+
 export function checkLayout(model: Model, patch?: LayoutPatch): LayoutReport {
   const classes = Object.values(model.classes);
   const concrete = classes.filter((c) => !c.abstract);
   const problems: string[] = [];
+  const VIEW = viewOf(patch);
 
   // First, everything needs a place and a route; until then nothing else can be measured.
   for (const c of concrete) {
@@ -93,11 +101,7 @@ export function checkLayout(model: Model, patch?: LayoutPatch): LayoutReport {
 
   // No label sits on a box or on another label. Labels are 9.5px JetBrains Mono: about 5.8 units a
   // character, 8 tall.
-  const labels = edges.map(({ r, g }) => {
-    const w = r.type.length * 5.8;
-    const x = g.anchor === 'start' ? g.label[0] : g.anchor === 'end' ? g.label[0] - w : g.label[0] - w / 2;
-    return { id: r.id, box: { x, y: g.label[1] - 8, w, h: 9 } as Box };
-  });
+  const labels = edges.map(({ r, g }) => ({ id: r.id, box: labelBox(r.type, g) }));
   labels.forEach(({ id, box: l }, i) => {
     if (l.x < 0 || l.x + l.w > VIEW.w) problems.push(`${id}'s label runs outside the drawing`);
     for (const c of concrete) if (overlap(l, box[c.name])) problems.push(`${id}'s label sits on ${c.name}`);

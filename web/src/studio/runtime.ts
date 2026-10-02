@@ -1,7 +1,8 @@
 // The claude.ai capabilities the studio uses, typed narrowly: only the calls it makes. The platform's own type
-// definitions are authoritative; these follow runtime contract 0.2.45. Every capability may be absent (a local copy
-// of the page, the smoke test, a viewer outside the organization), so the studio works without any of them: drafting
-// and checking always work, saving, review, Claude and pull requests light up when their capability resolves.
+// definitions are authoritative; these follow runtime contract 0.2.45, and the calls are the same in 0.2.66. Every capability may be absent (a local copy
+// of the page, the smoke test, a viewer outside the organization), so the studio works without any of them: building
+// and checking always work, keeping the draft in this browser; sharing, Claude and pull requests light up when their
+// capability resolves.
 import { useEffect, useState } from 'react';
 
 export type DbError = { code: string; message: string };
@@ -29,10 +30,12 @@ export type User = {
 };
 
 export type SampleError = { code: string; message: string; text?: string };
-export type Sample = ((input: string, options?: {
+type SampleOptions = {
   onText?: (u: { text: string; delta: string }) => void; signal?: AbortSignal;
   modelTier?: 'default' | 'complex' | 'quick'; cache?: boolean;
-}) => Promise<{ text: string; truncated: boolean }>);
+};
+export type Sample = ((input: string, options?: SampleOptions) => Promise<{ text: string; truncated: boolean }>)
+  & { json<T = unknown>(input: string, options?: SampleOptions): Promise<T> };
 
 export type McpError = { code: string; message: string; server?: string; retryable?: boolean };
 export type Mcp = {
@@ -112,11 +115,12 @@ export function sampleAdvice(e: SampleError): string | null {
   switch (e.code) {
     case 'cancelled': return null;
     case 'not_granted': case 'sampling_disabled': case 'not_declared': case 'capability_disabled': case 'capability_removed':
-      return 'Claude isn\'t available for this page. Write the patch by hand; the checks still run.';
+      return 'Claude isn\'t available for this page. Build on the map; the checks still run.';
     case 'rate_limited': return 'Too many requests to Claude just now. Try again in a little while.';
     case 'session_expired': return 'Sign in to claude.ai again, then try again.';
-    case 'refused': return 'Claude declined this request. Rephrase the question or draft part of the patch yourself.';
-    case 'prompt_too_large': return 'The request was too large for Claude. Shorten the draft and try again.';
+    case 'refused': return 'Claude declined this request. Rephrase it, or build that part on the map.';
+    case 'invalid_json': return 'Claude\'s answer didn\'t come back in a shape the studio can apply. Try again, or ask for less.';
+    case 'prompt_too_large': return 'The request was too large for Claude. Ask for less at a time.';
     case 'empty_completion': return 'Claude wrote nothing back. Try again, or ask for less.';
     default: return 'Asking Claude failed. Try again.';
   }

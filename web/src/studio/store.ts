@@ -1,74 +1,106 @@
-// Proposals, kept in the page's shared store (the db capability) so a team can review them: one document each,
-// at proposals/<id>. People are stored by their opaque user id, never by name. Writes are last-writer-wins; the
-// flow is short and each step names who took it, which is enough for a prototype. The real gate stays the pull
-// request: its review and CI decide what merges.
-import { useEffect, useState } from 'react';
-import type { Db, DbError } from './runtime';
+// Where the working draft lives. On the published page it's one document in the page's shared store
+// (drafts/<id>, pointed to by studio/current), so everyone in the organization builds on the same draft and sees
+// each other's changes as they happen. Anywhere else, such as a local copy of the page, it's kept in this browser.
+import { useCallback, useEffect, useState } from 'react';
+import { emptyDraft, mergeDraft, type DraftDoc, type DraftUpdate } from './draft';
+import type { DbError, Runtime } from './runtime';
 
-export type Status = 'draft' | 'review' | 'changes' | 'approved' | 'pr';
-export type Review = { by: string; verdict: 'approve' | 'changes'; note: string; at: number };
-export type Proposal = {
-  id: string; question: string; title: string; patch: string; status: Status;
-  author: string; createdAt: number; updatedAt: number;
-  /** What the checks said when it was last saved, for the list. */
-  summary: { answered: number; problems: number; lane: string; owners: string[] };
-  reviews: Review[];
-  /** The patch as approved, with the layout the studio worked out: what the pull request applies. */
-  approved?: { patch: string; layout: string; by: string; at: number };
-  /** The Claude Code session that applies it and opens the pull request. */
-  session?: { id: string | null; by: string; at: number; environment: string; branch: string; note?: string };
+export type DraftWrite = DraftUpdate & Partial<Pick<DraftDoc, 'status' | 'session'>>;
+export type DraftStore = {
+  draft: DraftDoc | null;
+  /** True when the draft is shared through the page's store; false when it's kept in this browser. */
+  shared: boolean;
+  error: string | null;
+  write(u: DraftWrite): Promise<string | null>;
+  /** Starts a fresh draft, once this one's pull request is open. */
+  startNext(): Promise<string | null>;
 };
 
-export const STATUS: Record<Status, { label: string; color: string }> = {
-  draft: { label: 'Draft', color: 'var(--muted)' },
-  review: { label: 'In review', color: 'var(--search)' },
-  changes: { label: 'Changes asked', color: 'var(--bad)' },
-  approved: { label: 'Approved', color: 'var(--query)' },
-  pr: { label: 'Pull request', color: 'var(--graph)' },
+const newId = () => 'd-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const LOCAL = 'studio:draft';
+const local = {
+  get(): DraftDoc | null { try { const s = localStorage.getItem(LOCAL); return s ? JSON.parse(s) : null; } catch { return null; } },
+  set(d: DraftDoc) { try { localStorage.setItem(LOCAL, JSON.stringify(d)); } catch { /* not kept */ } },
 };
-
-/** A new proposal id: letters and digits only, so it can sit in a route (#studio-p-…). */
-export const newId = () => 'p-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-
-const asProposal = (id: string, d: Record<string, unknown> | undefined): Proposal | null =>
-  d && typeof d.patch === 'string' && typeof d.question === 'string' ? ({ reviews: [], ...d, id } as unknown as Proposal) : null;
-
-/** Every proposal, newest first, live. Undefined until the first answer; an error is shown, not thrown. */
-export function useProposals(db: Db | null): { list?: Proposal[]; error?: string } {
-  const [state, setState] = useState<{ list?: Proposal[]; error?: string }>({});
-  useEffect(() => {
-    if (!db) return;
-    return db.collection('proposals').orderBy('updatedAt', 'desc').limit(200).onSnapshot(
-      (s) => setState({ list: s.docs.map((d) => asProposal(d.id, d.data())).filter((p): p is Proposal => !!p) }),
-      (e: DbError) => setState({ error: e.code === 'revoked' ? 'Proposals are no longer available in this view.' : `Proposals can't load (${e.code}).` }),
-    );
-  }, [db]);
-  return state;
-}
-
-/** One proposal, live: undefined while loading, null when there's no such proposal. */
-export function useProposal(db: Db | null, id: string | undefined): Proposal | null | undefined {
-  const [p, setP] = useState<Proposal | null | undefined>(undefined);
-  useEffect(() => {
-    setP(undefined);
-    if (!db || !id) return;
-    return db.doc(`proposals/${id}`).onSnapshot((s) => setP(s.exists ? asProposal(s.id, s.data()) : null), () => setP(null));
-  }, [db, id]);
-  return p;
-}
 
 /** What to tell the viewer when a write fails, by its code. */
 export function dbAdvice(e: unknown): string {
   const code = (e as DbError)?.code;
-  if (code === 'quota_exceeded') return 'The page\'s store is full. Ask its owner to clear out old proposals.';
-  if (code === 'resource_exhausted') return 'Too many saves at once. Wait a moment and try again.';
+  if (code === 'quota_exceeded') return 'The page\'s store is full.';
+  if (code === 'resource_exhausted') return 'Too many changes at once. Wait a moment and try again.';
   if (code === 'revoked' || code === 'not_granted') return 'Saving isn\'t available in this view of the page.';
   return `Saving failed (${code ?? 'unknown'}). Try again.`;
 }
 
-/** Local drafts: kept in this browser until saved as a proposal. Storage can be missing, so every call is guarded. */
-export const local = {
-  get(key: string): string | null { try { return localStorage.getItem('studio:' + key); } catch { return null; } },
-  set(key: string, v: string) { try { localStorage.setItem('studio:' + key, v); } catch { /* not kept */ } },
-  drop(key: string) { try { localStorage.removeItem('studio:' + key); } catch { /* nothing to drop */ } },
-};
+/** Stamps every entry a write touches with who made it and when. */
+function stamp(u: DraftWrite, by: string | null): Record<string, unknown> {
+  const at = Date.now();
+  const out: Record<string, unknown> = { ...u, updatedAt: at, updatedBy: by };
+  for (const m of ['classes', 'slots', 'enums', 'answers'] as const) {
+    if (!u[m]) continue;
+    out[m] = Object.fromEntries(Object.entries(u[m]!).map(([k, v]) => [k, v === null ? null : { ...v, by, at }]));
+  }
+  return out;
+}
+
+export function useDraftStore(rt: Runtime, base: string): DraftStore {
+  const shared = !!(rt.db && rt.me.id);
+  const [draft, setDraft] = useState<DraftDoc | null>(null);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // In this browser: load once the runtime has said there's no shared store.
+  useEffect(() => {
+    if (!rt.ready || shared) return;
+    setDraft(local.get() ?? emptyDraft('local', base));
+  }, [rt.ready, shared, base]);
+
+  // Shared: follow studio/current to the draft, creating the first one if there's none.
+  useEffect(() => {
+    if (!shared) return;
+    const db = rt.db!;
+    const cur = db.doc('studio/current');
+    return cur.onSnapshot(async (s) => {
+      const id = s.exists ? (s.data()?.draftId as string | undefined) : undefined;
+      if (id) { setDraftId(id); return; }
+      try {
+        const lease = await cur.acquire({ holder: rt.me.id!, ttlMs: 10000 });
+        if (!lease.acquired) return;
+        if ((await cur.get()).data()?.draftId) return;
+        const fresh = newId();
+        await db.doc(`drafts/${fresh}`).set(emptyDraft(fresh, base) as unknown as Record<string, unknown>);
+        await cur.set({ draftId: fresh, at: Date.now() });
+      } catch (e) { setError(dbAdvice(e)); }
+    }, (e) => setError(`The working draft can't load (${e.code}).`));
+  }, [shared, rt.db, rt.me.id, base]);
+
+  useEffect(() => {
+    if (!shared || !draftId) return;
+    return rt.db!.doc(`drafts/${draftId}`).onSnapshot(
+      (s) => { if (s.exists) setDraft({ ...emptyDraft(draftId, base), ...(s.data() as Partial<DraftDoc>), id: draftId }); },
+      (e) => setError(`The working draft can't load (${e.code}).`),
+    );
+  }, [shared, draftId, rt.db, base]);
+
+  const write = useCallback(async (u: DraftWrite): Promise<string | null> => {
+    const body = stamp(u, rt.me.id);
+    if (!shared) {
+      setDraft((d) => { const next = mergeDraft(d ?? emptyDraft('local', base), body); local.set(next); return next; });
+      return null;
+    }
+    if (!draftId) return 'The working draft is still loading.';
+    try { await rt.db!.doc(`drafts/${draftId}`).update(body); return null; } catch (e) { return dbAdvice(e); }
+  }, [shared, draftId, rt.db, rt.me.id, base]);
+
+  const startNext = useCallback(async (): Promise<string | null> => {
+    if (!shared) { const d = emptyDraft('local', base); local.set(d); setDraft(d); return null; }
+    try {
+      const fresh = newId();
+      await rt.db!.doc(`drafts/${fresh}`).set(emptyDraft(fresh, base) as unknown as Record<string, unknown>);
+      await rt.db!.doc('studio/current').set({ draftId: fresh, at: Date.now() });
+      return null;
+    } catch (e) { return dbAdvice(e); }
+  }, [shared, rt.db, base]);
+
+  return { draft, shared, error, write, startNext };
+}
