@@ -1,8 +1,9 @@
 // The design studio: build the ontology on its class map. Everyone in the organization builds on one shared working
 // draft, the repository's checks run on every change, and one click opens a pull request with all of it. Missions
-// coach payments people through answering a question, step by step, on the same map and the same draft.
-// Routes: #studio for the map, #studio-<Class> to select a class, #studio-CQ-NN to answer a question, and
-// #studio-mission-CQ-NN for a mission.
+// coach payments people through answering a question, step by step, on the same map and the same draft. Ask anything
+// takes any question in someone's own words: Claude proposes a design, drawn as ghosts, and people accept it piece by
+// piece. Routes: #studio for the map, #studio-<Class> to select a class, #studio-CQ-NN to answer a question,
+// #studio-mission-CQ-NN for a mission, and #studio-ask-<id> for a question someone asked.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { model as baseModel, rawQuestions, rawSchema } from '../explorer/data';
 import { vars } from '../kit/css';
@@ -11,11 +12,13 @@ import { hashFor, isShowing, useHash } from '../kit/route';
 import { analyse, baseCoverage, patchYaml } from './analysis';
 import { Canvas, type Demo, type Mode, type Selection } from './Canvas';
 import { Coach, type Said } from './Coach';
-import { emptyDraft, inverse, live, type DraftDoc, type DraftUpdate, type Point } from './draft';
-import { addClass, addSlot, applyOps, classExists, moveClass, removeClass, removeSlot, slotNameProblem, type Ctx, type Op } from './edits';
+import { emptyDraft, inverse, live, type DraftDoc, type DraftUpdate, type InquiryEdit, type Point } from './draft';
+import { addClass, addSlot, classExists, moveClass, removeClass, removeSlot, slotNameProblem, type Ctx } from './edits';
 import { ClassPanel, QuestionPanel, RelPanel } from './Inspector';
+import { accept, decide, ghosts, previewDraft, settle, think } from './inquiry';
+import { AskedList, InquiryCard, ProposalsPanel } from './Ask';
 import { doStep, missionById, MISSIONS, pendingLink, placeSpot, progress, stepLabel, type Choice, type Mission } from './missions';
-import { askPrompt, queryPrompt } from './prompt';
+import { queryPrompt } from './prompt';
 import { SessionCard, StartPull } from './Pull';
 import { sampleAdvice, useProfiles, useRuntime, type SampleError } from './runtime';
 import { useDraftStore } from './store';
@@ -28,6 +31,12 @@ const ago = (t?: number) => {
   return s < 60 ? 'just now' : s < 3600 ? `${Math.round(s / 60)} min ago` : new Date(t).toLocaleString();
 };
 const BASE = rawSchema.version ?? '';
+/** Questions to start from, for someone who hasn't asked one yet. Illustrative. */
+const EXAMPLES = [
+  'Which merchants changed their payout bank account in the week before their disputes spiked?',
+  'Which cards were used at two or more merchants within an hour of being reported stolen?',
+  'Which acquirers have the most merchants on a card network monitoring program?',
+];
 
 /** What this viewer has seen: the think steps they answered, and whether they closed the welcome. Kept in this browser. */
 const kept = {
@@ -50,21 +59,24 @@ export function App() {
   // route holds the mission, so what's picked on the map stays local.
   const view = useHash('studio');
   const mission = view.startsWith('mission-') ? missionById(view.slice('mission-'.length)) ?? null : null;
+  const inquiryId = view.startsWith('ask-') ? view.slice('ask-'.length) : null;
+  const inquiry = inquiryId ? draft.inquiries?.[inquiryId] ?? null : null;
   const [rel, setRel] = useState<string | null>(null);
   const [picked, setPicked] = useState<Selection>(null);
   useEffect(() => { setRel(null); setPicked(null); }, [view]);
   const question = /^CQ-\d+$/.test(view) && rawQuestions.questions.some((q) => q.id === view) ? view : null;
   const exists = (s: Selection) => !!s && (s.kind === 'rel' ? model.relationships.some((r) => r.id === s.id) : Object.hasOwn(model.classes, s.id));
-  const selected: Selection = mission ? (exists(picked) ? picked : null)
+  // In a mission or a question, what's picked on the map stays local, since the route holds the mission or question.
+  const local = !!mission || !!inquiryId;
+  const selected: Selection = local ? (exists(picked) ? picked : null)
     : rel && model.relationships.some((r) => r.id === rel) ? { kind: 'rel', id: rel }
       : Object.hasOwn(model.classes, view) ? { kind: 'class', id: view } : null;
-  const inMission = !!mission;
   const select = useCallback((s: Selection) => {
-    if (inMission) { setPicked(s); return; }
+    if (local) { setPicked(s); return; }
     if (s?.kind === 'rel') { setRel(s.id); return; }
     setRel(null);
     location.hash = hashFor('studio', s?.id ?? '');
-  }, [inMission]);
+  }, [local]);
   const [fresh, setFresh] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>('select');
   const [walking, setWalking] = useState(false);
@@ -194,27 +206,59 @@ export function App() {
     return () => document.removeEventListener('keydown', onKey);
   });
 
-  // Claude: a request in plain words becomes ops, applied to the draft as one change you can undo.
+  // Ask anything: a question, or a request, becomes an inquiry on the shared draft, and Claude's design lands on it as
+  // proposals. Nothing reaches the draft until a person accepts it.
   const [ask, setAsk] = useState('');
-  const [asking, setAsking] = useState<AbortController | null>(null);
-  const ctlRef = useRef<AbortController | null>(null);
-  useEffect(() => () => ctlRef.current?.abort(), []);
-  const askClaude = async () => {
-    if (!rt.sample || !ask.trim() || asking) return;
+  const [running, setRunning] = useState<{ id: string; ctl: AbortController; step: string; started: number } | null>(null);
+  const runRef = useRef(running);
+  runRef.current = running;
+  useEffect(() => () => runRef.current?.ctl.abort(), []);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { if (!running) return; const t = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(t); }, [running]);
+  const askQuestion = async (text: string, again?: { id: string; note: string }) => {
+    if (!rt.sample || !editable || runRef.current) return;
+    const prev = again ? ctxRef.current.draft.inquiries?.[again.id] : null;
+    const q = (again ? prev?.question : text)?.trim();
+    if (!q) return;
+    const id = again?.id ?? 'q' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    const startedAt = Date.now();
+    const err = await write({ inquiries: { [id]: again ? { status: 'thinking', error: null, startedAt }
+      : { question: q, askedBy: rt.me.id, askedAt: startedAt, startedAt, status: 'thinking' } } });
+    if (err) { setNote({ text: err, bad: true }); return; }
+    if (!again) setAsk('');
+    location.hash = hashFor('studio', `ask-${id}`);
     const ctl = new AbortController();
-    ctlRef.current = ctl; setAsking(ctl);
-    const focus = selected ? `${selected.kind === 'class' ? 'class' : 'relationship'} ${selected.id}` : question ? `question ${question}` : undefined;
+    setRunning({ id, ctl, step: 'Reading your question', started: startedAt });
     try {
-      const res = await rt.sample.json<{ summary?: string; ops?: Op[] }>(askPrompt(a.schema, a.questions, ask, focus), { signal: ctl.signal, cache: false });
-      const { update, done, skipped } = applyOps(ctxRef.current, Array.isArray(res?.ops) ? res.ops : []);
-      if (done.length) await edit(update, `Claude: ${res.summary || ask}`);
-      setNote({ text: done.length ? `Claude ${done.join(', ')}.${skipped.length ? ` Skipped ${skipped.length}: ${skipped.join(' ')}` : ''}` : `Claude didn't change anything${skipped.length ? `: ${skipped.join(' ')}` : '.'}`, bad: !done.length });
-      if (done.length) setAsk('');
+      const reply = await think(rt.sample, () => ctxRef.current, q, {
+        signal: ctl.signal, step: (st) => setRunning((r) => r && { ...r, step: st }), note: again?.note || undefined, before: prev?.summary ?? undefined,
+      });
+      const settled = settle(ctxRef.current, q, reply);
+      // Proposals from an earlier run that this one doesn't repeat are dropped.
+      const old = Object.keys(ctxRef.current.draft.inquiries?.[id]?.proposals ?? {});
+      const proposals = { ...Object.fromEntries(old.map((k) => [k, null])), ...settled.proposals };
+      const e2 = await write({ inquiries: { [id]: { ...settled, proposals } as Partial<InquiryEdit> } });
+      if (e2) setNote({ text: e2, bad: true });
     } catch (e) {
-      const msg = sampleAdvice(e as SampleError);
-      if (msg) setNote({ text: msg, bad: true });
-    } finally { setAsking(null); }
+      const se = e as SampleError;
+      await write({ inquiries: { [id]: { status: 'failed', error: se?.code === 'cancelled' ? 'Stopped.' : sampleAdvice(se) || 'Claude didn\'t finish.' } } });
+    } finally { setRunning(null); }
   };
+  const [focusP, setFocusP] = useState<string | null>(null);
+  const titleOf = (id: string) => inquiry?.proposals?.[id]?.title ?? id;
+  const acceptProposals = (ids: string[]) => {
+    if (!inquiry || !inquiryId) return;
+    void edit(accept(ctx, inquiryId, inquiry, ids, rt.me.id), ids.length > 1 ? `accept ${ids.length} proposals` : `accept: ${titleOf(ids[0])}`);
+  };
+  const decideProposal = (id: string, state: 'rejected' | 'proposed') => {
+    if (!inquiryId) return;
+    void edit(decide(inquiryId, id, state, rt.me.id), `${state === 'rejected' ? 'reject' : 'reconsider'}: ${titleOf(id)}`);
+  };
+  // The map shows the draft as it would be with every pending proposal accepted, those drawn as ghosts.
+  const preview = useMemo(() => (inquiry?.status === 'proposed' ? analyse(previewDraft(draft, inquiry), rawSchema, rawQuestions) : null), [draft, inquiry]);
+  const ghostSet = useMemo(() => ghosts(inquiry), [inquiry]);
+  const mapA = preview ?? a;
+  const mapModel = mapA.report.model ?? model;
   const [writingQuery, setWritingQuery] = useState(false);
   const writeQuery = async () => {
     const id = question ?? mission?.id;
@@ -244,10 +288,19 @@ export function App() {
   const tidyUps = a.tidyUps;
   const added = useMemo(() => new Set(live(draft.classes).filter(([, e]) => e.added).map(([n]) => n)), [draft]);
   const addedRels = useMemo(() => new Set(a.changes.relationships), [a]);
-  const lightQ = question ?? mission?.id;
-  const walkLit = useMemo(() => (lightQ ? a.report.model?.questions.find((q) => q.id === lightQ)?.steps.map((x) => x.relationship.id) ?? [] : []), [a, lightQ]);
+  const lightQ = question ?? mission?.id ?? (inquiry?.matches && inquiry.answered ? inquiry.matches : inquiry?.proposals?.answer?.name);
+  const walkLit = useMemo(() => (lightQ ? mapA.report.model?.questions.find((q) => q.id === lightQ)?.steps.map((x) => x.relationship.id) ?? [] : []), [mapA, lightQ]);
   // A mission's hints on the map: what it works on, what to use next, where to drag from, and where to place.
   const hints = useMemo(() => {
+    if (inquiry?.status === 'proposed') {
+      // A question's hints: the classes it touches stay bright, and the proposal in hand pulses.
+      const focus = new Set<string>();
+      for (const u of inquiry.understanding ?? []) if (u.maps_to) focus.add(u.maps_to.split('.')[0]);
+      for (const g of ghostSet) focus.add(g.split('.')[0]);
+      for (const id of walkLit) { const r = mapModel.relationships.find((x) => x.id === id); if (r) focus.add(r.from).add(r.to); }
+      const p = focusP ? inquiry.proposals?.[focusP] : null;
+      return { focus: focus.size ? focus : undefined, pulse: new Set(p && (p.kind === 'class' || p.kind === 'relationship') ? [p.name] : []) };
+    }
     if (!mission || !s) return {};
     const pulse = new Set<string>();
     let handleOn: string | undefined;
@@ -260,7 +313,7 @@ export function App() {
     }
     const mine = mission.steps.flatMap((x) => (x.kind === 'place' ? [x.cls.name] : []));
     return { focus: new Set([...mission.focus, ...mine]), pulse, handleOn };
-  }, [mission, s, ctx, draft]);
+  }, [mission, s, ctx, draft, inquiry, ghostSet, walkLit, mapModel, focusP]);
   const show = mission && s && (s.kind === 'place' || s.kind === 'link' || s.kind === 'walk') ? () => setDemo({
     key: Date.now(), ...(s.kind === 'place' ? { kind: 'place' as const, at: target! } : s.kind === 'link' ? { kind: 'drag' as const, from: s.from, to: s.to }
       : { kind: 'walk' as const, rels: s.walks }),
@@ -278,13 +331,14 @@ export function App() {
     return () => window.clearTimeout(t);
   }, [mission, step]);
   const [welcome, setWelcome] = useState(() => !kept.get('studio:welcomed', false));
-  useEffect(() => { if (mission && welcome) { setWelcome(false); kept.set('studio:welcomed', true); } }, [mission, welcome]);
+  useEffect(() => { if ((mission || inquiryId) && welcome) { setWelcome(false); kept.set('studio:welcomed', true); } }, [mission, inquiryId, welcome]);
+  const asked = useMemo(() => live(draft.inquiries).sort(([, x], [, y]) => y.askedAt - x.askedAt), [draft]);
   const firstOpen = MISSIONS.find((x) => progress(x, ctx, a, thought) < x.steps.length);
   const base = baseCoverage(rawSchema, rawQuestions);
   const cov = a.report.coverage;
   const [showProblems, setShowProblems] = useState(false);
   const [showYaml, setShowYaml] = useState(false);
-  const people = useProfiles(rt.user, [draft.updatedBy, draft.session?.by]);
+  const people = useProfiles(rt.user, [draft.updatedBy, draft.session?.by, ...asked.slice(0, 20).map(([, q]) => q.askedBy)]);
   const who = (id?: string | null) => (!id ? 'someone' : id === rt.me.id ? 'you' : people[id]?.name || 'someone');
   const gaps = rawQuestions.questions.filter((q) => q.gap);
   const panel = { ctx, a, model, editable, edit: (u: DraftUpdate, l: string) => void edit(u, l), select };
@@ -296,12 +350,12 @@ export function App() {
           <button type="button" className={'vbtn' + (mode === 'place' ? ' on' : '')} aria-pressed={mode === 'place'} disabled={!editable}
             onClick={() => setMode(mode === 'place' ? 'select' : 'place')}>{mode === 'place' ? 'Click the map to place it' : '+ Class'}</button>
         )}
-        {!mission && <form className="ask" onSubmit={(e) => { e.preventDefault(); void askClaude(); }}>
-          <input value={ask} onChange={(e) => setAsk(e.target.value)} disabled={!rt.sample || !editable || !!asking}
-            placeholder={rt.sample ? 'Ask Claude to build: "give fraud reports a fraud type: lost, stolen, counterfeit"' : 'Claude builds here on the published page'}
-            aria-label="Ask Claude to build something" />
-          {asking ? <button type="button" className="vbtn" onClick={() => asking.abort()}>Stop</button>
-            : <button type="submit" className="vbtn go" disabled={!rt.sample || !ask.trim() || !editable}>Build</button>}
+        {!mission && <form className="ask" onSubmit={(e) => { e.preventDefault(); void askQuestion(ask); }}>
+          <input value={ask} onChange={(e) => setAsk(e.target.value)} disabled={!rt.sample || !editable || !!running}
+            placeholder={rt.sample ? 'Ask a question, or describe what to add, in your own words' : 'Ask questions on the published page, where Claude answers'}
+            aria-label="Ask a question or describe what to add" />
+          {running ? <button type="button" className="vbtn" onClick={() => running.ctl.abort()}>Stop</button>
+            : <button type="submit" className="vbtn go" disabled={!rt.sample || !ask.trim() || !editable}>Ask</button>}
         </form>}
         {mission && <span className="mtitle"><b>{mission.id}</b> {rawQuestions.questions.find((q) => q.id === mission.id)?.question}</span>}
         <span className="tgroup">
@@ -310,7 +364,6 @@ export function App() {
           <button type="button" className={'vbtn' + (showYaml ? ' on' : '')} aria-pressed={showYaml} onClick={() => setShowYaml(!showYaml)}>YAML</button>
         </span>
       </div>
-      {asking && <p className="working" role="status">Claude is building… changes land on the map when it's done.</p>}
       {store.draft && draft.base !== BASE && (
         <p className="banner">This draft builds on version {draft.base}; the released ontology is now {BASE}. <button type="button" className="vbtn" onClick={() => void store.startNext()}>Start a fresh draft</button></p>
       )}
@@ -328,22 +381,39 @@ export function App() {
               onRestartWalk={() => void edit({ answers: { [mission.id]: { ...(draft.answers[mission.id] ?? { answered_in: rawQuestions.questions.find((q) => q.id === mission.id)!.answered_in, query: '' }), walks: [] } } }, `start ${mission.id}'s walk over`)}
               onLeave={() => { location.hash = hashFor('studio', ''); }}
               next={nextMission(mission)} onNext={() => { const n = nextMission(mission); if (n) location.hash = hashFor('studio', `mission-${n.id}`); }} />
-          ) : welcome && !question && (
+          ) : inquiryId ? (inquiry ? (
+            <InquiryCard inq={inquiry} by={who(inquiry.askedBy)} running={running?.id === inquiryId} step={running?.id === inquiryId ? running.step : undefined}
+              elapsed={running ? Math.max(0, Math.round((now - running.started) / 1000)) : 0} preview={preview} editable={editable} canAsk={!!rt.sample && !running}
+              onStop={() => running?.ctl.abort()} onAgain={(n) => void askQuestion('', { id: inquiryId, note: n })} onClose={() => { location.hash = hashFor('studio', ''); }}
+              onShow={() => document.querySelector('[data-app=studio] .canvas .ghost')?.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' })} />
+          ) : (
+            <section className="coach" aria-label="Your question"><p className="say muted">{store.draft ? 'This question isn\'t on the working draft. It may belong to an earlier draft.' : 'Loading the working draft…'}</p></section>
+          )) : welcome && !question && (
             <section className="coach welcome" aria-label="Welcome">
-              <header><span className="ctag">New here?</span><b>Build the ontology by answering real questions</b></header>
-              <p className="say">Each mission takes one question risk can't answer yet, like what kind of fraud a report was, and builds the answer with you on the map in a few steps. No modelling background needed: it's in payments words, and every step says why.</p>
+              <header><span className="ctag">New here?</span><b>Ask the ontology a question</b></header>
+              <p className="say">Type a question in the box above, in your own words, the way you'd ask a colleague. Claude works out what the ontology is missing and proposes the design on the map. You keep what's right.</p>
+              {rt.sample && editable && (
+                <div className="examples" aria-label="Example questions">
+                  {EXAMPLES.map((x) => <button key={x} type="button" className="chip" onClick={() => { setAsk(x); document.querySelector<HTMLInputElement>('[data-app=studio] .ask input')?.focus(); }}>{x}</button>)}
+                </div>
+              )}
               <div className="row">
-                {firstOpen && <a className="vbtn go" href={hashFor('studio', `mission-${firstOpen.id}`)}>Start a mission: {firstOpen.title}</a>}
+                {firstOpen && <a className="vbtn" href={hashFor('studio', `mission-${firstOpen.id}`)}>Learn with a worked example: {firstOpen.title}</a>}
                 <button type="button" className="vbtn" onClick={() => { setWelcome(false); kept.set('studio:welcomed', true); }}>I know my way around</button>
               </div>
             </section>
           )}
           <div className="xwrap">
-            <Canvas model={model} layout={a.patch.layout} added={added} addedRels={addedRels} flagged={flagged}
+            <Canvas model={mapModel} layout={mapA.patch.layout} added={added} addedRels={addedRels} flagged={flagged} ghosts={ghostSet}
               selected={selected} lit={walkLit} mode={effectiveMode} editable={editable}
               focus={hints.focus} pulse={hints.pulse} handleOn={hints.handleOn} target={placing ? undefined : target}
               demo={demo} onDemoEnd={() => setDemo(null)}
-              onSelect={select} onPlace={place} onMove={(n, at) => void edit(moveClass(ctx, n, at), `move ${n}`)} onLink={link} onWalk={walkTo} />
+              onSelect={(sel) => {
+                // A ghost belongs to a proposal: picking it shows that proposal.
+                const pid = sel && ghostSet.has(sel.id) ? Object.entries(inquiry?.proposals ?? {}).find(([, p]) => p?.name === sel.id)?.[0] : undefined;
+                if (pid) { setFocusP(pid); document.querySelector(`[data-app=studio] [data-proposal="${pid}"]`)?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' }); return; }
+                select(sel);
+              }} onPlace={place} onMove={(n, at) => void edit(moveClass(ctx, n, at), `move ${n}`)} onLink={link} onWalk={walkTo} />
           </div>
           {showYaml && (
             <div className="yaml">
@@ -356,9 +426,15 @@ export function App() {
         </div>
 
         <aside className="inspector" aria-live="polite">
-          {mission && selected && <button type="button" className="vbtn tiny back" onClick={() => select(null)}>← Back to the mission</button>}
+          {local && selected && <button type="button" className="vbtn tiny back" onClick={() => select(null)}>← Back to the {mission ? 'mission' : 'proposals'}</button>}
           {mission && !selected ? (
             <MissionPanel m={mission} at={step} ctx={ctx} a={a} thought={thought} />
+          ) : inquiryId && !selected ? (
+            <>
+              {inquiry && <ProposalsPanel inq={inquiry} preview={preview} editable={editable} focus={focusP} setFocus={setFocusP}
+                onAccept={acceptProposals} onReject={(id) => decideProposal(id, 'rejected')} onReopen={(id) => decideProposal(id, 'proposed')} />}
+              <section className="isec"><h3>Questions asked · {asked.length}</h3><AskedList items={asked} who={who} running={running?.id ?? null} /></section>
+            </>
           ) : question ? (
             <QuestionPanel ctx={ctx} a={a} editable={editable} edit={panel.edit} id={question} walking={walking} setWalking={setWalking}
               writeQuery={rt.sample ? () => void writeQuery() : undefined} busy={writingQuery} />
@@ -368,6 +444,7 @@ export function App() {
             <RelPanel key={selected.id} {...panel} id={selected.id} fresh={fresh === selected.id} />
           ) : (
             <Overview d={draft} a={a} ctx={ctx} thought={thought} shared={store.shared} loaded={!!store.draft} who={who} gaps={gaps} editable={editable}
+              asked={asked} running={running?.id ?? null}
               pull={draft.status === 'pr' && draft.session ? <SessionCard d={draft} mcp={rt.mcp} />
                 : !store.shared ? <p className="small muted">Pull requests open from the published page, where the draft is shared.</p>
                   : !rt.me.canEdit ? <p className="small muted">Someone who can edit this page opens the pull request.</p>
@@ -411,14 +488,16 @@ export function App() {
   );
 }
 
-function Overview({ d, a, ctx, thought, shared, loaded, who, gaps, editable, pull, next, onPick }: {
+function Overview({ d, a, ctx, thought, shared, loaded, who, gaps, editable, asked, running, pull, next, onPick }: {
   d: DraftDoc; a: ReturnType<typeof analyse>; ctx: Ctx; thought: Set<string>; shared: boolean; loaded: boolean; who: (id?: string | null) => string;
+  asked: [string, InquiryEdit][]; running: string | null;
   gaps: { id: string; question: string; domain: string }[]; editable: boolean; pull: React.ReactNode; next?: () => void; onPick: (id: string) => void;
 }) {
   const c = a.changes;
   const items = [
     ...c.newClasses.map((n) => [n, `+ class ${n}`]), ...c.relationships.map((n) => [n, `+ ${n}`]), ...c.fields.map((n) => [n.split('.')[0], `+ field ${n}`]),
-    ...c.enums.map((n) => ['', `+ enum ${n}`]), ...c.editedClasses.map((n) => [n, `~ ${n}`]), ...c.answers.map((n) => [n, `✓ answers ${n}`]),
+    ...c.enums.map((n) => ['', `+ enum ${n}`]), ...c.editedClasses.map((n) => [n, `~ ${n}`]),
+    ...c.answers.map((n) => [n, c.newQuestions.includes(n) ? `+ question ${n}, answered` : `✓ answers ${n}`]),
   ];
   const state = (id: string) => (!d.answers[id] ? 'gap' : a.report.problems.some((p) => p.startsWith(id + ':')) ? 'failing' : 'answered');
   return (
@@ -428,7 +507,11 @@ function Overview({ d, a, ctx, thought, shared, loaded, who, gaps, editable, pul
         <p className="small muted">{!loaded ? 'Loading…' : shared ? 'Everyone in your organization builds on this draft; changes appear as they happen.' : 'Kept in this browser. On the published page, the team shares one draft.'} Builds on version {d.base}.</p>
       </div>
       <section className="isec">
-        <h3>Missions · learn by building</h3>
+        <h3>Questions asked · {asked.length}</h3>
+        <AskedList items={asked.slice(0, 6)} who={who} running={running} />
+      </section>
+      <section className="isec">
+        <h3>Worked examples · learn by building</h3>
         <ul className="missions">
           {MISSIONS.map((m) => {
             const at = progress(m, ctx, a, thought), n = m.steps.length;
@@ -445,7 +528,7 @@ function Overview({ d, a, ctx, thought, shared, loaded, who, gaps, editable, pul
         </ul>
       </section>
       {editable && !c.count && (
-        <p className="hint big">Or build freely: click <b>+ Class</b>, then a spot on the map. Select a class and drag its <b>⊕</b> onto another to relate them. Or ask Claude to build something.</p>
+        <p className="hint big">Or build by hand: click <b>+ Class</b>, then a spot on the map. Select a class and drag its <b>⊕</b> onto another to relate them.</p>
       )}
       {c.count > 0 && (
         <section className="isec">

@@ -30,12 +30,20 @@ export type User = {
 };
 
 export type SampleError = { code: string; message: string; text?: string };
+/** A page function Claude may call while it works out an answer. Its result goes back to Claude as plain data. */
+export type SampleTool = {
+  name: string; description: string;
+  inputSchema?: { type: 'object'; properties?: Record<string, unknown>; required?: string[] };
+  execute(input: Record<string, unknown>, context: { signal: AbortSignal }): unknown;
+};
 type SampleOptions = {
   onText?: (u: { text: string; delta: string }) => void; signal?: AbortSignal;
   modelTier?: 'default' | 'complex' | 'quick'; cache?: boolean;
+  /** Only where limits() reports tools; never with cache. */
+  tools?: SampleTool[];
 };
 export type Sample = ((input: string, options?: SampleOptions) => Promise<{ text: string; truncated: boolean }>)
-  & { json<T = unknown>(input: string, options?: SampleOptions): Promise<T> };
+  & { json<T = unknown>(input: string, options?: SampleOptions): Promise<T>; limits?(): Promise<{ tools?: unknown }> };
 
 export type McpError = { code: string; message: string; server?: string; retryable?: boolean };
 export type Mcp = {

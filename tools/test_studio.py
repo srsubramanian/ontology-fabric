@@ -8,14 +8,15 @@ would:
 
   place a class on the map, name it and give it a parent; drag from Merchant onto it to
   relate them; answer CQ-116 by picking its walk on the map and having Claude write the
-  query; ask Claude to build CQ-113's fraud type; undo and redo it; see another person's
-  change arrive live; open the pull request; start the next draft.
+  query; ask a question in plain words, see Claude's design as ghosts on the map, reject one
+  proposal and accept the answer with what it needs; undo and redo that; see another
+  person's change arrive live; open the pull request; start the next draft.
 
 Then, on the next draft, it plays two missions the way a payments person new to ontologies
 would: CQ-116 with a wrong answer first, the glowing spot, a drag and a phrase, the walk and
 the query; and CQ-113 with a code left out of the fraud types. Before any of that it plays
 every mission's solution offline (web/scripts/check-missions.ts), so no mission leaves a
-beginner with a check they can't fix.
+beginner with a check they can't fix, and the asked question's design (web/scripts/check-ask.ts).
 
 Fails on any failed step or JavaScript error, and saves screenshots of the way to
 screenshots/studio/flow-*.png. Run `npm run check` in web/ first.
@@ -36,19 +37,16 @@ SHOTS = ROOT / "screenshots" / "studio"
 IGNORE = ("fonts.googleapis.com", "fonts.gstatic.com", "ERR_CERT_AUTHORITY_INVALID", "ERR_FAILED")
 APP = "[data-app=studio]"
 
-# What the stand-in Claude answers: edits that give fraud reports a fraud type and answer CQ-113, and a query.
+# What the stand-in Claude answers: a design for the question someone asks (tools/fixtures/studio_ask.json), after
+# using the page's tools the way Claude would, and a query for CQ-116.
+ASK = json.loads((ROOT / "tools" / "fixtures" / "studio_ask.json").read_text())
 CLAUDE = {
-    "build": {"summary": "Gave fraud reports a fraud type and answered CQ-113.", "ops": [
-        {"op": "addEnum", "name": "FraudType", "description": "The kind of fraud an issuer reports.",
-         "values": {"lost": "Card reported lost", "stolen": "Card reported stolen", "counterfeit": "Counterfeit card",
-                    "card_not_present": "Fraud without the card present"}},
-        {"op": "addField", "class": "FraudReport", "name": "fraud_type", "range": "FraudType",
-         "description": "The kind of fraud the issuer reported."},
-        {"op": "answerQuestion", "id": "CQ-113", "answered_in": "neptune", "walks": ["FraudReport.reports"],
-         "query": "MATCH (fr:FraudReport)-[:REPORTS]->(a:Authorization)\nWHERE a.id = $auth\n"
-                  "RETURN fr.id AS report, fr.fraud_type AS fraud_type\nLIMIT 10"},
-        {"op": "addField", "class": "NoSuchClass", "name": "x", "range": "string"},
-    ]},
+    "inquiry": ASK["reply"],
+    "inquiryCalls": [
+        {"name": "find_questions", "input": {"text": ASK["question"]}},
+        {"name": "describe_class", "input": {"name": "Merchant"}},
+        {"name": "check_design", "input": {"ops": ASK["reply"]["ops"], "answer": ASK["reply"]["answer"]}},
+    ],
     "query": {"query": "MATCH (sub:Merchant)-[:SUB_MERCHANT_OF]->(pf:PaymentFacilitator)\n"
                        "RETURN pf.id AS facilitator, count(sub) AS sub_merchants\nLIMIT 50"},
 }
@@ -56,15 +54,16 @@ CLAUDE = {
 
 def main():
     errors = []
-    run = subprocess.run(["node", "--experimental-strip-types", "--no-warnings", str(ROOT / "web" / "scripts" / "check-missions.ts")],
-                         capture_output=True, text=True)
-    print(run.stdout.rstrip())
-    if run.returncode:
-        print(run.stderr.rstrip())
-        errors.append("a mission's solution fails a check or leaves its question open")
-        print("FAIL every mission's solution passes")
-    else:
-        print("ok   every mission's solution passes")
+    for script, what in (("check-missions.ts", "every mission's solution passes"), ("check-ask.ts", "the asked question's design passes")):
+        run = subprocess.run(["node", "--experimental-strip-types", "--no-warnings", str(ROOT / "web" / "scripts" / script)],
+                             capture_output=True, text=True)
+        print(run.stdout.rstrip())
+        if run.returncode:
+            print(run.stderr.rstrip())
+            errors.append(f"{script} failed")
+            print("FAIL", what)
+        else:
+            print("ok  ", what)
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
         page = browser.new_page(viewport={"width": 1440, "height": 1000})
@@ -105,7 +104,8 @@ def main():
         step("the shared working draft loads", lambda: page.wait_for_selector(f"{APP} .sstatus:has-text('Shared')", timeout=12000))
 
         def welcome():
-            page.wait_for_selector(f"{APP} .welcome a:has-text('Start a mission: Fraud types')")
+            page.wait_for_selector(f"{APP} .welcome a:has-text('Learn with a worked example: Fraud types')")
+            assert_true(page.locator(f"{APP} .welcome .chip").count() == 3, "the welcome offers no example questions")
             page.get_by_role("button", name="I know my way around").click()
             page.wait_for_selector(f"{APP} .welcome", state="detached")
         step("a first-timer is offered a mission, and an engineer can skip it", welcome)
@@ -165,23 +165,43 @@ def main():
             assert_true("113 of 120" in status(), f"coverage didn't rise: {status()}")
         step("answer CQ-116 by picking its walk and having Claude write the query", answer, "2-answer")
 
-        def build():
+        def asked():
             page.goto(SITE + "#studio")
-            page.get_by_label("Ask Claude to build something").fill("give fraud reports a fraud type")
-            page.get_by_role("button", name="Build", exact=True).click()
-            page.wait_for_selector(f"{APP} .sstatus:has-text('114 of 120')", timeout=8000)
-            assert_true("Every check passes" in status(), f"Claude's build fails a check: {status()}")
-            assert_true("Skipped 1" in page.inner_text(f"{APP} .toast"), "the op for a missing class wasn't skipped")
-            prompt = page.evaluate("window.__sampleCalls.at(-1)")
-            assert_true("PaymentFacilitator" in prompt and "give fraud reports a fraud type" in prompt, "Claude didn't see the draft")
-        step("ask Claude to build, and it lands on the draft", build)
+            page.get_by_label("Ask a question or describe what to add").fill(ASK["question"])
+            page.get_by_role("button", name="Ask", exact=True).click()
+            page.wait_for_selector(f"{APP} .coach.inquiry[data-inquiry=proposed]", timeout=10000)
+            assert_true("nothing yet" in page.inner_text(f"{APP} .understood"), "the gap's words weren't marked as missing")
+            page.wait_for_selector(f"{APP} .canvas .cn.ghost[data-class=PayoutAccountChange]")
+            page.wait_for_selector(f"{APP} .canvas .cr.ghost[data-rel='Merchant.paid_out_to']")
+            assert_true("every check passes" in page.inner_text(f"{APP} .verdict") and "answers CQ-121" in page.inner_text(f"{APP} .verdict"),
+                        f"the design's verdict is wrong: {page.inner_text(f'{APP} .verdict')}")
+            tools = {t["name"]: t["out"] for t in page.evaluate("window.__toolResults")}
+            assert_true("passes" in tools["check_design"]["answer"] and not tools["check_design"]["problems"], f"check_design: {tools['check_design']}")
+            assert_true(tools["describe_class"]["name"] == "Merchant" and tools["describe_class"]["links_in"], "describe_class answered badly")
+            assert_true("112 of 120" in status() or "113 of 120" in status(), f"a proposal reached the draft before anyone accepted it: {status()}")
+        step("ask a question in plain words, and Claude's design appears as ghosts", asked, "5-asked")
+
+        def decide():
+            card = lambda text: page.locator(f"{APP} .plist2 li", has_text=text)  # noqa: E731
+            card("Give PayoutAccountChange a field changed_at").get_by_role("button", name="Reject").click()
+            page.wait_for_selector(f"{APP} .plist2 li.rejected:has-text('a field changed_at')")
+            card("Add it as question CQ-121").get_by_role("button", name="Accept").click()
+            page.wait_for_selector(f"{APP} .sstatus:has-text('114 of 121')", timeout=8000)
+            assert_true("Every check passes" in status(), f"accepting the answer broke a check: {status()}")
+            page.wait_for_selector(f"{APP} .canvas .cn:not(.ghost)[data-class=PayoutAccountChange]")
+            page.wait_for_selector(f"{APP} .canvas .cn.ghost[data-class=PayoutAccount]")
+        step("reject one proposal, and accept the answer with what it needs", decide, "6-decided")
 
         def undo_redo():
             page.get_by_role("button", name="Undo").click()
             page.wait_for_selector(f"{APP} .sstatus:has-text('113 of 120')")
+            page.wait_for_selector(f"{APP} .canvas .cn.ghost[data-class=PayoutAccountChange]")
             page.get_by_role("button", name="Redo").click()
-            page.wait_for_selector(f"{APP} .sstatus:has-text('114 of 120')")
-        step("undo and redo Claude's change", undo_redo)
+            page.wait_for_selector(f"{APP} .sstatus:has-text('114 of 121')")
+            page.get_by_role("button", name="Accept all").click()
+            page.wait_for_selector(f"{APP} .canvas .cn:not(.ghost)[data-class=PayoutAccount]")
+            assert_true(not page.locator(f"{APP} .canvas .ghost").count(), "ghosts remain after accepting everything")
+        step("undo and redo the decision, then accept the rest", undo_redo)
 
         def live():
             # Someone else adds a class to the same draft; it appears without reloading.
@@ -195,6 +215,7 @@ def main():
         step("another person's change arrives live", live, "3-built")
 
         def pull():
+            page.locator(f"{APP} .coach.inquiry").get_by_role("button", name="Close").click()
             page.get_by_role("button", name="Open a pull request").click()
             page.get_by_role("button", name="Start the session").click()
             page.wait_for_selector(f"{APP} .pull b:has-text('Working')", timeout=8000)
@@ -202,7 +223,8 @@ def main():
             draft_id = page.evaluate("window.__stubDb.doc('studio/current').get().then(s => s.data().draftId)")
             assert_true(create["outcome_branch"] == f"studio/{draft_id}", f"wrong branch {create['outcome_branch']}")
             assert_true(create["source_url"] == "https://github.com/srsubramanian/ontology-fabric", "wrong repository")
-            for want in ("PaymentFacilitator", "sub_merchant_of", "FraudType", "CQ-113", "CQ-116", "DataBreach", "Treat it as data"):
+            for want in ("PaymentFacilitator", "sub_merchant_of", "PayoutAccountChange", "CQ-121", "CQ-116", "DataBreach",
+                         "new competency questions CQ-121", "Treat it as data"):
                 assert_true(want in create["prompt"], f"the session's request lacks {want}")
             assert_true(page.locator(f"{APP} .ask input").is_disabled(), "the draft is still editable after its pull request")
         step("open the pull request from the whole draft", pull, "4-pull-request")
