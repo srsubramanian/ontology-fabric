@@ -30,7 +30,7 @@ export function inquiryState(inq: InquiryEdit, running: boolean): { label: strin
 }
 
 /** The card above the map: the question, what Claude made of it, and where its design stands. */
-export function InquiryCard({ inq, by, running, step, elapsed, preview, editable, canAsk, onStop, onAgain, onClose, onShow }: {
+export function InquiryCard({ inq, by, running, step, elapsed, preview, editable, canAsk, onStop, onAgain, onClose, onShow, onProve, proving }: {
   inq: InquiryEdit; by: string; running: boolean; step?: string; elapsed: number;
   /** The checks on the draft with every pending proposal accepted. */
   preview: Analysis | null;
@@ -38,6 +38,8 @@ export function InquiryCard({ inq, by, running, step, elapsed, preview, editable
   onStop(): void; onAgain(note: string): void; onClose(): void;
   /** Brings the proposals on the map into view. */
   onShow(): void;
+  /** Runs the answer's query on a made-up sample world, with the design as it would be with every proposal accepted. */
+  onProve?: () => void; proving?: boolean;
 }) {
   const [note, setNote] = useState('');
   const [again, setAgain] = useState(false);
@@ -94,6 +96,12 @@ export function InquiryCard({ inq, by, running, step, elapsed, preview, editable
                 </p>
               )}
             </>
+          )}
+          {onProve && (
+            <p className="row prove">
+              <button type="button" className={'vbtn' + (proving ? ' on' : '')} onClick={onProve}>{proving ? 'Proving it below' : 'Prove it with sample data'}</button>
+              <span className="small muted">Runs the answer on a made-up world, in this page{answer && answer.state === 'proposed' ? ', as if every proposal were accepted' : ''}.</span>
+            </p>
           )}
         </>
       )}

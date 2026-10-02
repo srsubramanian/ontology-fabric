@@ -242,9 +242,11 @@ export function RelPanel({ ctx, a, model, editable, edit, select, id, fresh }: P
   );
 }
 
-export function QuestionPanel({ ctx, a, editable, edit, id, walking, setWalking, writeQuery, busy }: Omit<PanelProps, 'select' | 'model'> & {
+export function QuestionPanel({ ctx, a, editable, edit, id, walking, setWalking, writeQuery, busy, prove, proving, hasTest }: Omit<PanelProps, 'select' | 'model'> & {
   id: string; walking: boolean; setWalking: (on: boolean) => void;
   writeQuery?: () => void; busy: boolean;
+  /** Runs the question's query on a made-up sample world, beside the map. */
+  prove?: () => void; proving?: boolean; hasTest?: boolean;
 }) {
   const base = ctx.questions.questions.find((q) => q.id === id)!;
   const ans = ctx.draft.answers[id];
@@ -295,6 +297,12 @@ export function QuestionPanel({ ctx, a, editable, edit, id, walking, setWalking,
           {problems.length > 0 && <ul className="iprob">{problems.map((p) => <li key={p}>{p.slice(id.length + 2)}</li>)}</ul>}
           {ans && editable && <button type="button" className="vbtn danger" onClick={() => edit({ answers: { [id]: null } }, `clear ${id}'s answer`)}>Clear this answer</button>}
         </>
+      )}
+      {prove && (
+        <Section title="Prove it">
+          <p className="small">{(ans?.query ?? now.query) ? `Run its query on made-up sample data, in this page${hasTest ? ', with its test case planted' : ''}.` : 'Write its query first, then run it on made-up sample data.'}</p>
+          <button type="button" className={'vbtn prove' + (proving ? ' on' : '')} disabled={!(ans?.query ?? now.query)} onClick={prove}>{proving ? 'Proving it beside the map' : 'Prove it with sample data'}</button>
+        </Section>
       )}
     </>
   );

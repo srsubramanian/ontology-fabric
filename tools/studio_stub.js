@@ -34,14 +34,14 @@
     me: async () => me, id: async () => me.id,
     profiles: async (ids) => Object.fromEntries([].concat(ids).map((id) => [id, { id, name: { u_me: 'Ada Engineer', u_ana: 'Ana Analyst' }[id] || '', avatarUrl: '', color: '#888', email: null, isMe: id === 'u_me' }])),
   };
-  // Claude answers with what the test asked it to: a design for a question someone asked, using the page's tools
-  // first the way Claude would, or a query for a competency question.
+  // Claude answers with what the test asked it to: a design for a question someone asked, or a test case that proves
+  // one, using the page's tools first the way Claude would, or a query for a competency question.
   const answers = window.__studioClaude || {};
   const sample = async (input, opts = {}) => {
     window.__sampleCalls = (window.__sampleCalls || []).concat([input]);
-    const asked = /design partner/.test(input);
-    if (asked && opts.tools) {
-      for (const call of answers.inquiryCalls || []) {
+    const asked = /design partner/.test(input), testing = /You write a test case/.test(input);
+    if ((asked || testing) && opts.tools) {
+      for (const call of (testing ? answers.testCalls : answers.inquiryCalls) || []) {
         await new Promise((r) => setTimeout(r, 150));
         const tool = opts.tools.find((t) => t.name === call.name);
         let out;
@@ -49,7 +49,7 @@
         window.__toolResults = (window.__toolResults || []).concat([{ name: call.name, out }]);
       }
     }
-    const reply = JSON.stringify(asked ? answers.inquiry : /Write the query/.test(input) ? answers.query : answers.build);
+    const reply = JSON.stringify(asked ? answers.inquiry : testing ? answers.test : /Write the query/.test(input) ? answers.query : answers.build);
     let text = '';
     for (const part of reply.match(/[\s\S]{1,200}/g)) {
       await new Promise((r) => setTimeout(r, 30));

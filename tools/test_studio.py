@@ -41,8 +41,8 @@ SHOTS = ROOT / "screenshots" / "studio"
 IGNORE = ("fonts.googleapis.com", "fonts.gstatic.com", "ERR_CERT_AUTHORITY_INVALID", "ERR_FAILED")
 APP = "[data-app=studio]"
 
-# What the stand-in Claude answers: a design for the question someone asks (tools/fixtures/studio_ask.json), after
-# using the page's tools the way Claude would, and a query for CQ-116.
+# What the stand-in Claude answers: a design for the question someone asks (tools/fixtures/studio_ask.json), and a
+# test case that proves it, each after using the page's tools the way Claude would, and a query for CQ-116.
 ASK = json.loads((ROOT / "tools" / "fixtures" / "studio_ask.json").read_text())
 CLAUDE = {
     "inquiry": ASK["reply"],
@@ -51,6 +51,8 @@ CLAUDE = {
         {"name": "describe_class", "input": {"name": "Merchant"}},
         {"name": "check_design", "input": {"ops": ASK["reply"]["ops"], "answer": ASK["reply"]["answer"]}},
     ],
+    "test": ASK["test"],
+    "testCalls": [{"name": "try_test", "input": ASK["test"]}],
     "query": {"query": "MATCH (sub:Merchant)-[:SUB_MERCHANT_OF]->(pf:PaymentFacilitator)\n"
                        "RETURN pf.id AS facilitator, count(sub) AS sub_merchants\nLIMIT 50"},
 }
@@ -59,7 +61,8 @@ CLAUDE = {
 def main():
     errors = []
     for script, what in (("check-missions.ts", "every mission's solution passes"), ("check-ask.ts", "the asked question's design passes"),
-                         ("check-story.ts", "the story lens reads every relationship")):
+                         ("check-story.ts", "the story lens reads every relationship"),
+                         ("check-proof.ts", "every competency query runs on the sample world, and the asked question's test case passes")):
         run = subprocess.run(["node", "--experimental-strip-types", "--no-warnings", str(ROOT / "web" / "scripts" / script)],
                              capture_output=True, text=True)
         print(run.stdout.rstrip())
@@ -208,6 +211,27 @@ def main():
             assert_true(not page.locator(f"{APP} .canvas .ghost").count(), "ghosts remain after accepting everything")
         step("undo and redo the decision, then accept the rest", undo_redo)
 
+        def proved():
+            page.locator(f"{APP} .coach.inquiry").get_by_role("button", name="Prove it with sample data").click()
+            panel = f"{APP} .coach.proof[data-lane=cypher]"
+            page.wait_for_selector(f"{panel} .pchecks li.ok:has-text('The query runs on the sample world')", timeout=8000)
+            assert_true("Illustrative" in page.inner_text(f"{panel} .how"), "the proof doesn't say its data is made up")
+            page.get_by_role("button", name="Plant a test case with Claude").click()
+            page.wait_for_selector(f"{panel} .pchecks li.ok:has-text('It finds merchant')", timeout=10000)
+            page.wait_for_selector(f"{panel} .pchecks li.ok:has-text('It leaves out merchant')")
+            assert_true(not page.locator(f"{panel} .pchecks li.bad").count(), f"a check fails: {page.inner_text(f'{panel} .pchecks')}")
+            page.wait_for_selector(f"{panel} .pgraph .pn.hit", state="attached")
+            page.wait_for_selector(f"{panel} .pgraph .pn.miss", state="attached")
+            page.wait_for_selector(f"{panel} tr.planted .pref:has-text('@m1')")
+            tried = [t["out"] for t in page.evaluate("window.__toolResults") if t["name"] == "try_test"]
+            assert_true(tried and tried[-1]["passes"], f"try_test didn't pass: {tried}")
+            doc = page.evaluate("""async () => { const cur = await window.__stubDb.doc('studio/current').get();
+              return (await window.__stubDb.doc('drafts/' + cur.data().draftId).get()).data().tests; }""")
+            assert_true(doc and "CQ-121" in doc and doc["CQ-121"]["author"] == "claude", f"the test case isn't on the shared draft: {doc}")
+            page.locator(f"{panel} .ptest").scroll_into_view_if_needed()
+            page.wait_for_timeout(1200)  # the test case's graph draws in, column by column
+        step("prove the answer with sample data, and have Claude plant a test case", proved, "9-proof")
+
         def story():
             page.get_by_role("button", name="Story", exact=True).click()
             page.wait_for_selector(f"{APP} .plist2 li:has-text('Each merchant is paid out to one payout account.')")
@@ -277,6 +301,18 @@ def main():
             page.wait_for_selector(f"{APP} .hint.big", timeout=5000)
             assert_true("120 questions answered" in status() and "112 of" in status(), f"the new draft isn't empty: {status()}")
         step("start the next draft", next_draft)
+
+        def warehouse():
+            page.goto(SITE + "#studio-CQ-22")
+            page.get_by_role("button", name="Prove it with sample data").click()
+            panel = f"{APP} .coach.proof[data-lane=sql]"
+            page.wait_for_selector(f"{panel} .pchecks li.ok:has-text('It answers with')", timeout=15000)
+            page.wait_for_selector(f"{panel} .ptable td")
+            assert_true("fct_chargeback (Chargeback" in page.inner_text(panel), "the proof doesn't name the tables it built")
+            assert_true(":merchant_id" in page.inner_text(f"{panel} .params"), "the proof doesn't show the merchant it chose")
+            page.get_by_role("button", name="Another sample world").click()
+            page.wait_for_selector(f"{panel} .how:has-text('world 2')")
+        step("prove a Snowflake question on SQLite in the page", warehouse, "10-proof-sql")
 
         # Missions, as someone new to ontologies would play them. Scrolling is instant, so clicks land where they aim.
         page.emulate_media(reduced_motion="reduce")

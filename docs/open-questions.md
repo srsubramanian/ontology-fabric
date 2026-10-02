@@ -29,7 +29,7 @@ Follow the build order in chapter 7 of the overview (`site/index.html#ch7`), wit
 ## Backlog for the pages
 
 - Generate the pages in CI from the LinkML source, so they stay in step with each ontology release.
-- Show results in the question tracer. It already steps each competency question's query line by line alongside its walk on the map; once step 2 of the build order loads a sample month, run the queries and show the rows they return, each cited by ID.
+- Show results in the question tracer. It already steps each competency question's query line by line alongside its walk on the map; once step 2 of the build order loads a sample month, run the queries and show the rows they return, each cited by ID. The studio's proofs already do this on an illustrative world in the page; the tracer could reuse them.
 - Candidate apps for the page, each linked from its chapter the way chapter 4 links to the retrieval walkthrough: the ingestion pipeline, releases and governance. Ontology authoring became the design studio (decision 24); link it from chapter 1.
 - The open-world studio (decision 25), next:
   - No document connectors for now, at the owner's request. Stage 3 waits until the owner chooses to connect them. Before it starts, make the repository private and connect the Atlassian and Microsoft 365 connectors in claude.ai.
@@ -37,7 +37,11 @@ Follow the build order in chapter 7 of the overview (`site/index.html#ch7`), wit
   - The story lens builds its sentences from names and descriptions with simple rules (acquired_by reads "is acquired by"). A relationship whose name the rules misread gets a stiff sentence; its description, written in words, is the fix. Watch for ones that read badly once real teams use it.
   - Presence shows people the room admits: members of the organization, signed in. Comments are on proposals only; comments on released classes could follow.
   - Stage 3, your documents (waiting, see above): search Confluence, Jira, SharePoint and OneDrive while proposing, through the page's `mcp` capability, and cite each source with a trust label. Read each connector's tool schema in a session before relying on it.
-  - Stage 4, prove it with data: a cloud session reads the GitHub repositories, builds a sample month, runs the walk and counts, and shows the rows.
+  - Stage 4, prove it with data, runs in the page (decision 25). Next:
+    - The engines are stand-ins. The openCypher subset has no variable-length paths, and SQLite only approximates Snowflake. Run the same test cases on a real Neptune and Snowflake sample once step 2 of the build order loads one, and compare the rows.
+    - Test cases stay on the shared draft. The pull request's session could commit them as fixtures beside the competency questions, so CI proves each answer with its own case.
+    - Six competency questions find nothing in the background world, since they look for thresholds a few hundred instances don't reach (50 declines in a day, five merchants on one device). Their proof needs a test case.
+    - The cloud-session version from the design (read the repositories, build a sample month from real shapes) can follow once connectors are back.
   - Stage 5, the dial and memory: tutor, co-pilot and autopilot per person, and the studio learning from what was accepted, rejected and why.
   - Ask anything today: a proposal's place on the map is worked out when Claude proposes it. If the draft changes before it's accepted, it can land somewhere crowded and leave a tidy-up. Re-place on accept if that happens often.
   - A question asked in the studio gets the next free id, checked again when its answer is accepted. Two people accepting new questions at the same moment could still take one id; the pull request's session renumbers if the file has taken it.
@@ -45,7 +49,7 @@ Follow the build order in chapter 7 of the overview (`site/index.html#ch7`), wit
   - Missions cover the 8 risk gaps. Write them for the other domains' questions as gaps open, and have each owning team review its mission's illustrative classes, codes and queries before they reach a pull request.
   - Placement when the map is crowded. Each mission on its own leaves the map clean; all eight on one draft leave 5 to 7 tidy-ups, since their designed spots overlap and the fallback search gives up after 160 tries. A wider, slower search could run in a worker, or the class map could grow a second room.
   - Confirm `create_session`'s answer from the first real pull request. Its shape isn't documented, so the studio looks for any session id in it; if it finds none, it says so and links to claude.ai/code.
-  - Show who else is in the studio right now (the page's `room` capability), so two people don't edit the same class at once. Today each class, field and answer merges on its own, and the last edit to the same one wins.
+  - Presence shows who else is in the studio (stage 2), but two people can still edit the same class at once. Each class, field and answer merges on its own, and the last edit to the same one wins.
   - Edits to released classes: the studio adds fields and relationships to them and leaves everything else to the change board. Moving a released class, or changing its description, could come next.
   - Who may open the pull request is enforced by the page, not the store. The pull request's review is the real gate. Wire CODEOWNERS-style module owners in (decision 9) when teams start using it.
   - The draft reaches the Claude Code session as text. The session is told to treat it as data, but a hostile edit could still try to steer it; keep the pull request's review as the gate.

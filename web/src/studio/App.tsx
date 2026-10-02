@@ -21,6 +21,10 @@ import { usePresence, type Here, type Lens } from './presence';
 import { LensToggle, StoryClass, StoryRel } from './Story';
 import { doStep, missionById, MISSIONS, pendingLink, placeSpot, progress, stepLabel, type Choice, type Mission } from './missions';
 import { queryPrompt } from './prompt';
+import { prove, type Proof } from './proof';
+import { ProofPanel } from './Proof';
+import { loadSql } from './sqlLoad';
+import { cleanScenario, writeTest } from './testcase';
 import { SessionCard, StartPull } from './Pull';
 import { sampleAdvice, useProfiles, useRuntime, type SampleError } from './runtime';
 import { useDraftStore } from './store';
@@ -277,6 +281,56 @@ export function App() {
     } finally { setWritingQuery(false); }
   };
 
+  // Prove it with data: a question's query on a made-up sample world, with its test case planted. An asked question
+  // proves on the draft as it would be with every proposal accepted.
+  const [proving, setProving] = useState<{ qid: string; on: 'draft' | 'preview'; seed: number } | null>(null);
+  const [proof, setProof] = useState<Proof | null>(null);
+  const [proofRunning, setProofRunning] = useState(false);
+  const [writingTest, setWritingTest] = useState<{ step: string; ctl: AbortController } | null>(null);
+  useEffect(() => { setProving(null); setProof(null); }, [view]);
+  const writingRef = useRef(writingTest);
+  writingRef.current = writingTest;
+  useEffect(() => () => writingRef.current?.ctl.abort(), []);
+  const proofA = proving ? (proving.on === 'preview' && preview ? preview : a) : null;
+  const proofQ = proving ? proofA?.report.model?.questions.find((x) => x.id === proving.qid) ?? null : null;
+  const testDoc = proving ? draft.tests?.[proving.qid] ?? null : null;
+  const scenario = useMemo(() => { try { return testDoc ? cleanScenario(JSON.parse(testDoc.scenario)) : null; } catch { return null; } }, [testDoc]);
+  useEffect(() => {
+    if (!proving || !proofA?.report.model || !proofQ?.query) { setProof(null); return; }
+    let live = true;
+    setProofRunning(true);
+    const t = window.setTimeout(async () => {
+      try {
+        const SQL = proofQ.language === 'sql' ? await loadSql() : null;
+        const res = prove(proofA.report.model!, proofA.schema, { query: proofQ.query, language: proofQ.language, scenario: scenario ?? undefined, seed: proving.seed ? `ontology-fabric-${proving.seed}` : undefined }, SQL);
+        if (live) setProof(res);
+      } catch (e) {
+        if (live) setNote({ text: `The warehouse engine didn't load: ${(e as Error).message}`, bad: true });
+      } finally { if (live) setProofRunning(false); }
+    }, 0);
+    return () => { live = false; window.clearTimeout(t); };
+  }, [proving, proofA, proofQ?.query, proofQ?.language, scenario]);
+  const startProof = (qid: string, on: 'draft' | 'preview') => {
+    setProof(null); setProving({ qid, on, seed: 0 });
+    window.setTimeout(() => document.querySelector('[data-app=studio] .coach.proof')?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' }), 50);
+  };
+  const plantTest = async (instruction: string) => {
+    if (!rt.sample || !proving || !proofQ || !proofA?.report.model || !editable) return;
+    const ctl = new AbortController();
+    setWritingTest({ step: 'Claude is writing a test case', ctl });
+    try {
+      const SQL = proofQ.language === 'sql' ? await loadSql() : null;
+      const sc = await writeTest(rt.sample, proofA.report.model, proofA.schema,
+        { id: proofQ.id, question: proofQ.question, query: proofQ.query, language: proofQ.language, classes: proofQ.classes }, SQL,
+        { signal: ctl.signal, step: (st) => setWritingTest((w) => w && { ...w, step: st }), note: instruction || undefined });
+      if (!sc.nodes?.length) { setNote({ text: 'Claude didn\'t plant anything. Try again.', bad: true }); return; }
+      await edit({ tests: { [proofQ.id]: { scenario: JSON.stringify(sc), by: rt.me.id, at: Date.now(), author: 'claude' } } }, `plant a test case for ${proofQ.id}`);
+    } catch (e) {
+      const se = e as SampleError;
+      if (se?.code !== 'cancelled') setNote({ text: sampleAdvice(se) || 'Claude didn\'t finish the test case.', bad: true });
+    } finally { setWritingTest(null); }
+  };
+
   // What the checks say, and what they name, so the map can ring it. Problems in the ontology block the pull request;
   // the class map's tidy-ups don't, since its session tidies them.
   const problems = a.blocking;
@@ -410,7 +464,9 @@ export function App() {
             <InquiryCard inq={inquiry} by={who(inquiry.askedBy)} running={running?.id === inquiryId} step={running?.id === inquiryId ? running.step : undefined}
               elapsed={running ? Math.max(0, Math.round((now - running.started) / 1000)) : 0} preview={preview} editable={editable} canAsk={!!rt.sample && !running}
               onStop={() => running?.ctl.abort()} onAgain={(n) => void askQuestion('', { id: inquiryId, note: n })} onClose={() => { location.hash = hashFor('studio', ''); }}
-              onShow={() => document.querySelector('[data-app=studio] .canvas .ghost')?.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' })} />
+              onShow={() => document.querySelector('[data-app=studio] .canvas .ghost')?.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' })}
+              onProve={inquiry.proposals?.answer && inquiry.proposals.answer.state !== 'rejected' ? () => startProof(inquiry.proposals!.answer.name, 'preview')
+                : inquiry.matches && inquiry.answered ? () => startProof(inquiry.matches!, 'draft') : undefined} proving={!!proving} />
           ) : (
             <section className="coach" aria-label="Your question"><p className="say muted">{store.draft ? 'This question isn\'t on the working draft. It may belong to an earlier draft.' : 'Loading the working draft…'}</p></section>
           )) : welcome && !question && (
@@ -427,6 +483,13 @@ export function App() {
                 <button type="button" className="vbtn" onClick={() => { setWelcome(false); kept.set('studio:welcomed', true); }}>I know my way around</button>
               </div>
             </section>
+          )}
+          {proving && (
+            <ProofPanel key={proving.qid} editable={editable} canWrite={!!rt.sample} writing={writingTest?.step ?? null}
+              v={{ qid: proving.qid, question: proofQ?.question ?? '', lane: proofQ?.language ?? 'cypher', proof, running: proofRunning, scenario, seed: proving.seed,
+                author: testDoc ? `${testDoc.author === 'claude' ? 'written by Claude for' : 'written by'} ${who(testDoc.by)}` : undefined }}
+              onAgain={() => setProving((x) => x && { ...x, seed: x.seed + 1 })} onWrite={(n) => void plantTest(n)} onStop={() => writingTest?.ctl.abort()}
+              onRemove={() => void edit({ tests: { [proving.qid]: null } }, `remove ${proving.qid}'s test case`)} onClose={() => setProving(null)} />
           )}
           <div className="xwrap">
             <Canvas model={mapModel} layout={mapA.patch.layout} added={added} addedRels={addedRels} flagged={flagged} ghosts={ghostSet}
@@ -464,7 +527,8 @@ export function App() {
             </>
           ) : question ? (
             <QuestionPanel ctx={ctx} a={a} editable={editable} edit={panel.edit} id={question} walking={walking} setWalking={setWalking}
-              writeQuery={rt.sample ? () => void writeQuery() : undefined} busy={writingQuery} />
+              writeQuery={rt.sample ? () => void writeQuery() : undefined} busy={writingQuery}
+              prove={() => startProof(question, 'draft')} proving={proving?.qid === question} hasTest={!!draft.tests?.[question]} />
           ) : selected?.kind === 'class' ? (
             lens === 'story' ? <StoryClass key={selected.id} {...panel} name={selected.id} /> : <ClassPanel key={selected.id} {...panel} name={selected.id} fresh={fresh === selected.id} />
           ) : selected?.kind === 'rel' ? (
