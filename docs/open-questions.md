@@ -31,6 +31,15 @@ Follow the build order in chapter 7 of the overview (`site/index.html#ch7`), wit
 - Generate the pages in CI from the LinkML source, so they stay in step with each ontology release.
 - Show results in the question tracer. It already steps each competency question's query line by line alongside its walk on the map; once step 2 of the build order loads a sample month, run the queries and show the rows they return, each cited by ID.
 - Candidate apps for the page, each linked from its chapter the way chapter 4 links to the retrieval walkthrough: the ingestion pipeline, releases and governance. Ontology authoring became the design studio (decision 24); link it from chapter 1.
+- The open-world studio (decision 25), next:
+  - Make the repository private before stage 3, and connect the Atlassian and Microsoft 365 connectors in claude.ai. Neither was connected on 2 October 2026.
+  - Pick a pilot: one real question, one document space, and an expert-and-engineer pair.
+  - Stage 2, two lenses side by side: a story lens in plain sentences beside the map, live cursors through the page's `room` capability, and comments on proposals.
+  - Stage 3, your documents: search Confluence, Jira, SharePoint and OneDrive while proposing, through the page's `mcp` capability, and cite each source with a trust label. Read each connector's tool schema in a session before relying on it.
+  - Stage 4, prove it with data: a cloud session reads the GitHub repositories, builds a sample month, runs the walk and counts, and shows the rows.
+  - Stage 5, the dial and memory: tutor, co-pilot and autopilot per person, and the studio learning from what was accepted, rejected and why.
+  - Ask anything today: a proposal's place on the map is worked out when Claude proposes it. If the draft changes before it's accepted, it can land somewhere crowded and leave a tidy-up. Re-place on accept if that happens often.
+  - A question asked in the studio gets the next free id, checked again when its answer is accepted. Two people accepting new questions at the same moment could still take one id; the pull request's session renumbers if the file has taken it.
 - The design studio, next:
   - Missions cover the 8 risk gaps. Write them for the other domains' questions as gaps open, and have each owning team review its mission's illustrative classes, codes and queries before they reach a pull request.
   - Placement when the map is crowded. Each mission on its own leaves the map clean; all eight on one draft leave 5 to 7 tidy-ups, since their designed spots overlap and the fallback search gives up after 160 tries. A wider, slower search could run in a worker, or the class map could grow a second room.

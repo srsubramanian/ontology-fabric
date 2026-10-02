@@ -1,0 +1,30 @@
+{
+  "question": "Which merchants changed their payout bank account in the week before their disputes spiked?",
+  "reply": {
+    "understanding": [
+      {"phrase": "merchants", "means": "the businesses we acquire for", "maps_to": "Merchant"},
+      {"phrase": "disputes", "means": "chargebacks raised against their sales", "maps_to": "Chargeback"},
+      {"phrase": "payout bank account", "means": "the account a merchant's settlements are paid into", "maps_to": null},
+      {"phrase": "changed", "means": "a moment the payout account was switched to a new one", "maps_to": null}
+    ],
+    "matches": null,
+    "answered": false,
+    "gap": "The ontology knows merchants and their chargebacks, but not where a merchant is paid, or when that changes.",
+    "summary": "Add payout accounts and an event for each change of account, linked to the merchant, then walk from a change to the merchant's chargebacks.",
+    "ops": [
+      {"op": "addClass", "name": "PayoutAccount", "description": "A bank account a merchant's settlements are paid into, kept as a hash of its number.", "owner": "settlement", "lives_in": "graph", "id_rule": "pacct:{account_hash}", "no_standard": "Not checked against FIBO or ISO 20022 yet: review before release.", "why": "Nothing in the ontology holds where a merchant is paid."},
+      {"op": "addRelationship", "from": "Merchant", "name": "paid_out_to", "to": "PayoutAccount", "description": "The account the merchant is paid into now.", "why": "Ties each merchant to the account it's paid into."},
+      {"op": "addClass", "name": "PayoutAccountChange", "description": "A merchant switching its payout to a new bank account.", "owner": "risk", "lives_in": "graph", "id_rule": "pachg:{change_id}", "no_standard": "Not checked against FIBO or ISO 20022 yet: review before release.", "why": "A change is an event to record, not a field to overwrite (decision 7)."},
+      {"op": "addField", "class": "PayoutAccountChange", "name": "changed_at", "range": "datetime", "description": "When the new account took effect.", "why": "The question compares when the account changed with when disputes rose."},
+      {"op": "addRelationship", "from": "PayoutAccountChange", "name": "for_merchant", "to": "Merchant", "description": "The merchant whose account changed.", "why": "Links each change to its merchant, so the walk can reach its chargebacks."},
+      {"op": "addRelationship", "from": "PayoutAccountChange", "name": "new_account", "to": "PayoutAccount", "description": "The account payouts go to after the change.", "why": "Shows where the money goes now, and which merchants share an account."}
+    ],
+    "answer": {
+      "domain": "risk",
+      "question": "Which merchants changed their payout bank account in the week before their disputes spiked?",
+      "answered_in": "neptune",
+      "walks": ["PayoutAccountChange.for_merchant", "Chargeback.disputes", "Capture.captures", "Authorization.at_merchant"],
+      "query": "MATCH (ch:PayoutAccountChange)-[:FOR_MERCHANT]->(m:Merchant)\nMATCH (cb:Chargeback)-[:DISPUTES]->(:Capture)-[:CAPTURES]->(:Authorization)-[:AT_MERCHANT]->(m)\nWHERE cb.opened_at >= ch.changed_at AND cb.opened_at < ch.changed_at + duration('P7D')\nRETURN m.id AS merchant, ch.changed_at AS changed_at, count(DISTINCT cb) AS disputes_after\nORDER BY disputes_after DESC\nLIMIT 50"
+    }
+  }
+}

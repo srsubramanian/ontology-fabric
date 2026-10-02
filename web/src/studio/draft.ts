@@ -21,7 +21,40 @@ export type SlotEdit = Stamp & {
   description?: string | null; port?: PortSpec | null;
 };
 export type EnumEdit = Stamp & { description?: string | null; values: Record<string, string | null> };
-export type AnswerEdit = Stamp & { answered_in: 'neptune' | 'snowflake'; walks: string[]; query: string };
+/** The walk and query that answer a question. A new question, asked in the studio, also carries its text and domain. */
+export type AnswerEdit = Stamp & { answered_in: 'neptune' | 'snowflake'; walks: string[]; query: string; question?: string | null; domain?: string | null };
+
+/**
+ * One edit Claude proposed for a question someone asked: the change it makes, worked out on the draft when Claude
+ * proposed it, why, the proposals it needs first, and what people decided. It touches the draft only once accepted.
+ */
+export type ProposalEdit = {
+  title: string; why: string; kind: 'class' | 'enum' | 'field' | 'relationship' | 'answer';
+  /** What it adds: a class or enum name, Class.slot, or the question id it answers. */
+  name: string;
+  update: DraftUpdate;
+  needs: string[];
+  /** Why the studio couldn't apply it, when it couldn't. */
+  problem?: string | null;
+  state: 'proposed' | 'accepted' | 'rejected';
+  decidedBy?: string | null; decidedAt?: number | null;
+};
+/** A question someone asked in their own words, what Claude made of it, and the design it proposed. */
+export type InquiryEdit = {
+  question: string; askedBy?: string | null; askedAt: number;
+  status: 'thinking' | 'proposed' | 'failed';
+  /** When Claude last started on it, to tell a run in progress from one a closed tab left behind. */
+  startedAt?: number | null;
+  error?: string | null;
+  /** What each phrase means, and what in the ontology holds it, or null where nothing does yet. */
+  understanding?: { phrase: string; means: string; maps_to: string | null }[] | null;
+  /** A competency question that already asks this, and whether the ontology already answers it. */
+  matches?: string | null; answered?: boolean | null;
+  gap?: string | null; summary?: string | null;
+  proposals?: Record<string, ProposalEdit> | null;
+  /** Proposal ids in the order they apply. */
+  order?: string[] | null;
+};
 
 export type DraftDoc = {
   id: string;
@@ -33,8 +66,10 @@ export type DraftDoc = {
   /** Keyed `Class:slot`. */
   slots: Record<string, SlotEdit | null>;
   enums: Record<string, EnumEdit | null>;
-  /** Keyed by question id: the walk and query that answer a gap. */
+  /** Keyed by question id: the walk and query that answer a gap, or a new question. */
   answers: Record<string, AnswerEdit | null>;
+  /** Questions people asked in their own words, keyed by a generated id. Older drafts have none. */
+  inquiries?: Record<string, InquiryEdit | null>;
   session?: { id: string | null; by: string; at: number; environment: string; branch: string; note?: string } | null;
 };
 
@@ -44,12 +79,13 @@ export type DraftUpdate = {
   slots?: Record<string, Partial<SlotEdit> | null>;
   enums?: Record<string, Partial<EnumEdit> | null>;
   answers?: Record<string, Partial<AnswerEdit> | null>;
+  inquiries?: Record<string, Partial<InquiryEdit> | null>;
 };
-const MAPS = ['classes', 'slots', 'enums', 'answers'] as const;
+const MAPS = ['classes', 'slots', 'enums', 'answers', 'inquiries'] as const;
 
 export const slotKey = (cls: string, name: string) => `${cls}:${name}`;
 export const emptyDraft = (id: string, base: string): DraftDoc =>
-  ({ id, base, status: 'open', createdAt: Date.now(), updatedAt: Date.now(), classes: {}, slots: {}, enums: {}, answers: {} });
+  ({ id, base, status: 'open', createdAt: Date.now(), updatedAt: Date.now(), classes: {}, slots: {}, enums: {}, answers: {}, inquiries: {} });
 
 /** Entries that are there: null and undefined fields read as absent. */
 export const live = <T>(m: Record<string, T | null> | undefined) =>
@@ -91,7 +127,8 @@ export function inverse(d: DraftDoc, u: DraftUpdate): DraftUpdate {
 /** The LinkML patch the draft adds up to: schema to merge, questions it answers, and the layout to draw it. */
 export type Patch = {
   schema: Partial<RawSchema>;
-  questions: Record<string, { answered_in: string; walks: string[]; query: string }>;
+  /** Answers by question id; a question the released file doesn't have also carries its text and domain. */
+  questions: Record<string, { answered_in: string; walks: string[]; query: string; question?: string; domain?: string }>;
   layout: LayoutPatch;
 };
 
@@ -133,7 +170,9 @@ export function draftToPatch(d: DraftDoc, base: RawSchema): Patch {
       permissible_values: Object.fromEntries(live(e.values).map(([v, desc]) => [v, desc ? { description: desc } : {}])),
     });
   }
-  const questions = Object.fromEntries(live(d.answers).map(([id, a]) => [id, { answered_in: a.answered_in, walks: a.walks, query: a.query }]));
+  const questions = Object.fromEntries(live(d.answers).map(([id, a]) => [id, {
+    answered_in: a.answered_in, walks: a.walks, query: a.query, ...(a.question ? { question: a.question, domain: a.domain ?? 'risk' } : {}),
+  }]));
   // Grow the drawing to hold classes placed below or right of it.
   const far = Object.values(pos).reduce((m, [x, y]) => ({ w: Math.max(m.w, x + NODE.w + 12), h: Math.max(m.h, y + NODE.h + 24) }), viewOf());
   const view = far.w > viewOf().w || far.h > viewOf().h ? far : undefined;
@@ -146,14 +185,21 @@ export function draftToPatch(d: DraftDoc, base: RawSchema): Patch {
 /** The draft's schema and questions: the released ontology with the patch applied. */
 export function applyPatch(base: RawSchema, baseQuestions: RawQuestions, patch: Patch): { schema: RawSchema; questions: RawQuestions } {
   const schema = merge(base, patch.schema);
+  const known = new Set(baseQuestions.questions.map((q) => q.id));
   const questions: RawQuestions = {
     ...baseQuestions,
-    questions: baseQuestions.questions.map((q) => {
-      const a = patch.questions[q.id];
-      if (!a) return q;
-      const { gap: _gap, ...rest } = q;
-      return { ...rest, ...a } as typeof q;
-    }),
+    questions: [
+      ...baseQuestions.questions.map((q) => {
+        const a = patch.questions[q.id];
+        if (!a) return q;
+        const { question: _q, domain: _d, ...answer } = a;
+        const { gap: _g, ...rest } = q;
+        return { ...rest, ...answer } as typeof q;
+      }),
+      // New questions, asked in the studio.
+      ...Object.entries(patch.questions).filter(([id, a]) => !known.has(id) && a.question)
+        .map(([id, a]) => ({ id, domain: a.domain ?? 'risk', question: a.question!, answered_in: a.answered_in as 'neptune' | 'snowflake', walks: a.walks, query: a.query })),
+    ],
   };
   return { schema, questions };
 }
@@ -198,6 +244,8 @@ export function summarize(d: DraftDoc, base: RawSchema) {
     fields: slots.filter(([, s]) => !isClass(s.range)).map(([, s]) => `${s.class}.${s.name}`),
     enums: live(d.enums).map(([n]) => n),
     answers: live(d.answers).map(([id]) => id),
+    /** Questions asked in the studio: only their answers carry the question's text. */
+    newQuestions: live(d.answers).filter(([, a]) => !!a.question).map(([id]) => id),
     get count() { return this.newClasses.length + this.editedClasses.length + this.relationships.length + this.fields.length + this.enums.length + this.answers.length; },
   };
 }

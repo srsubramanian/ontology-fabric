@@ -22,7 +22,7 @@ export function sessionPrompt(d: DraftDoc, a: Analysis, title: string): string {
   const c = a.changes;
   const adds = [c.newClasses.length && `classes ${c.newClasses.join(', ')}`, c.relationships.length && `relationships ${c.relationships.join(', ')}`,
     c.fields.length && `fields ${c.fields.join(', ')}`, c.enums.length && `enums ${c.enums.join(', ')}`,
-    c.answers.length && `answers to ${c.answers.join(', ')}`].filter(Boolean).join('; ');
+    c.answers.length && `answers to ${c.answers.join(', ')}`, c.newQuestions.length && `new competency questions ${c.newQuestions.join(', ')}`].filter(Boolean).join('; ');
   return [
     'Apply the Ontology Fabric design studio\'s working draft to the repository, then open a pull request.',
     '',
@@ -34,7 +34,7 @@ export function sessionPrompt(d: DraftDoc, a: Analysis, title: string): string {
     '',
     'What each part means:',
     '- schema: merge it into ontology/payments.yaml. Maps merge and lists add to what is there. Put each new slot, class and enum in the section it belongs to, written the way the file writes its neighbours.',
-    '- questions: for each question id, replace its gap in ontology/competency-questions.yaml with the given answered_in, walks and query, and remove the gap.',
+    '- questions: for each question id, replace its gap in ontology/competency-questions.yaml with the given answered_in, walks and query, and remove the gap. An id the file doesn\'t have yet is a new question someone asked in the studio: add it at the end of its domain\'s section, with its domain, question, answered_in, walks and query, keeping the id unless the file has taken it since.',
     '- layout: pos entries go in POS and ports entries in PORTS in web/src/explorer/layout.ts; a view entry replaces VIEW there.',
     '',
     ...(a.tidyUps.length ? [

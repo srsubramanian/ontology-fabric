@@ -34,11 +34,22 @@
     me: async () => me, id: async () => me.id,
     profiles: async (ids) => Object.fromEntries([].concat(ids).map((id) => [id, { id, name: id === 'u_me' ? 'Ada Engineer' : '', avatarUrl: '', color: '#888', email: null, isMe: id === 'u_me' }])),
   };
-  // Claude answers with what the test asked it to: ops for a build request, or a query for a question.
+  // Claude answers with what the test asked it to: a design for a question someone asked, using the page's tools
+  // first the way Claude would, or a query for a competency question.
   const answers = window.__studioClaude || {};
   const sample = async (input, opts = {}) => {
     window.__sampleCalls = (window.__sampleCalls || []).concat([input]);
-    const reply = JSON.stringify(/Write the query/.test(input) ? answers.query : answers.build);
+    const asked = /design partner/.test(input);
+    if (asked && opts.tools) {
+      for (const call of answers.inquiryCalls || []) {
+        await new Promise((r) => setTimeout(r, 150));
+        const tool = opts.tools.find((t) => t.name === call.name);
+        let out;
+        try { out = await tool.execute(call.input, { signal: opts.signal || new AbortController().signal }); } catch (e) { out = 'Error: ' + e.message; }
+        window.__toolResults = (window.__toolResults || []).concat([{ name: call.name, out }]);
+      }
+    }
+    const reply = JSON.stringify(asked ? answers.inquiry : /Write the query/.test(input) ? answers.query : answers.build);
     let text = '';
     for (const part of reply.match(/[\s\S]{1,200}/g)) {
       await new Promise((r) => setTimeout(r, 30));
@@ -48,6 +59,7 @@
     return { text, truncated: false, modelTierApplied: 'default' };
   };
   sample.json = async (input, opts) => JSON.parse((await sample(input, opts)).text);
+  sample.limits = async () => ({ maxPromptBytes: 262144, tools: {} });
   const mcp = {
     callTool: async (server, tool, input) => {
       window.__mcpCalls = (window.__mcpCalls || []).concat([{ server, tool, input }]);

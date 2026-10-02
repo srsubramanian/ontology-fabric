@@ -23,6 +23,8 @@ type Props = {
   added: Set<string>; addedRels: Set<string>;
   /** What the checks name in a problem, ringed in red. */
   flagged: Set<string>;
+  /** Classes and relationships Claude proposed and nobody has accepted yet, drawn faint and dashed. */
+  ghosts?: Set<string>;
   selected: Selection;
   /** Relationships to light, such as a question's walk. */
   lit: string[];
@@ -69,6 +71,7 @@ export function Canvas(p: Props) {
   const concrete = Object.values(p.model.classes).filter((c) => !c.abstract && box[c.name]);
   const lit = new Set(p.lit);
   const pulse = p.pulse ?? new Set<string>();
+  const ghost = p.ghosts ?? new Set<string>();
   const dimClass = (n: string) => !!p.focus && !p.focus.has(n) && !pulse.has(n);
   const dimRel = (r: { id: string; from: string; to: string }) => !!p.focus && !lit.has(r.id) && !pulse.has(r.id) && !(p.focus.has(r.from) && p.focus.has(r.to));
 
@@ -159,7 +162,7 @@ export function Canvas(p: Props) {
         const on = lit.has(r.id) || p.addedRels.has(r.id) || sel?.id === r.id;
         return (
           <g key={r.id} className={'cr' + (on ? ' hl' : '') + (sel?.id === r.id ? ' picked' : '') + (p.flagged.has(r.id) ? ' bad' : '') + (p.addedRels.has(r.id) ? ' fresh' : '')
-            + (pulse.has(r.id) ? ' pulse' : '') + (dimRel(r) ? ' dim' : '')}
+            + (pulse.has(r.id) ? ' pulse' : '') + (dimRel(r) ? ' dim' : '') + (ghost.has(r.id) ? ' ghost' : '')}
             data-rel={r.id} onClick={(e) => { e.stopPropagation(); pickRel(r.id); }}>
             <path className="hit" d={g.d} />
             <motion.path className="ce" d={g.d} initial={isNew(r.id) ? { pathLength: 0 } : false} animate={{ pathLength: 1 }}
@@ -175,7 +178,7 @@ export function Canvas(p: Props) {
         const b = box[c.name];
         const cls = 'cn' + (sel?.id === c.name ? ' sel' : '') + (p.added.has(c.name) ? ' fresh' : '') + (p.flagged.has(c.name) ? ' bad' : '')
           + (linkTarget === c.name ? ' target' : '') + (p.added.has(c.name) && p.editable && p.mode === 'select' ? ' movable' : '')
-          + (pulse.has(c.name) ? ' pulse' : '') + (dimClass(c.name) ? ' dim' : '');
+          + (pulse.has(c.name) ? ' pulse' : '') + (dimClass(c.name) ? ' dim' : '') + (ghost.has(c.name) ? ' ghost' : '');
         return (
           <motion.g key={c.name} className={cls} data-class={c.name} tabIndex={0} role="button" aria-label={`${c.name}${p.added.has(c.name) ? ', new' : ''}`}
             initial={isNew(c.name) ? { opacity: 0, scale: 0.85 } : false} animate={{ opacity: 1, scale: 1 }}
@@ -187,6 +190,7 @@ export function Canvas(p: Props) {
             <rect className="bar" x={b.x + 8} y={b.y + 11} width={3} height={NODE.h - 22} rx={1.5} />
             <text key={c.name} className="t" x={b.x + 18} y={b.y + 21} ref={fitText}>{c.name}</text>
             <text key={c.idRule} className="s" x={b.x + 18} y={b.y + 37} ref={fitText}>{shortRule(c.idRule)}</text>
+            {ghost.has(c.name) && <text className="gtag" x={b.x + NODE.w - 8} y={b.y - 5} textAnchor="end">proposed</text>}
           </motion.g>
         );
       })}
