@@ -74,7 +74,7 @@ export function ClassPanel({ ctx, a, model, editable, edit, select, name, fresh 
   const can = editable && added;
   if (!c) return null;
   const set = (patch: Record<string, unknown>, label: string) => edit({ classes: { [name]: patch } }, label);
-  const parents: [string, string][] = [['', 'none'], ...Object.values(model.classes)
+  const parents: [string, string][] = [['', 'nothing: a class of its own'], ...Object.values(model.classes)
     .filter((x) => x.abstract && x.name !== name && !x.chain.includes(name)).map((x): [string, string] => [x.name, x.name])];
   const out = model.relationships.filter((r) => c.chain.includes(r.from));
   const inn = model.relationships.filter((r) => r.to === name);
@@ -98,25 +98,25 @@ export function ClassPanel({ ctx, a, model, editable, edit, select, name, fresh 
 
       {can ? (
         <Section title="About">
-          <Pick label="Parent" value={e?.is_a ?? ''} options={parents} onSave={(v) => set({ is_a: v || null }, `set ${name}'s parent`)} />
+          <Pick label="Is a kind of" value={e?.is_a ?? ''} options={parents} onSave={(v) => set({ is_a: v || null }, `set ${name}'s parent`)} />
           <Field label="Description" area value={e?.description ?? ''} placeholder="What one of these is, in a sentence" onSave={(v) => set({ description: v || null }, `describe ${name}`)} />
           <div className="two">
-            <Pick label="Owner" value={e?.owner ?? 'core'} options={OWNERS.map((o) => [o, o])} onSave={(v) => set({ owner: v }, `set ${name}'s owner`)} />
-            <Pick label="Lives in" value={e?.lives_in ?? 'graph'} options={LIVES as [string, string][]} onSave={(v) => set({ lives_in: v }, `set where ${name} lives`)} />
+            <Pick label="Owned by team" value={e?.owner ?? 'core'} options={OWNERS.map((o) => [o, o])} onSave={(v) => set({ owner: v }, `set ${name}'s owner`)} />
+            <Pick label="Stored in" value={e?.lives_in ?? 'graph'} options={LIVES as [string, string][]} onSave={(v) => set({ lives_in: v }, `set where ${name} lives`)} />
           </div>
-          <Field label="ID rule" mono value={e?.id_rule ?? ''} placeholder="pf:{payfac_id}" onSave={(v) => set({ id_rule: v || null }, `set ${name}'s ID rule`)} />
-          <Field label="Standard concept" mono value={(e?.close_mappings ?? []).join(' ')} placeholder="fibo-be-fct-fct:FunctionalEntity"
+          <Field label="ID looks like" mono value={e?.id_rule ?? ''} placeholder="pf:{payfac_id}" onSave={(v) => set({ id_rule: v || null }, `set ${name}'s ID rule`)} />
+          <Field label="Matches a standard" mono value={(e?.close_mappings ?? []).join(' ')} placeholder="fibo-be-fct-fct:FunctionalEntity"
             check={(v) => (v && !/^[a-z0-9-]+:\S+$/i.test(v) ? 'A CURIE whose prefix the schema declares, such as iso20022:cain.027.001.04' : null)}
             onSave={(v) => set({ close_mappings: v ? [v] : null, ...(v ? { no_standard: null } : {}) }, `map ${name} to a standard`)} />
           {!e?.close_mappings?.length && (
-            <Field label="Or why no standard fits" area value={e?.no_standard ?? ''} placeholder="FIBO and ISO 20022 have no concept for…"
+            <Field label="If none matches, why" area value={e?.no_standard ?? ''} placeholder="FIBO and ISO 20022 have no concept for…"
               onSave={(v) => set({ no_standard: v || null }, `say why ${name} has no standard`)} />
           )}
         </Section>
       ) : (
         <Section title="About">
           <p className="desc">{c.description || 'No description.'}</p>
-          <p className="small muted">Owner {c.owner} · lives in {c.livesIn} · {c.idRule ?? 'no ID rule'}</p>
+          <p className="small muted">Owned by {c.owner} · stored in {c.livesIn === 'graph' ? 'Neptune' : c.livesIn === 'warehouse' ? 'Snowflake' : c.livesIn === 'search' ? 'OpenSearch' : c.livesIn} · IDs look like {c.idRule ?? 'nothing yet'}</p>
           {editable && <p className="small muted">Released classes stay as they are here; add fields and relationships to them, or change them through the change board (decision 10).</p>}
         </Section>
       )}
@@ -140,7 +140,7 @@ export function ClassPanel({ ctx, a, model, editable, edit, select, name, fresh 
         </Section>
       ) : null}
 
-      <Section title={`Relationships · ${out.length + inn.length}`}>
+      <Section title={`Links · ${out.length + inn.length}`}>
         <ul className="rels">
           {out.map((r) => <RelRow key={r.id} r={r} dir="out" ctx={ctx} editable={editable} edit={edit} select={select} />)}
           {inn.map((r) => <RelRow key={'in' + r.id} r={r} dir="in" ctx={ctx} editable={editable} edit={edit} select={select} />)}

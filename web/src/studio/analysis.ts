@@ -11,7 +11,13 @@ export type Analysis = {
   /** none: nothing yet; patch: descriptions, aliases and answers only; minor: anything new (decision 10). */
   lane: 'none' | 'patch' | 'minor';
   owners: string[];
+  /** What the checks say, split: problems in the ontology itself block a pull request; the class map's tidy-ups don't,
+   *  since the pull request's session moves boxes and lines until the layout check passes (CI still runs it). */
+  blocking: string[]; tidyUps: string[];
 };
+
+/** How the layout check's problems start. */
+const MAP = 'class map: ';
 
 export function analyse(d: DraftDoc, base: RawSchema, baseQuestions: RawQuestions): Analysis {
   const patch = draftToPatch(d, base);
@@ -23,7 +29,11 @@ export function analyse(d: DraftDoc, base: RawSchema, baseQuestions: RawQuestion
   for (const [name] of live(d.classes)) { const o = schema.classes[name]?.annotations?.owner; if (o) owners.add(o); }
   for (const [, s] of live(d.slots)) { const o = schema.classes[s.class]?.annotations?.owner; if (o) owners.add(o); }
   for (const id of changes.answers) { const q = questions.questions.find((x) => x.id === id); if (q) owners.add(q.domain); }
-  return { patch, schema, questions, report, changes, lane: minor ? 'minor' : changes.count ? 'patch' : 'none', owners: [...owners].sort() };
+  const map = (p: string) => p.startsWith(MAP);
+  return {
+    patch, schema, questions, report, changes, lane: minor ? 'minor' : changes.count ? 'patch' : 'none', owners: [...owners].sort(),
+    blocking: report.problems.filter((p) => !map(p)), tidyUps: report.problems.filter(map).map((p) => p.slice(MAP.length)),
+  };
 }
 
 let base: Coverage | undefined;

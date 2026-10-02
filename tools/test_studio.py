@@ -11,6 +11,12 @@ would:
   query; ask Claude to build CQ-113's fraud type; undo and redo it; see another person's
   change arrive live; open the pull request; start the next draft.
 
+Then, on the next draft, it plays two missions the way a payments person new to ontologies
+would: CQ-116 with a wrong answer first, the glowing spot, a drag and a phrase, the walk and
+the query; and CQ-113 with a code left out of the fraud types. Before any of that it plays
+every mission's solution offline (web/scripts/check-missions.ts), so no mission leaves a
+beginner with a check they can't fix.
+
 Fails on any failed step or JavaScript error, and saves screenshots of the way to
 screenshots/studio/flow-*.png. Run `npm run check` in web/ first.
 
@@ -19,6 +25,7 @@ Usage:
 """
 import json
 import pathlib
+import subprocess
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -49,6 +56,15 @@ CLAUDE = {
 
 def main():
     errors = []
+    run = subprocess.run(["node", "--experimental-strip-types", "--no-warnings", str(ROOT / "web" / "scripts" / "check-missions.ts")],
+                         capture_output=True, text=True)
+    print(run.stdout.rstrip())
+    if run.returncode:
+        print(run.stderr.rstrip())
+        errors.append("a mission's solution fails a check or leaves its question open")
+        print("FAIL every mission's solution passes")
+    else:
+        print("ok   every mission's solution passes")
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
         page = browser.new_page(viewport={"width": 1440, "height": 1000})
@@ -80,6 +96,12 @@ def main():
         page.goto(SITE + "#studio")
         step("the shared working draft loads", lambda: page.wait_for_selector(f"{APP} .sstatus:has-text('Shared')", timeout=12000))
 
+        def welcome():
+            page.wait_for_selector(f"{APP} .welcome a:has-text('Start a mission: Fraud types')")
+            page.get_by_role("button", name="I know my way around").click()
+            page.wait_for_selector(f"{APP} .welcome", state="detached")
+        step("a first-timer is offered a mission, and an engineer can skip it", welcome)
+
         def place():
             page.get_by_role("button", name="+ Class").click()
             page.mouse.click(*at(44 + 70, 588 + 24))
@@ -88,7 +110,7 @@ def main():
             name.press("Enter")
             page.wait_for_selector(f"{APP} [data-class=PaymentFacilitator]")
             page.locator(f"{APP} .inspector select").first.select_option("PartyRole")
-            why = page.get_by_label("Or why no standard fits")
+            why = page.get_by_label("If none matches, why")
             why.fill("Not checked yet against FIBO or ISO 20022.")
             why.blur()
             page.wait_for_selector(f"{APP} [data-class=PaymentFacilitator] text:has-text('pf:{{id}}')")
@@ -173,6 +195,89 @@ def main():
             page.wait_for_selector(f"{APP} .hint.big", timeout=5000)
             assert_true("120 questions answered" in status() and "112 of" in status(), f"the new draft isn't empty: {status()}")
         step("start the next draft", next_draft)
+
+        # Missions, as someone new to ontologies would play them. Scrolling is instant, so clicks land where they aim.
+        page.emulate_media(reduced_motion="reduce")
+        coach = f"{APP} .coach[data-mission]"
+
+        def line_point(rel):
+            page.wait_for_timeout(500)  # the step brings its line into view
+            return page.evaluate("""(id) => {
+              const p = document.querySelector(`[data-app=studio] [data-rel="${id}"] .hit`);
+              const pt = p.getPointAtLength(p.getTotalLength() / 2);
+              const q = new DOMPoint(pt.x, pt.y).matrixTransform(p.getScreenCTM());
+              return [q.x, q.y];
+            }""", rel)
+
+        def think():
+            page.goto(SITE + "#studio-mission-CQ-116")
+            page.wait_for_selector(f"{coach}[data-step='0']")
+            page.locator(f"{APP} .choices button", has_text="A kind of card").click()
+            assert_true("Not quite" in page.inner_text(f"{APP} .said"), "a wrong answer wasn't explained")
+            page.locator(f"{APP} .choices button", has_text="A role a business plays").click()
+            page.wait_for_selector(f"{coach}[data-step='1']")
+            assert_true("decision 7" in page.inner_text(f"{APP} .said"), "the right answer wasn't explained")
+        step("a mission asks first, and says why an answer is right or not", think, "5-mission-think")
+
+        def place_spot():
+            page.wait_for_timeout(500)
+            page.locator(f"{APP} .canvas .spot rect").click()
+            page.wait_for_selector(f"{coach}[data-step='2']")
+            page.wait_for_selector(f"{APP} [data-class=PaymentFacilitator]")
+        step("click the glowing spot to place the class", place_spot)
+
+        def drag_and_phrase():
+            page.wait_for_timeout(500)
+            h = page.locator(f"{APP} .canvas [data-handle=Merchant] circle").bounding_box()
+            t = page.locator(f"{APP} [data-class=PaymentFacilitator] .box").bounding_box()
+            page.mouse.move(h["x"] + h["width"] / 2, h["y"] + h["height"] / 2)
+            page.mouse.down()
+            page.mouse.move(t["x"] + 40, t["y"] + 20, steps=8)
+            page.mouse.up()
+            page.wait_for_selector(f"{APP} .coach .sent")
+            page.locator(f"{APP} .choices button", has_text="owns").click()
+            assert_true("Not quite" in page.inner_text(f"{APP} .said"), "a wrong phrase wasn't explained")
+            page.locator(f"{APP} .choices button", has_text="is a sub-merchant of").click()
+            page.wait_for_selector(f"{coach}[data-step='3']")
+            page.wait_for_selector(f"{APP} [data-rel='Merchant.sub_merchant_of']")
+        step("drag the pulsing handle onto it, and pick the phrase that reads right", drag_and_phrase, "6-mission-link")
+
+        def walk_and_query():
+            page.mouse.click(*line_point("Merchant.acquired_by"))
+            assert_true("pulsing line" in page.inner_text(f"{APP} .said"), "a wrong line wasn't pointed out")
+            page.mouse.click(*line_point("Merchant.sub_merchant_of"))
+            page.wait_for_selector(f"{coach}[data-step='4']")
+            page.get_by_role("button", name="Use this query").click()
+            page.wait_for_selector(f"{APP} .coach .complete")
+            assert_true("113 of 120" in status() and "Every check passes" in status(), f"the mission didn't answer CQ-116 cleanly: {status()}")
+        step("walk the question's path, use the query, and the mission completes", walk_and_query, "7-mission-done")
+
+        def next_mission():
+            page.get_by_role("button", name="Next mission: Data breaches").click()
+            page.wait_for_selector(f"{APP} .coach[data-mission=CQ-119]")
+            page.goto(SITE + "#studio-mission-CQ-113")
+            page.wait_for_selector(f"{coach}[data-step='0']")
+            page.locator(f"{APP} .codes label", has_text="Fraudulent application").click()
+            page.get_by_role("button", name="Add to FraudReport").click()
+            page.wait_for_selector(f"{coach}[data-step='1']")
+            page.get_by_role("button", name="Do it for me").click()
+            page.wait_for_selector(f"{coach}[data-step='2']")
+            page.get_by_role("button", name="Use this query").click()
+            page.wait_for_selector(f"{APP} .coach .complete")
+            values = page.evaluate("""async () => {
+              const cur = await window.__stubDb.doc('studio/current').get();
+              const d = await window.__stubDb.doc('drafts/' + cur.data().draftId).get();
+              return Object.keys(d.data().enums.FraudType.values);
+            }""")
+            assert_true("fraudulent_application" not in values and "lost" in values, f"the fraud types don't match the choice: {values}")
+            assert_true("114 of 120" in status(), f"CQ-113 isn't answered: {status()}")
+        step("the next mission, a code left out, and Do it for me", next_mission, "8-mission-fields")
+
+        def board():
+            page.get_by_role("link", name="← All missions").click()
+            page.wait_for_selector(f"{APP} .missions a.done[data-view='mission-CQ-116']")
+            page.wait_for_selector(f"{APP} .missions a.done[data-view='mission-CQ-113']")
+        step("the mission board shows both done, for everyone on the draft", board)
         browser.close()
 
     for e in errors:

@@ -49,6 +49,7 @@
 .canvas .cr.bad .ch{fill:var(--bad)}
 .canvas[data-mode="walk"] .cr .hit{stroke:color-mix(in srgb, var(--query) 22%, transparent)}
 .canvas[data-mode="walk"] .cr:hover .ce{stroke:var(--query); stroke-width:3}
+.canvas[data-mode="walk"] .cr.dim .hit{stroke:transparent}
 .canvas .handle{cursor:crosshair; touch-action:none}
 .canvas .handle circle{fill:var(--onto); stroke:var(--raised); stroke-width:2}
 .canvas .handle path{stroke:var(--paper); stroke-width:2; stroke-linecap:round}
@@ -128,3 +129,91 @@
 .plist button:hover{color:var(--bad)}
 .toast{position:fixed; right:20px; bottom:64px; z-index:5; max-width:min(440px, calc(100vw - 40px)); margin:0; background:var(--ink); color:var(--paper); border-radius:10px; padding:10px 14px; font-size:.88rem; box-shadow:0 8px 24px -12px var(--ink)}
 .toast.bad{background:var(--bad)}
+.sstatus .tidy{border:1px solid color-mix(in srgb, var(--search) 60%, var(--line)); background:color-mix(in srgb, var(--search) 10%, var(--raised)); color:var(--ink); border-radius:999px; padding:1px 9px; font:inherit; font-size:.78rem; font-weight:700; cursor:pointer}
+.plist .tidyhead{font-size:.8rem; color:var(--muted); margin-top:6px; padding-top:6px; border-top:1px solid var(--line)}
+.plist .tidyup{font-family:"JetBrains Mono",ui-monospace,monospace; font-size:.76rem; color:var(--muted); padding-left:10px; border-left:3px solid var(--search)}
+
+/* missions: the coach above the map */
+.mtitle{flex:1 1 300px; min-width:0; font-size:.9rem; color:var(--muted); overflow-wrap:anywhere}
+.mtitle b{color:var(--onto); margin-right:6px}
+.coach{background:var(--raised); border:1px solid var(--line); border-left:4px solid var(--onto); border-radius:12px; padding:12px 16px 14px; margin-bottom:10px; display:grid; gap:8px}
+.coach header{display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px}
+.coach header b{font-size:1.02rem}
+.ctag{font-size:.72rem; font-weight:800; letter-spacing:.04em; color:var(--onto); text-transform:uppercase}
+.dots{list-style:none; display:flex; gap:5px; margin:0; padding:0}
+.dots li{width:22px; height:6px; border-radius:3px; background:var(--line)}
+.dots li.done{background:var(--query)}
+.dots li.now{background:var(--onto)}
+.cact{display:flex; flex-wrap:wrap; gap:6px; margin-left:auto}
+.coach .say{margin:0; font-size:1.02rem; line-height:1.45; max-width:72ch}
+.coach .how{margin:0; font-size:.88rem; color:var(--muted); line-height:1.45}
+.said{margin:0; font-size:.9rem; line-height:1.45; border-radius:8px; padding:7px 11px}
+.said.right{background:color-mix(in srgb, var(--query) 12%, var(--raised)); color:var(--ink)}
+.said.wrong{background:color-mix(in srgb, var(--search) 14%, var(--raised)); color:var(--ink)}
+.choices{display:flex; flex-wrap:wrap; gap:8px}
+.choices button{font:inherit; font-size:.92rem; text-align:left; color:var(--ink); background:var(--paper); border:1.5px solid var(--line); border-radius:10px; padding:8px 13px; cursor:pointer; max-width:100%}
+.choices button:hover,.choices button:focus-visible{border-color:var(--onto); outline:none}
+.linkish{border:0; background:none; padding:0; font:inherit; color:var(--onto); font-weight:700; cursor:pointer; text-decoration:underline; text-underline-offset:2px}
+.spec{display:flex; flex-wrap:wrap; gap:6px 18px; margin:0}
+.spec div{display:grid; gap:1px}
+.spec dt{font-size:.7rem; font-weight:800; color:var(--muted)}
+.spec dd{margin:0; font-size:.9rem}
+.spec code{font-size:.84rem}
+.sent{margin:0; font-size:1.05rem; display:flex; flex-wrap:wrap; align-items:center; gap:8px}
+.sent .blank{display:inline-block; min-width:90px; border-bottom:2px dashed var(--onto); color:var(--onto); text-align:center}
+.ffield p{margin:0 0 6px; display:flex; flex-wrap:wrap; gap:4px 10px; align-items:baseline; font-size:.92rem}
+.ffield code{font-size:.8rem; color:var(--onto)}
+.codes{display:flex; flex-wrap:wrap; gap:6px}
+.codes label{display:inline-flex; align-items:center; gap:6px; font-size:.86rem; border:1px solid var(--line); border-radius:999px; padding:4px 10px 4px 7px; cursor:pointer; background:var(--paper)}
+.codes label.on{border-color:var(--onto); background:color-mix(in srgb, var(--onto) 9%, var(--paper))}
+.codes code{font-size:.74rem; color:var(--muted)}
+.coach .vbtn.go{justify-self:start}
+.wsteps{list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:6px}
+.wsteps li{font-size:.82rem; border:1px dashed var(--line); border-radius:8px; padding:3px 9px}
+.wsteps li.done{border:1px solid var(--query); background:color-mix(in srgb, var(--query) 12%, var(--raised))}
+.wsteps li.now{border-color:var(--query); border-style:solid}
+.coach .code{margin:0}
+.coach .code pre{margin:0; max-height:220px; overflow:auto}
+.complete{display:flex; gap:16px; align-items:flex-start}
+.complete h3{margin:0 0 4px; font-size:1.2rem}
+.complete p{margin:0 0 6px; line-height:1.45}
+.burst{width:72px; height:72px; flex:none; overflow:visible}
+.coach.welcome{border-left-color:var(--query)}
+/* On a big screen the coach stays in view while the map scrolls under it. */
+@media (min-width:1061px) and (min-height:720px){.coach[data-mission]{position:sticky; top:8px; z-index:3; box-shadow:0 10px 24px -18px var(--ink)}}
+.coach.welcome .ctag{color:var(--query)}
+
+/* missions: hints on the map */
+/* Motion owns a class's opacity, so a faded class uses a filter. */
+.canvas .cr.dim{opacity:.22}
+.canvas .cn.dim{filter:opacity(.3)}
+.canvas .cr.dim:hover{opacity:.8}
+.canvas .cn.dim:hover{filter:none}
+.canvas .cn.pulse .box{stroke:var(--onto); stroke-width:2.6; animation:spulse 1.4s ease-in-out infinite}
+.canvas .cr.pulse .ce{stroke:var(--query); stroke-width:3.2; animation:spulse 1.4s ease-in-out infinite}
+.canvas .handle.pulse circle{animation:spulse 1.2s ease-in-out infinite}
+.canvas .spot{cursor:pointer}
+.canvas .spot rect{fill:color-mix(in srgb, var(--onto) 12%, transparent); stroke:var(--onto); stroke-width:2; stroke-dasharray:6 4; animation:spulse 1.6s ease-in-out infinite}
+.canvas .spot text{font-size:12px; font-weight:700; fill:var(--onto)}
+.canvas .spot:hover rect{fill:color-mix(in srgb, var(--onto) 22%, transparent)}
+.canvas .demo .finger{fill:color-mix(in srgb, var(--ink) 75%, transparent); stroke:var(--paper); stroke-width:2}
+.canvas .demo .ripple{fill:none; stroke:var(--ink); stroke-width:2}
+.canvas .demo line{stroke:var(--onto); stroke-width:2; stroke-dasharray:5 4}
+@keyframes spulse{50%{opacity:.45}}
+@media (prefers-reduced-motion: reduce){.canvas .pulse .box,.canvas .pulse .ce,.canvas .handle.pulse circle,.canvas .spot rect{animation:none}}
+
+/* missions: the board and the panel */
+.inspector .back{margin-bottom:10px}
+.missions{list-style:none; margin:0; padding:0; display:grid; gap:4px}
+.missions a{display:flex; align-items:center; gap:10px; padding:7px 8px; border-radius:8px; color:var(--ink); text-decoration:none; border:1px solid var(--line)}
+.missions a:hover{border-color:var(--onto)}
+.missions a > span:nth-child(2){display:grid; gap:1px; min-width:0; flex:1}
+.missions.small a{padding:4px 8px; border:0; font-size:.86rem; justify-content:space-between}
+.mring{width:22px; height:22px; flex:none; border-radius:50%; background:conic-gradient(var(--query) calc(var(--p) * 360deg), var(--line) 0)}
+.mring::after{content:""; display:block; width:14px; height:14px; margin:4px; border-radius:50%; background:var(--raised)}
+.missions a.done .mring::after{background:var(--query)}
+.mstate{font-size:.76rem; font-weight:700; color:var(--muted); white-space:nowrap}
+.missions a.done .mstate{color:var(--query)}
+.msteps{margin:0; padding-left:20px; display:grid; gap:4px; font-size:.88rem}
+.msteps li.done{color:var(--muted); text-decoration:line-through}
+.msteps li.now{font-weight:700; color:var(--onto)}

@@ -37,6 +37,10 @@ export function sessionPrompt(d: DraftDoc, a: Analysis, title: string): string {
     '- questions: for each question id, replace its gap in ontology/competency-questions.yaml with the given answered_in, walks and query, and remove the gap.',
     '- layout: pos entries go in POS and ports entries in PORTS in web/src/explorer/layout.ts; a view entry replaces VIEW there.',
     '',
+    ...(a.tidyUps.length ? [
+      `The class map's layout check names ${a.tidyUps.length} tidy-up${a.tidyUps.length === 1 ? '' : 's'} the studio left for you: ${a.tidyUps.join('; ')}. Move the draft's new classes and reroute their relationships in web/src/explorer/layout.ts until the check passes, keeping released classes where they are.`,
+      '',
+    ] : []),
     'Then follow CLAUDE.md\'s working rules. Bump the ontology\'s minor version. Run linkml-lint, python tools/check_ontology.py, python tools/test_checks.py, python tools/generate.py, npm run check in web/, python tools/smoke_test.py and python tools/test_studio.py, and fix whatever they report without widening the change.'
       + (c.answers.length ? ` Update docs/handoff.md and docs/open-questions.md where they list ${c.answers.join(', ')} as gaps.` : ''),
     `Commit with the generated files, push, and open a pull request titled "${title}" whose description says it came from the studio's working draft ${d.id}.`,

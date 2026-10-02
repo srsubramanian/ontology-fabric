@@ -9,7 +9,7 @@ Open `site/index.html` in a browser. You need to be online for the fonts; everyt
 - Overview (`#map`): the platform map and seven chapters
 - Retrieval (`#retrieval`): how a question becomes an answer, across all three stores
 - Explorer (`#explorer`): the class explorer, read from the draft ontology in `ontology/`
-- Studio (`#studio`): build the ontology on its class map. Add and drag classes, drag from one to another to relate them, edit fields in the side panel, or ask Claude to build something; the checks and coverage update on every change. On the published page the team shares one working draft live, and one click opens a pull request. A local copy builds and checks, keeping the draft in the browser.
+- Studio (`#studio`): build the ontology on its class map. Add and drag classes, drag from one to another to relate them, edit fields in the side panel, or ask Claude to build something; the checks and coverage update on every change. New to ontologies? Missions walk you through answering one open question at a time, in payments words. On the published page the team shares one working draft live, and one click opens a pull request. A local copy builds and checks, keeping the draft in the browser.
 
 ## Change the page
 

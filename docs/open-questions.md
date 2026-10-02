@@ -32,7 +32,8 @@ Follow the build order in chapter 7 of the overview (`site/index.html#ch7`), wit
 - Show results in the question tracer. It already steps each competency question's query line by line alongside its walk on the map; once step 2 of the build order loads a sample month, run the queries and show the rows they return, each cited by ID.
 - Candidate apps for the page, each linked from its chapter the way chapter 4 links to the retrieval walkthrough: the ingestion pipeline, releases and governance. Ontology authoring became the design studio (decision 24); link it from chapter 1.
 - The design studio, next:
-  - Build the 8 risk gaps in it, starting with CQ-113 to CQ-116, which need only new fields, relationships or one new class.
+  - Missions cover the 8 risk gaps. Write them for the other domains' questions as gaps open, and have each owning team review its mission's illustrative classes, codes and queries before they reach a pull request.
+  - Placement when the map is crowded. Each mission on its own leaves the map clean; all eight on one draft leave 5 to 7 tidy-ups, since their designed spots overlap and the fallback search gives up after 160 tries. A wider, slower search could run in a worker, or the class map could grow a second room.
   - Confirm `create_session`'s answer from the first real pull request. Its shape isn't documented, so the studio looks for any session id in it; if it finds none, it says so and links to claude.ai/code.
   - Show who else is in the studio right now (the page's `room` capability), so two people don't edit the same class at once. Today each class, field and answer merges on its own, and the last edit to the same one wins.
   - Edits to released classes: the studio adds fields and relationships to them and leaves everything else to the change board. Moving a released class, or changing its description, could come next.

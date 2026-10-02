@@ -1,5 +1,6 @@
 // Every change the studio makes to the working draft, as a DraftUpdate: from the map, from the side panel, or from
 // Claude. Each one places and routes what it adds, so the class map stays clean as people build.
+import { boxes } from '../explorer/layout.ts';
 import type { RawQuestions, RawSchema } from '../explorer/model.ts';
 import { analyse } from './analysis.ts';
 import { live, mergeDraft, NAMES, slotKey, type ClassEdit, type DraftDoc, type DraftUpdate, type Point, type SlotEdit } from './draft.ts';
@@ -35,10 +36,18 @@ export function slotNameProblem(ctx: Ctx, cls: string, name: string, self?: stri
   return null;
 }
 
-/** Adds a class where asked, or in a free spot near its parent; its relationships route themselves later. */
-export function addClass(ctx: Ctx, name: string, e: Omit<ClassEdit, 'added'> = {}, at?: Point): DraftUpdate {
+/**
+ * Adds a class: exactly where asked (at), or in the free spot nearest a point or another class, inside its parent's
+ * frame when it has one. Its relationships route themselves when they're added.
+ */
+export function addClass(ctx: Ctx, name: string, e: Omit<ClassEdit, 'added'> = {}, where: { at?: Point; near?: string; nearPoint?: Point; links?: string[] } = {}): DraftUpdate {
   const { model, layout } = draftModel(ctx, {});
-  const pos = e.abstract ? null : at ?? (model ? freeSpot(model, layout, name, e.is_a ?? undefined) : [12, 1124] as Point);
+  let near = where.nearPoint;
+  if (!near && where.near && model) {
+    const b = boxes(Object.fromEntries(Object.values(model.classes).map((c) => [c.name, c.children])), layout)[where.near];
+    if (b) near = [b.x + b.w / 2, b.y + b.h / 2];
+  }
+  const pos = e.abstract ? null : where.at ?? (model ? freeSpot(model, layout, name, e.is_a ?? undefined, near, where.links) : [12, 1124] as Point);
   return { classes: { [name]: { owner: 'core', lives_in: 'graph', id_rule: defaultIdRule(name), ...e, added: true, pos } } };
 }
 
