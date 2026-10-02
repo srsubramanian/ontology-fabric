@@ -1,7 +1,7 @@
 import { motion } from 'motion/react';
 import { useMemo, type KeyboardEvent } from 'react';
 import { EASE_OUT, tr } from '../kit/motion';
-import { boxes, edgeGeometry, NODE, VIEW, type Box, type LayoutPatch } from './layout';
+import { boxes, edgeGeometry, NODE, viewOf, type Box, type LayoutPatch } from './layout';
 import type { ClassInfo, LivesIn, Model } from './model';
 
 export type Lens = 'relationships' | 'lives' | 'owner';
@@ -23,7 +23,7 @@ const TEXT_MAX = NODE.w - 22;
  * Squeezes a class name or subtitle that would run past its box, such as RetrievalRequest. It measures once the
  * text is in the page, and again once the web fonts have loaded, since they change its width.
  */
-function fitText(el: SVGTextElement | null) {
+export function fitText(el: SVGTextElement | null) {
   if (!el) return;
   const fit = () => {
     el.removeAttribute('textLength');
@@ -85,6 +85,7 @@ export function ClassMap({ model, lens, lit, litEdges, selected, focusKey, stagg
   const pick = (name: string) => (e: KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(name); }
   };
+  const VIEW = viewOf(layout);
   // The reveal: frames, then boxes from the top down, then the relationships.
   const order = (b: Box) => (b.y / VIEW.h) * 0.7 + (b.x / VIEW.w) * 0.2;
 

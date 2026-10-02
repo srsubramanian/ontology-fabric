@@ -34,18 +34,20 @@
     me: async () => me, id: async () => me.id,
     profiles: async (ids) => Object.fromEntries([].concat(ids).map((id) => [id, { id, name: id === 'u_me' ? 'Ada Engineer' : '', avatarUrl: '', color: '#888', email: null, isMe: id === 'u_me' }])),
   };
-  const PATCH = window.__studioMockPatch;
+  // Claude answers with what the test asked it to: ops for a build request, or a query for a question.
+  const answers = window.__studioClaude || {};
   const sample = async (input, opts = {}) => {
     window.__sampleCalls = (window.__sampleCalls || []).concat([input]);
-    const reply = 'Here is the patch:\n```yaml\n' + PATCH + '```\n';
+    const reply = JSON.stringify(/Write the query/.test(input) ? answers.query : answers.build);
     let text = '';
-    for (const part of reply.match(/[\s\S]{1,120}/g)) {
-      await new Promise((r) => setTimeout(r, 40));
+    for (const part of reply.match(/[\s\S]{1,200}/g)) {
+      await new Promise((r) => setTimeout(r, 30));
       if (opts.signal?.aborted) throw { code: 'cancelled', message: 'stopped', text };
       text += part; opts.onText?.({ text, delta: part });
     }
     return { text, truncated: false, modelTierApplied: 'default' };
   };
+  sample.json = async (input, opts) => JSON.parse((await sample(input, opts)).text);
   const mcp = {
     callTool: async (server, tool, input) => {
       window.__mcpCalls = (window.__mcpCalls || []).concat([{ server, tool, input }]);
@@ -57,5 +59,6 @@
     },
   };
   const caps = { db, user, sample, mcp };
+  window.__stubDb = db;
   window.claude = { use: async (name) => caps[name] ?? null };
 })();

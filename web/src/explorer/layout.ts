@@ -36,10 +36,14 @@ const PAD = { x: 14, top: 30, bottom: 14 };
 export type Box = { x: number; y: number; w: number; h: number };
 
 /**
- * A change to the layout that isn't in this file yet, such as a studio proposal's: more positions, and more
- * routes. Its entries win over this file's.
+ * A change to the layout that isn't in this file yet, such as the studio's working draft: more positions, more
+ * routes, and a bigger drawing when new classes need the room. Its entries win over this file's.
  */
-export type LayoutPatch = { pos?: Record<string, Point>; ports?: Record<string, PortSpec> };
+export type LayoutPatch = { pos?: Record<string, Point>; ports?: Record<string, PortSpec>; view?: { w: number; h: number } };
+
+/** The drawing's size: this file's, or a patch's when that's bigger. */
+export const viewOf = (patch?: LayoutPatch) =>
+  ({ w: Math.max(VIEW.w, patch?.view?.w ?? 0), h: Math.max(VIEW.h, patch?.view?.h ?? 0) });
 
 /** Boxes for every class: concrete ones from POS (and any patch), abstract ones wrapped around their subclasses. */
 export function boxes(children: Record<string, string[]>, patch?: LayoutPatch): Record<string, Box> {
@@ -120,7 +124,8 @@ const PORTS: Record<string, PortSpec> = {
   'Capture.in_batch': { from: ['bottom', 0.9], via: [[582, 342], [604, 342], [604, 860]], to: ['left', 0.5], label: { seg: 3 } },
 };
 
-function at(b: Box, [side, f]: Port): [number, number] {
+/** Where a port sits on a box's edge. */
+export function at(b: Box, [side, f]: Port): [number, number] {
   switch (side) {
     case 'left': return [b.x, b.y + b.h * f];
     case 'right': return [b.x + b.w, b.y + b.h * f];
