@@ -1,7 +1,7 @@
 """Load every view of the page in light, dark and on a phone.
 
-The page holds three apps: the overview, the retrieval walkthrough and the class explorer.
-Each pass visits all their views in one page load, so switching between apps gets tested
+The page holds four apps: the overview, the retrieval walkthrough, the class explorer and
+the design studio. Each pass visits all their views in one page load, so switching between apps gets tested
 too. Fails on JavaScript errors, on any view that scrolls sideways, and on any view that
 shows the wrong app. Saves a screenshot of every view in light and dark, so both themes
 get looked at (docs/style-guide.md).
@@ -10,7 +10,7 @@ Usage:
     pip install -r tools/requirements.txt
     python -m playwright install chromium
     python tools/smoke_test.py            # every app
-    python tools/smoke_test.py explorer   # one app: overview, retrieval or explorer
+    python tools/smoke_test.py explorer   # one app: overview, retrieval, explorer or studio
 """
 import os
 import pathlib
@@ -22,7 +22,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 SITE = pathlib.Path(os.environ.get("SITE_DIR", ROOT / "site"))
 SHOTS = ROOT / "screenshots"
 IGNORE = ("fonts.googleapis.com", "fonts.gstatic.com", "ERR_FAILED")
-APPS = ["overview", "retrieval", "explorer"]
+APPS = ["overview", "retrieval", "explorer", "studio"]
 
 # Each pass: a name, the viewport, the colour scheme, where screenshots go (None: no
 # screenshots) and how long to let each view's animation run before looking.
@@ -50,6 +50,10 @@ def views_for(page, url, app):
         views = page.evaluate(f"[...document.querySelectorAll('{inside} [data-class], {inside} [data-question]')]"
                               ".map(e => e.dataset.class || e.dataset.question)")
         views = ["map"] + list(dict.fromkeys(views))
+    elif app == "studio":
+        # The start, then a draft for each open question and the worked example. Without claude.ai's
+        # capabilities, as here, the studio drafts and checks but doesn't save, review or ask Claude.
+        views = ["map"] + page.evaluate(f"[...document.querySelectorAll('{inside} [data-view]')].map(e => e.dataset.view)")
     else:
         views = page.evaluate(f"[...document.querySelectorAll('{inside} .view')].map(v => v.id)")
     return [("#" + app if v == "map" else f"#{app}-{v}", v) for v in views]

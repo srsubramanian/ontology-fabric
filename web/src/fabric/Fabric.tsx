@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import { appOf, type AppId } from '../kit/route';
 import { APPS } from './apps';
 
-// One page, three apps: the overview, the retrieval walkthrough and the class explorer.
+// One page, four apps: the overview, the retrieval walkthrough, the class explorer and the design studio.
 // The hash says which app shows. An app mounts the first time it shows and stays mounted,
 // hidden, after that, so it keeps its place. Only the showing app's stylesheet is in the
 // page, so each app looks exactly as it did as a page of its own.

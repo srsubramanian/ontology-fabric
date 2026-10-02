@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 
-// The three apps share one page and one hash. The overview's views have bare names (map,
+// The four apps share one page and one hash. The overview's views have bare names (map,
 // ch3, ch3-2, or any element's id); the others sit under their app's name (retrieval-s4,
 // explorer-Chargeback), so a shared link can open any view. Hashes use only letters, digits
-// and hyphens, so a link to the published page keeps them intact.
+// and hyphens, so a link to the published page keeps them intact. The studio's views are
+// studio-CQ-116 for a draft and studio-p-… for a saved proposal.
 
 /** An app: '' for the overview, or the name its views sit under. */
-export type AppId = '' | 'retrieval' | 'explorer';
-const NAMED: AppId[] = ['retrieval', 'explorer'];
+export type AppId = '' | 'retrieval' | 'explorer' | 'studio';
+const NAMED: AppId[] = ['retrieval', 'explorer', 'studio'];
 
 const bare = (hash: string) => {
   const h = hash.replace(/^#/, '');

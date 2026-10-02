@@ -30,7 +30,13 @@ Follow the build order in chapter 7 of the overview (`site/index.html#ch7`), wit
 
 - Generate the pages in CI from the LinkML source, so they stay in step with each ontology release.
 - Show results in the question tracer. It already steps each competency question's query line by line alongside its walk on the map; once step 2 of the build order loads a sample month, run the queries and show the rows they return, each cited by ID.
-- Candidate apps for the page, each linked from its chapter the way chapter 4 links to the retrieval walkthrough: ontology authoring, the ingestion pipeline, releases and governance.
+- Candidate apps for the page, each linked from its chapter the way chapter 4 links to the retrieval walkthrough: the ingestion pipeline, releases and governance. Ontology authoring became the design studio (decision 24); link it from chapter 1.
+- The design studio, next:
+  - Try it on the 8 risk gaps, starting with CQ-113 to CQ-116, which need only new fields, relationships or one new class. The worked example (`#studio-example`) is CQ-116, illustrative and unchecked against the standards.
+  - Confirm `create_session`'s answer from the first real pull request. Its shape isn't documented, so the studio looks for any session id in it; if it finds none, it says so and links to claude.ai/code.
+  - Placing new classes: the studio picks the free spot with the fewest layout problems, then routes a straight line, which often crosses something. Smarter routing, or Claude proposing a route the checks accept, would save hand-routing.
+  - Who may approve is enforced by the page, not the store: the store's rules can't tell an author from an approver. The pull request's review is the real gate. Wire CODEOWNERS-style module owners in (decision 9) when teams start using it.
+  - A proposal's patch reaches the Claude Code session as text. The session is told to treat it as data, and the approver reads it first, but a hostile patch could still try to steer the session; keep the pull request's review as the gate.
 - Fold the Snowflake lane (decision 5) into the overview. The chapter ports kept its content as it was.
 - Move the overview's stylesheet (`platform.css`) onto the shared kit tokens and page styles, the way retrieval and the explorer use them, so the three apps can share one stylesheet.
 

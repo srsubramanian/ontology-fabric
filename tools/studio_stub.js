@@ -1,0 +1,61 @@
+// A stand-in for claude.ai's runtime, so tools/test_studio.py can walk the studio's whole flow headlessly. Its
+// shapes follow runtime contract 0.2.45's type definitions, and its connector answers follow real list_environments
+// and get_session answers. create_session's answer shape is undocumented: the studio looks for any session id in it.
+(() => {
+  const docs = new Map();           // path -> data
+  const listeners = new Set();      // () => void
+  const notify = () => setTimeout(() => listeners.forEach((f) => f()), 0);
+  const snap = (path) => ({ id: path.split('/').pop(), exists: docs.has(path), data: () => docs.has(path) ? structuredClone(docs.get(path)) : undefined, metadata: {} });
+  const merge = (a, b) => { const o = { ...a }; for (const [k, v] of Object.entries(b)) o[k] = v && typeof v === 'object' && !Array.isArray(v) && o[k] && typeof o[k] === 'object' ? merge(o[k], v) : v; return o; };
+  const leases = new Map();
+  const doc = (path) => ({
+    id: path.split('/').pop(), path,
+    get: async () => snap(path),
+    set: async (d) => { docs.set(path, structuredClone(d)); notify(); },
+    update: async (d) => { if (!docs.has(path)) throw { code: 'invalid_argument', message: 'no doc' }; docs.set(path, merge(docs.get(path), structuredClone(d))); notify(); },
+    acquire: async ({ holder }) => { const h = leases.get(path); if (h && h !== holder) return { acquired: false }; leases.set(path, holder); return { acquired: true }; },
+    onSnapshot: (next) => { const f = () => next(snap(path)); listeners.add(f); f(); return () => listeners.delete(f); },
+  });
+  const query = (coll, order) => ({
+    orderBy: (field, dir) => query(coll, { field, dir }),
+    limit: () => query(coll, order),
+    onSnapshot: (next) => {
+      const f = () => {
+        let ds = [...docs.keys()].filter((p) => p.startsWith(coll + '/') && p.split('/').length === coll.split('/').length + 1).map(snap);
+        if (order) ds.sort((a, b) => (a.data()[order.field] - b.data()[order.field]) * (order.dir === 'desc' ? -1 : 1));
+        next({ docs: ds, size: ds.length, empty: !ds.length });
+      };
+      listeners.add(f); f(); return () => listeners.delete(f);
+    },
+  });
+  const db = { doc, collection: (c) => ({ ...query(c), doc: (id) => doc(c + '/' + (id ?? Math.random().toString(36).slice(2))) }) };
+  const me = { id: 'u_me', name: 'Ada Engineer', avatarUrl: '', color: '#888', email: null, isOwner: true, canEdit: true };
+  const user = {
+    me: async () => me, id: async () => me.id,
+    profiles: async (ids) => Object.fromEntries([].concat(ids).map((id) => [id, { id, name: id === 'u_me' ? 'Ada Engineer' : '', avatarUrl: '', color: '#888', email: null, isMe: id === 'u_me' }])),
+  };
+  const PATCH = window.__studioMockPatch;
+  const sample = async (input, opts = {}) => {
+    window.__sampleCalls = (window.__sampleCalls || []).concat([input]);
+    const reply = 'Here is the patch:\n```yaml\n' + PATCH + '```\n';
+    let text = '';
+    for (const part of reply.match(/[\s\S]{1,120}/g)) {
+      await new Promise((r) => setTimeout(r, 40));
+      if (opts.signal?.aborted) throw { code: 'cancelled', message: 'stopped', text };
+      text += part; opts.onText?.({ text, delta: part });
+    }
+    return { text, truncated: false, modelTierApplied: 'default' };
+  };
+  const mcp = {
+    callTool: async (server, tool, input) => {
+      window.__mcpCalls = (window.__mcpCalls || []).concat([{ server, tool, input }]);
+      if (server !== 'Claude Code Remote') throw { code: 'not_in_manifest', message: 'no' };
+      if (tool === 'list_environments') return { content: [], payload: { environments: [{ environment_id: 'env_test1', name: 'Default', state: 'active', kind: 'anthropic_cloud' }], has_more: false } };
+      if (tool === 'create_session') return { content: [], payload: window.__createShape === 'text' ? 'Created session session_01TESTabcdef123' : { ccr: { id: 'session_01TESTabcdef123', title: input.title } } };
+      if (tool === 'get_session') return { content: [], payload: { ccr: { id: input.session_id, title: 'Studio: test', status_bucket: 'SESSION_STATUS_BUCKET_WORKING' } } };
+      throw { code: 'tool_error', message: 'unknown tool' };
+    },
+  };
+  const caps = { db, user, sample, mcp };
+  window.claude = { use: async (name) => caps[name] ?? null };
+})();

@@ -1,6 +1,6 @@
 # Handoff: the story so far
 
-Ontology Fabric is the project name, chosen at the end of the claude.ai conversation. This project started in a claude.ai chat project called "Ontology and RAG" in September 2026. It grew from one question, "how should Neptune and OpenSearch fit together?", into learning pages and a set of decisions. The pages are now one page, published on claude.ai at https://claude.ai/artifact/A5HhgTYfgDiRmbzBhz7gRA, and `site/index.html` is the same file. It holds three apps, switched by a bar at the top: the platform overview, the retrieval walkthrough and the class explorer.
+Ontology Fabric is the project name, chosen at the end of the claude.ai conversation. This project started in a claude.ai chat project called "Ontology and RAG" in September 2026. It grew from one question, "how should Neptune and OpenSearch fit together?", into learning pages and a set of decisions. The pages are now one page, published on claude.ai at https://claude.ai/artifact/A5HhgTYfgDiRmbzBhz7gRA, and `site/index.html` is the same file. It holds four apps, switched by a bar at the top: the platform overview, the retrieval walkthrough, the class explorer and the design studio.
 
 The retrieval walkthrough (https://claude.ai/artifact/Sd5jT4CmwRLyvoMY3QUQSk) and the class explorer (https://claude.ai/artifact/BqDPHaioHftbPxMQobyz74) were also published on their own before the merge. Those copies no longer update.
 
@@ -27,7 +27,9 @@ The retrieval walkthrough (`#retrieval`) has a map with five example questions, 
 
 The class explorer (`#explorer`) shows the draft ontology: `#explorer-Chargeback` picks a class, `#explorer-CQ-04` traces a competency question, and `#explorer-CQ-27` shows one the schema can't answer yet.
 
-Reading progress through the overview's chapters is stored in the browser under `pkl-progress-v1`.
+The design studio (`#studio`) lists the questions the schema can't answer yet. `#studio-CQ-116` opens a draft for one, `#studio-example` shows the worked example, and `#studio-p-<id>` a saved proposal.
+
+Reading progress through the overview's chapters is stored in the browser under `pkl-progress-v1`; the studio keeps unsaved drafts there too, under `studio:`.
 
 ## How the thinking moved
 
@@ -42,6 +44,7 @@ Reading progress through the overview's chapters is stored in the browser under 
 9. **A class explorer, read from LinkML.** The draft ontology in `ontology/` writes down what the pages already show, and the class explorer draws it: classes, abstract parents as frames, relationships in their one direction, where each class's data lives, who owns it, and the competency questions it must answer. Pick a question and play its walk: the map adds one relationship at a time, and the query (openCypher for Neptune, SQL for Snowflake) lights the line that walks it.
 10. **One page.** The three pages merged into one, so there's a single link to share and the links between them became jumps within it. A bar switches between the overview, retrieval and the class explorer. Each app keeps exactly its old look, because only the showing app's styles are in the page.
 11. **The ontology core begins.** Prototype step 1 maps the draft to FIBO, OMG Commons and ISO 20022 at pinned releases, and a generator writes every artifact from it. Then 120 competency questions, 30 per domain, measure it. The explorer groups them by domain and shows each gap the schema can't answer yet. The dispute lifecycle was the first set of gaps closed (retrieval requests, arbitration and outcomes), then all of authorization (reversals, 3-D Secure, tokens, funding source, country, authorization types, stored credentials, partial approvals and stand-in), then money flows (interchange programs, FX, payouts and reserves, adjustments, clearing batches, reconciliation and network fees), then the rest of disputes (reason-code categories and network monitoring notices). The class map grew routed lines for them, and a check that keeps every line clear of boxes and other lines.
+12. **A design studio.** Asked what building the ontology is like for a newcomer, a trial found the checks could mislead: a failing query still counted as answered, a SQL step marker passed on any line, and a Node failure printed only its version. Those were fixed, `tools/test_checks.py` now plants each kind of mistake to prove the checks name it, and the checks were ported to TypeScript so they run in the browser. On them sits the studio, the page's fourth app, for ontology engineers: pick a gap, draft a YAML patch (by hand or with Claude), watch it land on the class map, fix what the checks find, send it for review, and an approved patch opens its own pull request through a Claude Code session (decision 24).
 
 ## Clarifications worth keeping
 

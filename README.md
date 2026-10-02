@@ -4,15 +4,16 @@ A learning page and design decisions for Ontology Fabric, a payments knowledge l
 
 ## Look at the page
 
-Open `site/index.html` in a browser. You need to be online for the fonts; everything else is inside the file. A bar at the top switches between its three apps:
+Open `site/index.html` in a browser. You need to be online for the fonts; everything else is inside the file. A bar at the top switches between its four apps:
 
 - Overview (`#map`): the platform map and seven chapters
 - Retrieval (`#retrieval`): how a question becomes an answer, across all three stores
 - Explorer (`#explorer`): the class explorer, read from the draft ontology in `ontology/`
+- Studio (`#studio`): close a gap in the ontology. Draft a YAML patch, by hand or with Claude, see it on the class map, and fix what the checks find. On the published page, the team reviews it and an approved one opens its own pull request. A local copy drafts and checks only.
 
 ## Change the page
 
-The page is built from `web/`, so edit the source there (you need Node 20.19 or later):
+The page is built from `web/`, so edit the source there (you need Node 22.12 or later):
 
 ```bash
 cd web
@@ -25,6 +26,8 @@ Commit the rebuilt page together with its source.
 
 ## Check the ontology after a change
 
+You need Python 3.11, as CI uses, and Node with `npm install` in `web/` for the explorer and class map checks.
+
 ```bash
 pip install -r tools/requirements-ontology.txt
 linkml-lint --config ontology/.linkmllint.yaml ontology/payments.yaml
@@ -34,10 +37,12 @@ python tools/generate.py
 
 The check fails if:
 - a competency question walks a relationship the schema doesn't have, or neither walks one nor names its gap;
-- a query breaks decision 13's rules (unknown labels, a relationship against its direction, a write, no LIMIT);
-- a concrete class neither maps to a standard nor says why none fits;
-- the class explorer reads a class differently from LinkML (that part needs Node and `npm install` in `web/`);
-- the class map draws a line through a box or across another line, or a label on a box (the same).
+- a query breaks decision 13's rules (unknown labels, a relationship against its direction, a write, no LIMIT), or a SQL query marks a step on a line that doesn't join its classes;
+- a concrete class neither maps to a standard nor says why none fits, or a mapping uses an undeclared prefix;
+- the class explorer reads a class differently from LinkML;
+- the class map leaves a class unplaced or a relationship unrouted, draws a line through a box or across another line, or puts a label on a box.
+
+A question whose query fails counts as unanswered, so the coverage numbers drop with it. The same checks run in TypeScript (`web/src/explorer/check.ts`), so drafts can be checked in the browser. When you change either checker, change both and run `python tools/test_checks.py`: it plants each kind of mistake in a copy of the ontology, checks the checker names it, and fails if the two checkers disagree.
 
 The generator rewrites `generated/`: OWL, SHACL, the extraction JSON Schema, Pydantic models, Neptune load headers and OpenSearch index mappings. Commit it with the change; CI runs `python tools/generate.py --check` and fails when it's stale. Rebuild the page afterwards, so the class explorer shows the change.
 
@@ -48,6 +53,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r tools/requirements.txt
 python -m playwright install chromium
 python tools/smoke_test.py
+python tools/test_studio.py
 ```
 
 The test loads every view of every app three times: on a desktop in light and in dark, and on a 390 px phone. Each time it visits all three apps in one page load, so switching between them is tested too. It fails on JavaScript errors, on any view that scrolls sideways or on a view that shows the wrong app, and saves screenshots of every view to `screenshots/<app>/`, with the dark ones in `dark/`.

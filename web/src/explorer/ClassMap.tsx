@@ -1,7 +1,7 @@
 import { motion } from 'motion/react';
 import { useMemo, type KeyboardEvent } from 'react';
 import { EASE_OUT, tr } from '../kit/motion';
-import { boxes, edgeGeometry, NODE, VIEW, type Box } from './layout';
+import { boxes, edgeGeometry, NODE, VIEW, type Box, type LayoutPatch } from './layout';
 import type { ClassInfo, LivesIn, Model } from './model';
 
 export type Lens = 'relationships' | 'lives' | 'owner';
@@ -58,21 +58,28 @@ type Props = {
   run: number;
   onPick: (name: string) => void;
   onClear: () => void;
+  /** A layout patch on top of layout.ts, such as a studio draft's places and routes. */
+  layout?: LayoutPatch;
+  /** Classes a draft adds, drawn as new. */
+  fresh?: Set<string>;
 };
 
-export function ClassMap({ model, lens, lit, litEdges, selected, focusKey, stagger = true, run, onPick, onClear }: Props) {
+export function ClassMap({ model, lens, lit, litEdges, selected, focusKey, stagger = true, run, onPick, onClear, layout, fresh }: Props) {
   const children = useMemo(
     () => Object.fromEntries(Object.values(model.classes).map((c) => [c.name, c.children])),
     [model],
   );
-  const box = useMemo(() => boxes(children), [children]);
+  const box = useMemo(() => boxes(children, layout), [children, layout]);
+  // A draft can leave a relationship without a drawable route; the studio's checks say why, so skip it here.
   const edges = useMemo(
-    () => model.relationships.map((r) => ({ r, g: edgeGeometry(r.id, box[r.from], box[r.to]) })),
-    [model, box],
+    () => model.relationships.flatMap((r) => {
+      try { return box[r.from] ? [{ r, g: edgeGeometry(r.id, box[r.from], box[r.to], layout) }] : []; } catch { return []; }
+    }),
+    [model, box, layout],
   );
   // Outer frames first, so nested frames draw on top of them.
-  const frames = Object.values(model.classes).filter((c) => c.abstract).sort((a, b) => a.chain.length - b.chain.length);
-  const concrete = Object.values(model.classes).filter((c) => !c.abstract);
+  const frames = Object.values(model.classes).filter((c) => c.abstract && box[c.name]).sort((a, b) => a.chain.length - b.chain.length);
+  const concrete = Object.values(model.classes).filter((c) => !c.abstract && box[c.name]);
   const dim = (name: string) => lit !== null && !lit.has(name);
   const highlighted = new Set(litEdges);
   const pick = (name: string) => (e: KeyboardEvent) => {
@@ -141,7 +148,7 @@ export function ClassMap({ model, lens, lit, litEdges, selected, focusKey, stagg
           return (
             <motion.g key={c.name} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
               transition={tr({ duration: 0.35, delay: 0.1 + order(b), ease: EASE_OUT })} style={{ transformOrigin: 'center', transformBox: 'fill-box' }}>
-              <motion.g className={'cn' + (c.name === selected ? ' sel' : '')} data-class={c.name}
+              <motion.g className={'cn' + (c.name === selected ? ' sel' : '') + (fresh?.has(c.name) ? ' fresh' : '')} data-class={c.name}
                 animate={{ opacity: dim(c.name) ? 0.28 : 1 }} transition={tr({ duration: 0.25 })}
                 onClick={() => onPick(c.name)} onKeyDown={pick(c.name)} tabIndex={0} role="button"
                 aria-label={`${c.name}, ${subtitle(c, lens) || 'class'}`}>
