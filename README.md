@@ -12,7 +12,7 @@ Open `site/index.html` in a browser. You need to be online for the fonts; everyt
 
 ## Change the page
 
-The page is built from `web/`, so edit the source there (you need Node 20.19 or later):
+The page is built from `web/`, so edit the source there (you need Node 22.12 or later):
 
 ```bash
 cd web
@@ -25,6 +25,8 @@ Commit the rebuilt page together with its source.
 
 ## Check the ontology after a change
 
+You need Python 3.11, as CI uses, and Node with `npm install` in `web/` for the explorer and class map checks.
+
 ```bash
 pip install -r tools/requirements-ontology.txt
 linkml-lint --config ontology/.linkmllint.yaml ontology/payments.yaml
@@ -34,10 +36,12 @@ python tools/generate.py
 
 The check fails if:
 - a competency question walks a relationship the schema doesn't have, or neither walks one nor names its gap;
-- a query breaks decision 13's rules (unknown labels, a relationship against its direction, a write, no LIMIT);
-- a concrete class neither maps to a standard nor says why none fits;
-- the class explorer reads a class differently from LinkML (that part needs Node and `npm install` in `web/`);
-- the class map draws a line through a box or across another line, or a label on a box (the same).
+- a query breaks decision 13's rules (unknown labels, a relationship against its direction, a write, no LIMIT), or a SQL query marks a step on a line that doesn't join its classes;
+- a concrete class neither maps to a standard nor says why none fits, or a mapping uses an undeclared prefix;
+- the class explorer reads a class differently from LinkML;
+- the class map leaves a class unplaced or a relationship unrouted, draws a line through a box or across another line, or puts a label on a box.
+
+A question whose query fails counts as unanswered, so the coverage numbers drop with it. The same checks run in TypeScript (`web/src/explorer/check.ts`), so drafts can be checked in the browser. When you change either checker, change both and run `python tools/test_checks.py`: it plants each kind of mistake in a copy of the ontology, checks the checker names it, and fails if the two checkers disagree.
 
 The generator rewrites `generated/`: OWL, SHACL, the extraction JSON Schema, Pydantic models, Neptune load headers and OpenSearch index mappings. Commit it with the change; CI runs `python tools/generate.py --check` and fails when it's stale. Rebuild the page afterwards, so the class explorer shows the change.
 

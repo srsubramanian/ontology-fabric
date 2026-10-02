@@ -36,6 +36,9 @@ jobs:
       - name: Check the ontology, and the explorer's reading of it
         run: python tools/check_ontology.py
 
+      - name: Both checkers name each planted mistake, and agree
+        run: python tools/test_checks.py
+
       - name: Generated artifacts match the ontology
         run: python tools/generate.py --check
 

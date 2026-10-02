@@ -4,7 +4,9 @@
   schema lacks (gap). A gap question has no walks or query, and counts as unanswered.
 - Every competency question's query passes the checks decision 13 applies to generated
   queries: labels and relationship types the ontology has, each relationship in its one
-  direction, read-only, and a LIMIT. In SQL, each walked step is marked on its line.
+  direction, read-only, and a LIMIT. In SQL, each walked step is marked on the line that
+  walks it: a line naming one of the step's classes. A question whose query fails counts as
+  unanswered.
 - Every concrete class has the annotations the class explorer reads.
 - Every concrete class maps to a standard concept, or says why none fits (no_standard).
   Every mapping, on a class, slot, enum or enum value, uses a declared standard prefix,
@@ -18,7 +20,11 @@
   (web/scripts/check-layout.ts). Same requirements as the explorer check.
 - Each question has a unique ID and a domain owned by a team.
 - Coverage, the two numbers from decision 9: questions the schema answers, by domain,
-  and classes mapped to a standard concept, by standard.
+  and classes mapped to a standard concept, by standard. Only a mapping whose prefix is
+  declared and belongs to a standard counts.
+
+web/src/explorer/check.ts runs the same checks in TypeScript, with the same messages, for
+drafts in the browser. Change both together: tools/test_checks.py fails when they disagree.
 
 Usage:
     pip install -r tools/requirements-ontology.txt
@@ -77,6 +83,18 @@ def relationships(sv):
     return out
 
 
+def snake(name):
+    """A class name as warehouse tables and columns spell it: BinRange -> bin_range."""
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+
+
+def node_error(stderr):
+    """The line of a Node failure that says what went wrong, rather than its last line (the Node version)."""
+    lines = [l.strip() for l in stderr.splitlines() if l.strip()]
+    found = next((l for l in lines if re.match(r"^\w*(Error|Exception)\b.*:", l)), None)
+    return found or next((l for l in lines if not l.startswith("Node.js v")), "failed with no message")
+
+
 def check_cypher(sv, rels, qid, query, problems):
     """Labels, types and directions against the schema; one pass per UNION part."""
     classes = sv.all_classes()
@@ -114,34 +132,62 @@ def check_cypher(sv, rels, qid, query, problems):
             ok = any(t == rtype and (src is None or f in sv.class_ancestors(src))
                      and (dst is None or to in anything or to in sv.class_ancestors(dst)) for t, f, to in rels)
             if not ok:
-                problems.append(f"{qid}: ({src})-[:{rtype}]->({dst}) runs against the schema's direction or classes")
+                allowed = " or ".join(f"from {f} to {to}" for t, f, to in rels if t == rtype)
+                problems.append(f"{qid}: ({src})-[:{rtype}]->({dst}) runs against the schema's direction or classes;"
+                                f" {rtype} runs {allowed}")
 
 
-def check_queries(sv, questions, problems):
+def step_names(sv, step):
+    """The table and column names a SQL line that walks a step mentions: the step's classes, snake-cased,
+    with the source's parents (where the slot is declared) and the target's subclasses."""
+    cls_name, _, slot_name = step.partition(".")
+    if cls_name not in sv.all_classes() or slot_name not in sv.all_slots():
+        return set()
+    target = sv.induced_slot(slot_name, cls_name).range
+    names = set(sv.class_ancestors(cls_name))
+    if target in sv.all_classes():
+        names |= set(sv.class_descendants(target))
+    return {snake(n) for n in names}
+
+
+def check_queries(sv, questions, problems, failing):
+    """Each question's query; a question whose query fails joins `failing`, so it counts as unanswered."""
     rels = relationships(sv)
     for q in questions:
         if q.get("gap"):
             continue
-        query = q.get("query", "")
-        if not query.strip():
-            problems.append(f"{q['id']}: needs a query")
-            continue
-        if WRITES.search(query):
-            problems.append(f"{q['id']}: queries must be read-only")
-        if q.get("answered_in") == "neptune":
-            check_cypher(sv, rels, q["id"], query, problems)
-            for step in q["walks"]:
-                # [:TYPE] or [r:TYPE], the way the explorer's tracer finds the line.
-                if not re.search(rf"\[\w*:{step.partition('.')[2].upper()}\]", query):
-                    problems.append(f"{q['id']}: the query doesn't walk {step}")
-        else:
-            if not re.match(r"\s*(SELECT|WITH)\b", query, re.I):
-                problems.append(f"{q['id']}: SQL must start with SELECT or WITH")
-            if not re.search(r"\bLIMIT\s+\d+", query, re.I):
-                problems.append(f"{q['id']}: SQL needs a LIMIT")
-            for step in q["walks"]:
-                if f"-- {step}" not in query:
-                    problems.append(f"{q['id']}: mark the line that walks {step} with '-- {step}'")
+        before = len(problems)
+        check_query(sv, rels, q, problems)
+        if len(problems) > before:
+            failing.add(q["id"])
+
+
+def check_query(sv, rels, q, problems):
+    """One question's query: decision 13's checks, and each walked step on its line."""
+    query = q.get("query", "")
+    if not query.strip():
+        problems.append(f"{q['id']}: needs a query")
+        return
+    if WRITES.search(query):
+        problems.append(f"{q['id']}: queries must be read-only")
+    if q.get("answered_in") == "neptune":
+        check_cypher(sv, rels, q["id"], query, problems)
+        for step in q.get("walks") or []:
+            # [:TYPE] or [r:TYPE], the way the explorer's tracer finds the line.
+            if not re.search(rf"\[\w*:{step.partition('.')[2].upper()}\]", query):
+                problems.append(f"{q['id']}: the query doesn't walk {step}")
+    else:
+        if not re.match(r"\s*(SELECT|WITH)\b", query, re.I):
+            problems.append(f"{q['id']}: SQL must start with SELECT or WITH")
+        if not re.search(r"\bLIMIT\s+\d+", query, re.I):
+            problems.append(f"{q['id']}: SQL needs a LIMIT")
+        for step in q.get("walks") or []:
+            marked = [line.split("--")[0].lower() for line in query.splitlines() if f"-- {step}" in line]
+            if not marked:
+                problems.append(f"{q['id']}: mark the line that walks {step} with '-- {step}'")
+            elif not any(name in code for code in marked for name in step_names(sv, step)):
+                problems.append(f"{q['id']}: the line marked '-- {step}' names none of its classes;"
+                                f" mark the line that joins them")
 
 
 def check_explorer(sv, classes, problems):
@@ -153,28 +199,31 @@ def check_explorer(sv, classes, problems):
         ["node", "--experimental-strip-types", "--no-warnings", str(ROOT / "web" / "scripts" / "dump-model.ts")],
         capture_output=True, text=True)
     if run.returncode:
-        problems.append("explorer: " + (run.stderr.strip().splitlines() or ["dump-model.ts failed"])[-1])
-        return
-    explorer = json.loads(run.stdout)
-    agree = 0
-    for name in classes:
-        linkml = {"chain": sv.class_ancestors(name),
-                  "slots": sorted([s.name, s.range, bool(s.required), bool(s.multivalued)]
-                                  for s in sv.class_induced_slots(name))}
-        seen = explorer.get(name)
-        if seen and seen["chain"] == linkml["chain"] and sorted(seen["slots"]) == linkml["slots"]:
-            agree += 1
-        else:
-            problems.append(f"explorer: reads {name} differently from LinkML")
-    print(f"class explorer reads classes the way LinkML does: {agree} of {len(classes)}")
+        problems.append("explorer: can't read the schema: " + node_error(run.stderr))
+    else:
+        explorer = json.loads(run.stdout)
+        agree = 0
+        for name in classes:
+            linkml = {"chain": sv.class_ancestors(name),
+                      "slots": sorted([s.name, s.range, bool(s.required), bool(s.multivalued)]
+                                      for s in sv.class_induced_slots(name))}
+            seen = explorer.get(name)
+            if seen and seen["chain"] == linkml["chain"] and sorted(seen["slots"]) == linkml["slots"]:
+                agree += 1
+            else:
+                problems.append(f"explorer: reads {name} differently from LinkML")
+        print(f"class explorer reads classes the way LinkML does: {agree} of {len(classes)}")
 
     # The class map's layout: every class placed, no line through a box, no two lines crossing.
     run = subprocess.run(
         ["node", "--experimental-strip-types", "--no-warnings", str(ROOT / "web" / "scripts" / "check-layout.ts")],
         capture_output=True, text=True)
-    lines = (run.stdout.strip() or run.stderr.strip() or "check-layout.ts failed").splitlines()
+    if run.returncode and not run.stdout.strip():
+        problems.append("class map: can't check the layout: " + node_error(run.stderr))
+        return
+    lines = run.stdout.strip().splitlines()
     if run.returncode:
-        problems.extend("class map: " + line for line in lines[:-1] or lines)
+        problems.extend("class map: " + line for line in lines[:-1])
     print(lines[-1])
 
 
@@ -248,19 +297,20 @@ def main():
             failing.add(q["id"])
 
     check_explorer(sv, classes, problems)
-    check_queries(sv, questions, problems)
+    check_queries(sv, questions, problems, failing)
     concrete = [c for c in classes.values() if not c.abstract]
-    # Only mappings to one of the standards count.
-    mapped = [c for c in concrete if any(standard(m) for m in c.close_mappings or [])]
+    # Only mappings to one of the standards count, through a prefix the schema declares.
+    counts = lambda curie: standard(curie) and curie.partition(":")[0] in schema.prefixes
+    mapped = [c for c in concrete if any(counts(m) for m in c.close_mappings or [])]
     by_standard = {}
     for c in mapped:
         for curie in c.close_mappings:
-            if standard(curie):
+            if counts(curie):
                 by_standard.setdefault(standard(curie), set()).add(c.name)
     print(f"{len(classes)} classes, {len(concrete)} concrete")
     answered = [q for q in questions if q["id"] not in failing | gaps]
-    by_domain = ", ".join(f"{d} {sum(q['domain'] == d for q in answered)} of {sum(q['domain'] == d for q in questions)}"
-                          for d in sorted(DOMAINS) if any(q["domain"] == d for q in questions))
+    by_domain = ", ".join(f"{d} {sum(q.get('domain') == d for q in answered)} of {sum(q.get('domain') == d for q in questions)}"
+                          for d in sorted(DOMAINS) if any(q.get("domain") == d for q in questions))
     print(f"competency questions the schema answers: {len(answered)} of {len(questions)} ({by_domain}); {len(gaps)} gaps")
     print(f"concrete classes mapped to a standard: {len(mapped)} of {len(concrete)}"
           f" ({', '.join(f'{k} {len(v)}' for k, v in sorted(by_standard.items()))})")

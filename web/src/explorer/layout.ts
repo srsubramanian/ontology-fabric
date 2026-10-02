@@ -35,12 +35,19 @@ const PAD = { x: 14, top: 30, bottom: 14 };
 
 export type Box = { x: number; y: number; w: number; h: number };
 
-/** Boxes for every class: concrete ones from POS, abstract ones wrapped around their subclasses. */
-export function boxes(children: Record<string, string[]>): Record<string, Box> {
+/**
+ * A change to the layout that isn't in this file yet, such as a studio proposal's: more positions, and more
+ * routes. Its entries win over this file's.
+ */
+export type LayoutPatch = { pos?: Record<string, Point>; ports?: Record<string, PortSpec> };
+
+/** Boxes for every class: concrete ones from POS (and any patch), abstract ones wrapped around their subclasses. */
+export function boxes(children: Record<string, string[]>, patch?: LayoutPatch): Record<string, Box> {
+  const pos = patch?.pos ? { ...POS, ...patch.pos } : POS;
   const out: Record<string, Box> = {};
   const box = (name: string): Box => {
     if (out[name]) return out[name];
-    if (POS[name]) return (out[name] = { x: POS[name][0], y: POS[name][1], w: NODE.w, h: NODE.h });
+    if (pos[name]) return (out[name] = { x: pos[name][0], y: pos[name][1], w: NODE.w, h: NODE.h });
     const kids = (children[name] ?? []).map(box);
     if (!kids.length) throw new Error(`No position for class ${name}`);
     const x0 = Math.min(...kids.map((k) => k.x)) - PAD.x, y0 = Math.min(...kids.map((k) => k.y)) - PAD.top;
@@ -48,18 +55,23 @@ export function boxes(children: Record<string, string[]>): Record<string, Box> {
     return (out[name] = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
   };
   Object.keys(children).forEach(box);
-  Object.keys(POS).forEach(box);
+  Object.keys(pos).forEach(box);
   return out;
 }
 
-type Side = 'left' | 'right' | 'top' | 'bottom';
-type Port = [Side, number];
+/** Whether a concrete class has a place on the map, here or in a patch. */
+export const isPlaced = (name: string, patch?: LayoutPatch) => !!(patch?.pos?.[name] ?? POS[name]);
+/** Whether a relationship has a route on the map, here or in a patch. A self-link needs none. */
+export const isRouted = (id: string, patch?: LayoutPatch) => !!(patch?.ports?.[id] ?? PORTS[id]);
+
+export type Side = 'left' | 'right' | 'top' | 'bottom';
+export type Port = [Side, number];
 type Point = [number, number];
 /**
  * Where a label sits: on which segment of a routed line (by default the longest), how far along it (0 to 1,
  * by default the middle), and on which side. By default: above a horizontal segment, else to the right.
  */
-type Label = { seg?: number; at?: number; side?: 'left' | 'right' | 'above' | 'below' };
+export type Label = { seg?: number; at?: number; side?: 'left' | 'right' | 'above' | 'below' };
 
 /**
  * Where each relationship leaves its class and arrives at its target, as a side and a fraction along it, and
@@ -67,7 +79,8 @@ type Label = { seg?: number; at?: number; side?: 'left' | 'right' | 'above' | 'b
  * A relationship open to any class has no target box: it ends in a short stub of the given length and direction.
  * A relationship from a class to itself is a loop at the top right, or under the class with loop: ['bottom', fraction].
  */
-const PORTS: Record<string, { from?: Port; to?: Port; via?: Point[]; stub?: Point; label?: Label; loop?: Port }> = {
+export type PortSpec = { from?: Port; to?: Port; via?: Point[]; stub?: Point; label?: Label; loop?: Port };
+const PORTS: Record<string, PortSpec> = {
   'Party.acts_as': { from: ['top', 0.21875], to: ['bottom', 0.5] },
   'Merchant.acquired_by': { from: ['bottom', 0.5], to: ['top', 0.5] },
   'Card.held_by': { from: ['left', 0.5], to: ['right', 0.5] },
@@ -136,9 +149,10 @@ function arrowhead([x, y]: Point, [dx, dy]: Point): string {
  * The path for one relationship, and where its label sits. A relationship from a class to itself is a small loop,
  * one open to any class (no `to` box) is a short stub, and one with waypoints is routed through them.
  */
-export function edgeGeometry(id: string, from: Box, to?: Box): EdgeGeometry {
+export function edgeGeometry(id: string, from: Box, to?: Box, patch?: LayoutPatch): EdgeGeometry {
+  const ports = patch?.ports?.[id] ?? PORTS[id];
   if (from === to) {
-    const loop = PORTS[id]?.loop;
+    const loop = ports?.loop;
     if (loop?.[0] === 'bottom') {
       const x1 = from.x + from.w * loop[1] - 14, x2 = x1 + 28, y = from.y + from.h;
       return {
@@ -152,7 +166,6 @@ export function edgeGeometry(id: string, from: Box, to?: Box): EdgeGeometry {
       head: arrowhead([x2, y], [0, 1]), points: [[x1, y], [x1, y - 20], [x2, y - 20], [x2, y]],
     };
   }
-  const ports = PORTS[id];
   if (!ports) throw new Error(`No layout for relationship ${id}`);
   if (!ports.from) throw new Error(`No start port for relationship ${id}`);
   if (!to) {

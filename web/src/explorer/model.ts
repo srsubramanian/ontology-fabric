@@ -5,7 +5,7 @@
 
 export type RawSlot = {
   description?: string; range?: string; required?: boolean; multivalued?: boolean;
-  identifier?: boolean; pattern?: string;
+  identifier?: boolean; pattern?: string; close_mappings?: string[];
 };
 export type RawClass = {
   is_a?: string; abstract?: boolean; class_uri?: string; description?: string; title?: string; aliases?: string[];
@@ -13,12 +13,13 @@ export type RawClass = {
   annotations?: Record<string, string>;
 };
 export type RawEnum = {
-  description?: string;
-  permissible_values?: Record<string, { description?: string; meaning?: string } | null>;
+  description?: string; close_mappings?: string[];
+  permissible_values?: Record<string, { description?: string; meaning?: string; close_mappings?: string[] } | null>;
 };
 export type RawSchema = {
   id: string; name: string; title?: string; version?: string;
   prefixes?: Record<string, string>; default_prefix?: string; default_range?: string;
+  annotations?: Record<string, string>;
   classes: Record<string, RawClass>; slots: Record<string, RawSlot>; enums?: Record<string, RawEnum>;
 };
 export type RawQuestions = {

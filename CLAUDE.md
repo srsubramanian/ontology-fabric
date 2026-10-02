@@ -16,7 +16,8 @@ Ontology Fabric is the working name for a payments knowledge layer: an ontology-
 - `generated/`: everything the generator (`tools/generate.py`) makes from the ontology: OWL, SHACL, the extraction JSON Schema, Pydantic models, Neptune load headers with label chains, and OpenSearch index mappings. Don't edit it by hand.
 - `docs/`: decisions, style guide, 2026 research notes, open questions, and how the project got here.
 - `tools/smoke_test.py`: loads every view of every app headlessly, fails on JavaScript errors and saves screenshots.
-- `tools/check_ontology.py`: checks that every competency question either walks real relationships, with a query that passes decision 13's checks, or names the gap in the schema that stops it, that every class has the annotations the explorer reads, that the explorer reads each class the way LinkML does, and that the class map draws every relationship without passing through a box or crossing another line (`web/scripts/check-layout.ts`). It prints the two coverage numbers.
+- `tools/check_ontology.py`: checks that every competency question either walks real relationships, with a query that passes decision 13's checks, or names the gap in the schema that stops it, that every class has the annotations the explorer reads, that the explorer reads each class the way LinkML does, and that the class map places every class and draws every relationship without passing through a box or crossing another line (`web/src/explorer/layoutCheck.ts`, run by `web/scripts/check-layout.ts`). It prints the two coverage numbers; a question whose query fails doesn't count as answered.
+- `tools/test_checks.py`: plants each kind of mistake in a copy of the ontology, checks that `check_ontology.py` names it, and that its TypeScript port (`web/src/explorer/check.ts`, which checks drafts in the browser) prints the same problems and coverage. Run it after changing either checker, and change both together.
 
 ## Working rules
 
@@ -24,7 +25,7 @@ Ontology Fabric is the working name for a payments knowledge layer: an ontology-
 - The page is one self-contained HTML file, with fonts from Google Fonts. It builds from `web/` and inlines everything at build time, from npm packages pinned to exact versions.
 - Each app's stylesheet is in the page only while that app shows, so styles never leak between apps. Import an app's CSS in `web/src/fabric/apps.tsx` with `?inline`, never as a side effect from a component.
 - The overview's stylesheet (`web/src/platform/platform.css`) is still the original, and every view depends on it. Make targeted edits there; don't rewrite it wholesale.
-- After changing `ontology/`, run `linkml-lint --config ontology/.linkmllint.yaml ontology/payments.yaml`, `python tools/check_ontology.py` and `python tools/generate.py`, then rebuild the page, and commit `generated/` with the change. CI fails when `generated/` is stale. Add a class's position to `web/src/explorer/layout.ts`, or the explorer fails to load; route a relationship through waypoints there when a straight line would cross something.
+- After changing `ontology/`, run `linkml-lint --config ontology/.linkmllint.yaml ontology/payments.yaml`, `python tools/check_ontology.py` and `python tools/generate.py`, then rebuild the page, and commit `generated/` with the change. CI fails when `generated/` is stale. Add a class's position to `web/src/explorer/layout.ts`, or the check names it and the explorer fails to load; route a relationship through waypoints there when a straight line would cross something.
 - Check current facts before stating them. Standards, AWS services, the MCP spec and card network rules change often. Record sources in `docs/research-2026-09.md`.
 - Label invented numbers, IDs and names as illustrative on the page.
 
