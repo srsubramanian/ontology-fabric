@@ -76,15 +76,23 @@ def main():
         status = lambda: page.inner_text(f"{APP} .sstatus")  # noqa: E731
 
         def step(name, check, shot=None):
+            SHOTS.mkdir(parents=True, exist_ok=True)
             try:
                 check()
                 print("ok  ", name)
                 if shot:
-                    SHOTS.mkdir(parents=True, exist_ok=True)
                     page.screenshot(path=str(SHOTS / f"flow-{shot}.png"))
             except Exception as e:  # noqa: BLE001 - report every failed step the same way
-                errors.append(f"{name}: {e}")
                 print("FAIL", name, "-", e)
+                # What the page shows, and what it was doing, so a failure in CI can be read from its log.
+                page.screenshot(path=str(SHOTS / "flow-failed.png"))
+                print("     at", page.evaluate("""() => ({ hash: location.hash, scrollY,
+                  handle: document.querySelector('[data-app=studio] .canvas .handle')?.dataset.handle ?? null,
+                  dragging: !!document.querySelector('[data-app=studio] .canvas .rubber'),
+                  panel: document.querySelector('[data-app=studio] .inspector .ihead')?.innerText.slice(0, 80) ?? null })"""))
+                for err in errors:
+                    print("    ", err)
+                errors.append(f"{name}: {e}")
                 raise
 
         def at(x, y):
@@ -116,14 +124,23 @@ def main():
             page.wait_for_selector(f"{APP} [data-class=PaymentFacilitator] text:has-text('pf:{{id}}')")
         step("place a class on the map, name it and give it a parent", place)
 
-        def relate():
-            page.locator(f"{APP} [data-class=Merchant]").click()
-            h = page.locator(f"{APP} .handle circle").bounding_box()
-            t = page.locator(f"{APP} [data-class=PaymentFacilitator] .box").bounding_box()
+        def drag_line(src, dst):
+            """Drag the handle on src onto dst, the way a person would, waiting on each stage."""
+            handle = page.locator(f"{APP} .canvas [data-handle={src}] circle")
+            handle.wait_for()
+            h = handle.bounding_box()
+            t = page.locator(f"{APP} [data-class={dst}] .box").bounding_box()
             page.mouse.move(h["x"] + h["width"] / 2, h["y"] + h["height"] / 2)
             page.mouse.down()
+            page.wait_for_selector(f"{APP} .canvas .rubber", state="attached", timeout=5000)
             page.mouse.move(t["x"] + 40, t["y"] + 20, steps=8)
+            page.wait_for_selector(f"{APP} .canvas .cn.target[data-class={dst}]", timeout=5000)
             page.mouse.up()
+
+        def relate():
+            page.locator(f"{APP} [data-class=Merchant]").click()
+            page.wait_for_function("location.hash === '#studio-Merchant'", timeout=5000)
+            drag_line("Merchant", "PaymentFacilitator")
             rel = page.get_by_label("Relationship", exact=True)
             rel.fill("sub_merchant_of")
             rel.press("Enter")
@@ -228,12 +245,7 @@ def main():
 
         def drag_and_phrase():
             page.wait_for_timeout(500)
-            h = page.locator(f"{APP} .canvas [data-handle=Merchant] circle").bounding_box()
-            t = page.locator(f"{APP} [data-class=PaymentFacilitator] .box").bounding_box()
-            page.mouse.move(h["x"] + h["width"] / 2, h["y"] + h["height"] / 2)
-            page.mouse.down()
-            page.mouse.move(t["x"] + 40, t["y"] + 20, steps=8)
-            page.mouse.up()
+            drag_line("Merchant", "PaymentFacilitator")
             page.wait_for_selector(f"{APP} .coach .sent")
             page.locator(f"{APP} .choices button", has_text="owns").click()
             assert_true("Not quite" in page.inner_text(f"{APP} .said"), "a wrong phrase wasn't explained")
