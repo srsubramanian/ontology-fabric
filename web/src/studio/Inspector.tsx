@@ -23,7 +23,7 @@ export type PanelProps = {
 };
 
 /** A text input that saves when it loses focus or Enter is pressed, and says why a value can't be saved. */
-function Field({ label, value, onSave, check, area, mono, placeholder, autoFocus, disabled }: {
+export function Field({ label, value, onSave, check, area, mono, placeholder, autoFocus, disabled }: {
   label: string; value: string; onSave: (v: string) => void; check?: (v: string) => string | null;
   area?: boolean; mono?: boolean; placeholder?: string; autoFocus?: boolean; disabled?: boolean;
 }) {
@@ -60,7 +60,7 @@ function Pick({ label, value, options, onSave, disabled }: { label: string; valu
   );
 }
 
-function Section({ title, children, aside }: { title: string; children: ReactNode; aside?: ReactNode }) {
+export function Section({ title, children, aside }: { title: string; children: ReactNode; aside?: ReactNode }) {
   return <section className="isec"><h3>{title}{aside && <span className="aside">{aside}</span>}</h3>{children}</section>;
 }
 

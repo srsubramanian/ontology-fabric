@@ -34,7 +34,8 @@ Follow the build order in chapter 7 of the overview (`site/index.html#ch7`), wit
 - The open-world studio (decision 25), next:
   - No document connectors for now, at the owner's request. Stage 3 waits until the owner chooses to connect them. Before it starts, make the repository private and connect the Atlassian and Microsoft 365 connectors in claude.ai.
   - Pick a pilot: one real question, one document space, and an expert-and-engineer pair.
-  - Stage 2, two lenses side by side: a story lens in plain sentences beside the map, live cursors through the page's `room` capability, and comments on proposals.
+  - The story lens builds its sentences from names and descriptions with simple rules (acquired_by reads "is acquired by"). A relationship whose name the rules misread gets a stiff sentence; its description, written in words, is the fix. Watch for ones that read badly once real teams use it.
+  - Presence shows people the room admits: members of the organization, signed in. Comments are on proposals only; comments on released classes could follow.
   - Stage 3, your documents (waiting, see above): search Confluence, Jira, SharePoint and OneDrive while proposing, through the page's `mcp` capability, and cite each source with a trust label. Read each connector's tool schema in a session before relying on it.
   - Stage 4, prove it with data: a cloud session reads the GitHub repositories, builds a sample month, runs the walk and counts, and shows the rows.
   - Stage 5, the dial and memory: tutor, co-pilot and autopilot per person, and the studio learning from what was accepted, rejected and why.

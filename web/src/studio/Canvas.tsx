@@ -34,6 +34,10 @@ type Props = {
   focus?: Set<string>; pulse?: Set<string>; handleOn?: string; target?: Point;
   demo?: Demo | null; onDemoEnd?: () => void;
   onSelect: (s: Selection) => void;
+  /** Other people here: their pointer and what they picked, each in their colour. */
+  peers?: { peer: string; label: string; color: number; cursor: Point | null; sel: string | null; away: boolean }[];
+  /** Where this person's pointer is on the map, in map units, or null when it leaves. */
+  onCursor?: (pt: Point | null) => void;
   /** A class placed at a spot; exact when it's the mission's target. */
   onPlace: (at: Point, exact?: boolean) => void;
   onMove: (name: string, at: Point) => void;
@@ -101,6 +105,7 @@ export function Canvas(p: Props) {
   };
   const move = (e: ReactPointerEvent) => {
     const pt = toSvg(e);
+    p.onCursor?.(pt);
     if (p.mode === 'place') setHover([snap(pt[0] - NODE.w / 2), snap(pt[1] - NODE.h / 2)]);
     if (!drag) return;
     if (drag.kind === 'link') { setDrag({ ...drag, at: pt }); return; }
@@ -142,7 +147,7 @@ export function Canvas(p: Props) {
   return (
     <svg ref={svg} className="canvas" data-mode={p.mode} viewBox={`0 0 ${view.w} ${H}`} role="application"
       aria-label="Class map editor: classes, abstract parents as frames, and relationships as arrows"
-      onPointerMove={move} onPointerUp={up} onPointerLeave={() => setHover(null)}>
+      onPointerMove={move} onPointerUp={up} onPointerLeave={() => { setHover(null); p.onCursor?.(null); }}>
       <rect className="cbg" width={view.w} height={H} onClick={clickBackground} />
       <rect className="room" x={1} y={view.h + 8} width={view.w - 2} height={ROOM - 10} rx={10} onClick={clickBackground} />
       <text className="roomt" x={12} y={H - 10}>Room to build: place new classes anywhere</text>
@@ -215,6 +220,18 @@ export function Canvas(p: Props) {
           <text x={p.target[0] + NODE.w / 2} y={p.target[1] + NODE.h / 2 + 4} textAnchor="middle">Click to place</text>
         </g>
       )}
+      {/* Other people here: a ring on what each picked, and their pointer with their name. */}
+      {(p.peers ?? []).map((x) => {
+        const b = x.sel ? box[x.sel] : undefined;
+        return b && !p.model.classes[x.sel!]?.abstract ? <rect key={'r' + x.peer} className={`pring pc${x.color}`} x={b.x - 4} y={b.y - 4} width={NODE.w + 8} height={NODE.h + 8} rx={12} pointerEvents="none" /> : null;
+      })}
+      {(p.peers ?? []).filter((x) => x.cursor).map((x) => (
+        <g key={'c' + x.peer} className={`pcur pc${x.color}${x.away ? ' away' : ''}`} transform={`translate(${x.cursor![0]},${x.cursor![1]})`} pointerEvents="none">
+          <path d="M0,0 v17 l4.6,-4.2 l3.2,7.4 l3.1,-1.4 l-3.2,-7.2 h6.2 z" />
+          <rect x={12} y={15} height={17} rx={8.5} width={Math.min(150, x.label.length * 6.6 + 14)} />
+          <text x={19} y={27.5}>{x.label}</text>
+        </g>
+      ))}
       {p.demo && <DemoLayer key={p.demo.key} demo={p.demo} box={box} edges={edges} view={{ w: view.w, h: H }} onEnd={p.onDemoEnd} />}
     </svg>
   );

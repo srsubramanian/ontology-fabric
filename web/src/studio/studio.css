@@ -272,3 +272,28 @@
 .canvas .gtag{font-size:10px; font-weight:800; letter-spacing:.04em; fill:var(--onto)}
 .canvas .cr.ghost .ce{stroke:var(--onto); stroke-dasharray:6 4}
 .canvas .cr.ghost .ch,.canvas .cr.ghost .cl{fill:var(--onto)}
+
+/* Two lenses side by side: the story lens, people here, and comments */
+.studio{--p0:#C2410C; --p1:#0E7490; --p2:#A21CAF; --p3:#4D7C0F}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .studio{--p0:#FB923C; --p1:#22D3EE; --p2:#E879F9; --p3:#A3E635}}
+:root[data-theme="dark"] .studio{--p0:#FB923C; --p1:#22D3EE; --p2:#E879F9; --p3:#A3E635}
+.pc0{--pc:var(--p0)} .pc1{--pc:var(--p1)} .pc2{--pc:var(--p2)} .pc3{--pc:var(--p3)}
+.inspector .lens{display:flex; width:max-content; margin:0 0 12px auto}
+.inspector .lens button{padding:4px 12px; font-size:.8rem}
+.story{margin:0 0 6px; line-height:1.5; font-size:.95rem}
+.stories{list-style:none; margin:0; padding:0; display:grid; gap:6px}
+.stories li{display:grid; gap:2px}
+.story.link{border:0; background:none; padding:0; font:inherit; font-size:.92rem; text-align:left; color:var(--ink); cursor:pointer; line-height:1.45}
+.story.link:hover{color:var(--onto)}
+.notes{display:grid; gap:4px}
+.note{margin:0; font-size:.84rem; line-height:1.4; border-left:2px solid var(--line); padding-left:8px}
+.sstatus .here{display:flex; flex-wrap:wrap; gap:6px}
+.sstatus .who{display:inline-flex; align-items:center; gap:6px; font:inherit; font-size:.78rem; font-weight:700; color:var(--ink); background:var(--paper); border:1px solid var(--pc); border-radius:999px; padding:1px 9px; cursor:pointer; max-width:340px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis}
+.sstatus .who i{width:8px; height:8px; border-radius:50%; background:var(--pc); flex:none}
+.sstatus .who span{font-weight:500; color:var(--muted); overflow:hidden; text-overflow:ellipsis}
+.canvas .pring{fill:none; stroke:var(--pc); stroke-width:2.4; stroke-dasharray:2 3}
+.canvas .pcur path{fill:var(--pc); stroke:var(--raised); stroke-width:1.2}
+.canvas .pcur rect{fill:var(--pc)}
+.canvas .pcur text{font-size:10.5px; font-weight:700; fill:var(--raised)}
+.canvas .pcur.away{opacity:.45}
+.notes .linkish,.stories .linkish{justify-self:start; text-align:left}

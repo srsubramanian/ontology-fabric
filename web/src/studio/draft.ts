@@ -38,6 +38,8 @@ export type ProposalEdit = {
   problem?: string | null;
   state: 'proposed' | 'accepted' | 'rejected';
   decidedBy?: string | null; decidedAt?: number | null;
+  /** What people said about it, keyed by a generated id so two comments never overwrite each other. */
+  notes?: Record<string, { by?: string | null; at: number; text: string } | null> | null;
 };
 /** A question someone asked in their own words, what Claude made of it, and the design it proposed. */
 export type InquiryEdit = {

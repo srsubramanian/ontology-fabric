@@ -32,7 +32,7 @@
   const me = { id: 'u_me', name: 'Ada Engineer', avatarUrl: '', color: '#888', email: null, isOwner: true, canEdit: true };
   const user = {
     me: async () => me, id: async () => me.id,
-    profiles: async (ids) => Object.fromEntries([].concat(ids).map((id) => [id, { id, name: id === 'u_me' ? 'Ada Engineer' : '', avatarUrl: '', color: '#888', email: null, isMe: id === 'u_me' }])),
+    profiles: async (ids) => Object.fromEntries([].concat(ids).map((id) => [id, { id, name: { u_me: 'Ada Engineer', u_ana: 'Ana Analyst' }[id] || '', avatarUrl: '', color: '#888', email: null, isMe: id === 'u_me' }])),
   };
   // Claude answers with what the test asked it to: a design for a question someone asked, using the page's tools
   // first the way Claude would, or a query for a competency question.
@@ -70,7 +70,30 @@
       throw { code: 'tool_error', message: 'unknown tool' };
     },
   };
-  const caps = { db, user, sample, mcp };
+  // Who's here: this tab, plus anyone the test brings in with window.__stubRoom.set(peer, by, presence).
+  const peers = new Map();
+  const self = { peer: 'p_me', by: me.id, isMe: true, sameTab: true, kind: 'viewer', guest: false, presence: {}, updatedAt: Date.now() };
+  peers.set(self.peer, self);
+  const roomListeners = new Set();
+  const tellPeers = () => setTimeout(() => {
+    const list = Object.freeze([...peers.values()].map((p) => Object.freeze({ ...p, presence: Object.freeze({ ...p.presence }) })));
+    roomListeners.forEach((f) => f({ peers: list, joined: [], left: [], updated: [] }));
+  }, 0);
+  const room = {
+    presence: async (patch) => {
+      const next = { ...self.presence };
+      for (const [k, v] of Object.entries(patch)) { if (v === null) delete next[k]; else next[k] = v; }
+      self.presence = next; window.__myPresence = next; tellPeers();
+    },
+    peers: () => [...peers.values()],
+    onPeers: (h) => { roomListeners.add(h); tellPeers(); return () => roomListeners.delete(h); },
+    connected: () => true,
+  };
+  window.__stubRoom = {
+    set: (peer, by, presence) => { peers.set(peer, { peer, by, isMe: false, sameTab: false, kind: 'viewer', guest: false, presence, updatedAt: Date.now() }); tellPeers(); },
+    leave: (peer) => { peers.delete(peer); tellPeers(); },
+  };
+  const caps = { db, user, sample, mcp, room };
   window.__stubDb = db;
   window.claude = { use: async (name) => caps[name] ?? null };
 })();

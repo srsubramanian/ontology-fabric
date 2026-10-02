@@ -17,6 +17,8 @@ import { addClass, addSlot, classExists, moveClass, removeClass, removeSlot, slo
 import { ClassPanel, QuestionPanel, RelPanel } from './Inspector';
 import { accept, decide, ghosts, previewDraft, settle, think } from './inquiry';
 import { AskedList, InquiryCard, ProposalsPanel } from './Ask';
+import { usePresence, type Here, type Lens } from './presence';
+import { LensToggle, StoryClass, StoryRel } from './Story';
 import { doStep, missionById, MISSIONS, pendingLink, placeSpot, progress, stepLabel, type Choice, type Mission } from './missions';
 import { queryPrompt } from './prompt';
 import { SessionCard, StartPull } from './Pull';
@@ -338,10 +340,33 @@ export function App() {
   const cov = a.report.coverage;
   const [showProblems, setShowProblems] = useState(false);
   const [showYaml, setShowYaml] = useState(false);
-  const people = useProfiles(rt.user, [draft.updatedBy, draft.session?.by, ...asked.slice(0, 20).map(([, q]) => q.askedBy)]);
+  // Two lenses: each person reads the ontology as plain sentences or as its model, and everyone here sees who's
+  // where, in which lens, through the page's room.
+  const [lens, setLensState] = useState<Lens>(() => (kept.get<string>('studio:lens', 'model') === 'story' ? 'story' : 'model'));
+  const setLens = (l: Lens) => { setLensState(l); kept.set('studio:lens', l); };
+  const { peers, cursor } = usePresence(rt.room, { view, sel: selected?.id ?? null, lens });
+  const people = useProfiles(rt.user, [draft.updatedBy, draft.session?.by, ...asked.slice(0, 20).map(([, q]) => q.askedBy), ...peers.map((x) => x.by)]);
   const who = (id?: string | null) => (!id ? 'someone' : id === rt.me.id ? 'you' : people[id]?.name || 'someone');
   const gaps = rawQuestions.questions.filter((q) => q.gap);
   const panel = { ctx, a, model, editable, edit: (u: DraftUpdate, l: string) => void edit(u, l), select };
+  const name = (x: Here) => (x.by ? people[x.by]?.name : '') || 'Someone';
+  const where = (x: Here) => {
+    const v = x.view;
+    const at = !v ? 'on the map' : v.startsWith('ask-') ? 'on a question' : v.startsWith('mission-') ? 'in a worked example' : `on ${v}`;
+    return x.sel && x.sel !== v ? `${at}, looking at ${x.sel}` : at;
+  };
+  // Following someone: go where they are, and pick what they picked when it's here.
+  const follow = (x: Here) => {
+    if (x.view !== view) { location.hash = hashFor('studio', x.view); return; }
+    if (x.sel) select(x.sel.includes('.') ? { kind: 'rel', id: x.sel } : { kind: 'class', id: x.sel });
+  };
+  const comment = (pid: string, text: string) => {
+    if (!inquiryId) return;
+    const nid = 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    const n = { by: rt.me.id, at: Date.now(), text: text.slice(0, 1000) };
+    void write({ inquiries: { [inquiryId]: { proposals: { [pid]: { notes: { [nid]: n } } } } } } as unknown as DraftUpdate)
+      .then((err) => err && setNote({ text: err, bad: true }));
+  };
 
   return (
     <main className="studio" data-mode={effectiveMode}>
@@ -413,7 +438,8 @@ export function App() {
                 const pid = sel && ghostSet.has(sel.id) ? Object.entries(inquiry?.proposals ?? {}).find(([, p]) => p?.name === sel.id)?.[0] : undefined;
                 if (pid) { setFocusP(pid); document.querySelector(`[data-app=studio] [data-proposal="${pid}"]`)?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' }); return; }
                 select(sel);
-              }} onPlace={place} onMove={(n, at) => void edit(moveClass(ctx, n, at), `move ${n}`)} onLink={link} onWalk={walkTo} />
+              }} onPlace={place} onMove={(n, at) => void edit(moveClass(ctx, n, at), `move ${n}`)} onLink={link} onWalk={walkTo}
+              peers={peers.map((x) => ({ peer: x.peer, label: name(x), color: x.color, cursor: x.cursor, sel: x.sel, away: x.view !== view }))} onCursor={rt.room ? cursor : undefined} />
           </div>
           {showYaml && (
             <div className="yaml">
@@ -426,12 +452,13 @@ export function App() {
         </div>
 
         <aside className="inspector" aria-live="polite">
+          <LensToggle lens={lens} setLens={setLens} />
           {local && selected && <button type="button" className="vbtn tiny back" onClick={() => select(null)}>← Back to the {mission ? 'mission' : 'proposals'}</button>}
           {mission && !selected ? (
             <MissionPanel m={mission} at={step} ctx={ctx} a={a} thought={thought} />
           ) : inquiryId && !selected ? (
             <>
-              {inquiry && <ProposalsPanel inq={inquiry} preview={preview} editable={editable} focus={focusP} setFocus={setFocusP}
+              {inquiry && <ProposalsPanel inq={inquiry} preview={preview} editable={editable} focus={focusP} setFocus={setFocusP} lens={lens} who={who} onNote={editable ? comment : undefined}
                 onAccept={acceptProposals} onReject={(id) => decideProposal(id, 'rejected')} onReopen={(id) => decideProposal(id, 'proposed')} />}
               <section className="isec"><h3>Questions asked · {asked.length}</h3><AskedList items={asked} who={who} running={running?.id ?? null} /></section>
             </>
@@ -439,9 +466,9 @@ export function App() {
             <QuestionPanel ctx={ctx} a={a} editable={editable} edit={panel.edit} id={question} walking={walking} setWalking={setWalking}
               writeQuery={rt.sample ? () => void writeQuery() : undefined} busy={writingQuery} />
           ) : selected?.kind === 'class' ? (
-            <ClassPanel key={selected.id} {...panel} name={selected.id} fresh={fresh === selected.id} />
+            lens === 'story' ? <StoryClass key={selected.id} {...panel} name={selected.id} /> : <ClassPanel key={selected.id} {...panel} name={selected.id} fresh={fresh === selected.id} />
           ) : selected?.kind === 'rel' ? (
-            <RelPanel key={selected.id} {...panel} id={selected.id} fresh={fresh === selected.id} />
+            lens === 'story' ? <StoryRel key={selected.id} {...panel} id={selected.id} /> : <RelPanel key={selected.id} {...panel} id={selected.id} fresh={fresh === selected.id} />
           ) : (
             <Overview d={draft} a={a} ctx={ctx} thought={thought} shared={store.shared} loaded={!!store.draft} who={who} gaps={gaps} editable={editable}
               asked={asked} running={running?.id ?? null}
@@ -471,6 +498,15 @@ export function App() {
         <span><b>{cov.answered}</b> of {cov.questions} questions answered{cov.answered !== base.answered && <em className={cov.answered > base.answered ? 'up' : 'down'}> {cov.answered > base.answered ? '+' : ''}{cov.answered - base.answered}</em>}</span>
         <span><b>{cov.mapped}</b> of {cov.concrete} classes mapped to a standard</span>
         {a.lane !== 'none' && <span className="lane" style={vars({ '--c': a.lane === 'minor' ? 'var(--onto)' : 'var(--muted)' })}>{a.lane} change · {a.owners.join(', ')}</span>}
+        {peers.length > 0 && (
+          <span className="here" aria-label="Who else is here">
+            {peers.map((x) => (
+              <button key={x.peer} type="button" className={`who pc${x.color}`} onClick={() => follow(x)} title={`Go to ${name(x)}: ${where(x)}`}>
+                <i aria-hidden="true" />{name(x)} <span>· {x.lens} lens · {where(x)}</span>
+              </button>
+            ))}
+          </span>
+        )}
         <span className="live">{!store.draft ? 'Loading…' : store.shared ? `Shared · ${draft.updatedBy ? `last change by ${who(draft.updatedBy)} ${ago(draft.updatedAt)}` : 'no changes yet'}` : 'Kept in this browser'}</span>
       </div>
       {showProblems && (problems.length > 0 || tidyUps.length > 0) && (
