@@ -4,11 +4,12 @@ A learning page and design decisions for Ontology Fabric, a payments knowledge l
 
 ## Look at the page
 
-Open `site/index.html` in a browser. You need to be online for the fonts; everything else is inside the file. A bar at the top switches between its three apps:
+Open `site/index.html` in a browser. You need to be online for the fonts; everything else is inside the file. A bar at the top switches between its four apps:
 
 - Overview (`#map`): the platform map and seven chapters
 - Retrieval (`#retrieval`): how a question becomes an answer, across all three stores
 - Explorer (`#explorer`): the class explorer, read from the draft ontology in `ontology/`
+- Studio (`#studio`): close a gap in the ontology. Draft a YAML patch, by hand or with Claude, see it on the class map, and fix what the checks find. On the published page, the team reviews it and an approved one opens its own pull request. A local copy drafts and checks only.
 
 ## Change the page
 
@@ -52,6 +53,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r tools/requirements.txt
 python -m playwright install chromium
 python tools/smoke_test.py
+python tools/test_studio.py
 ```
 
 The test loads every view of every app three times: on a desktop in light and in dark, and on a 390 px phone. Each time it visits all three apps in one page load, so switching between them is tested too. It fails on JavaScript errors, on any view that scrolls sideways or on a view that shows the wrong app, and saves screenshots of every view to `screenshots/<app>/`, with the dark ones in `dark/`.

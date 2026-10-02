@@ -20,11 +20,12 @@
 
 ## Page structure
 
-- **One page, three apps:** the platform overview, the retrieval walkthrough and the class explorer, switched by the bar at the top (`web/src/fabric/`). Only the showing app's styles are in the page.
+- **One page, four apps:** the platform overview, the retrieval walkthrough, the class explorer and the design studio, switched by the bar at the top (`web/src/fabric/`). Only the showing app's styles are in the page.
 - **One view at a time**, switched by hash routes. Routes use only letters, digits and hyphens, so a link to the published page can open any view:
   - Overview: `#map`, `#chN` and `#chN-K` (`#chN:K` still works), or any element's id.
   - Retrieval: `#retrieval` for its map, then `#retrieval-s1` to `#retrieval-s11`.
   - Class explorer: `#explorer` for its map, `#explorer-<ClassName>` (such as `#explorer-Chargeback`) and `#explorer-CQ-NN` for a competency question.
+  - Design studio: `#studio` for its start, `#studio-CQ-NN` for a draft that answers a question, `#studio-example` for the worked example, and `#studio-p-<id>` for a saved proposal.
   - Links between apps are hash links too, such as `#explorer` from chapter 1. Build an app's routes with `hashFor` in `web/src/kit/route.ts`.
 - **Chapters split into sub-pages**, with underlined tabs and Previous/Next buttons. Arrow keys move between sub-pages.
 - **A view's animation runs when it's shown** (or when it scrolls into view with Motion's `inView`), and always has a replay button. In `web/`, a view mounts when shown, which starts its `useTimeline` steps; the replay button remounts the animated part with a new key from `useReplay`.

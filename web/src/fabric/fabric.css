@@ -12,4 +12,5 @@
 .fbar-tab[aria-current="page"]{color:var(--ink); border-bottom-color:var(--c)}
 .fbar-tab:focus-visible{outline:2px solid var(--ink); outline-offset:-2px; border-radius:4px}
 @media (max-width:600px){.fbar-in{padding:0 18px}}
-@media (max-width:540px){.fbar-name{display:none} .fbar-tab{padding-inline:10px}}
+/* Four tabs fit a 390 px phone; on anything narrower they scroll inside the bar, not the page. */
+@media (max-width:540px){.fbar-in{padding:0 12px; gap:10px} .fbar-name{display:none} .fbar-tab{padding-inline:7px; font-size:.84rem} .fbar-tabs{min-width:0; overflow-x:auto; scrollbar-width:none}}

@@ -157,4 +157,8 @@ Some gaps in `ontology/competency-questions.yaml` name the standard concept that
 
 ## Claude Code
 
+- **What the design studio relies on (checked 2 October 2026):**
+  - claude.ai artifact runtime contract 0.2.45. A published page reaches each capability through `claude.use(name)`, which resolves null where the page can't use it. `db` is a shared document store whose declaring page is organization-internal; `user` gives an opaque per-organization id and, with the `profile` scope, names; `sample` asks Claude on the viewer's own account, with consent on the first call; `mcp` calls the viewer's connectors with their credentials, by connector name and tool. Source: the runtime's type definitions, served with Claude Code's artifact skill.
+  - The Claude Code Remote connector's `list_environments` answers `{environments: [{environment_id, name, state, kind, ...}], has_more}`, and `get_session` answers `{ccr: {id, title, status_bucket, ...}}` with buckets such as `SESSION_STATUS_BUCKET_WORKING`. Both shapes come from real calls. `create_session` takes `prompt`, `environment_id`, `source_url`, `outcome_branch`, `title` and `tags`; its answer's shape isn't documented and wasn't called, since it starts a real session.
+
 - **Project memory**: `./CLAUDE.md` loads at every session start, and `@path` imports pull in other files. Keep it concise. https://docs.claude.com/en/docs/claude-code/memory

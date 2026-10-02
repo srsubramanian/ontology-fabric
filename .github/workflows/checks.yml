@@ -55,6 +55,9 @@ jobs:
       - name: Smoke test, light, dark and phone
         run: python tools/smoke_test.py
 
+      - name: The studio's whole flow, against a stand-in runtime
+        run: python tools/test_studio.py
+
       - name: Keep the screenshots
         if: always()
         uses: actions/upload-artifact@v6
