@@ -2,8 +2,9 @@
 // the ontology slot it means. One meaning can then show every screen that carries it, and where they don't agree: a
 // field that says one thing and is built from another, the same meaning built from different columns, and the same
 // label meaning different things on different screens. The ontology is the hub every layer maps to, so this is what
-// it's for at an organization's scale.
-import { classOf, type Field, type Lineage, type Means, type Trace } from './lineage.ts';
+// it's for at an organization's scale. Read the other way, from a Snowflake column, the same sets say what a change to
+// it reaches: every screen field built from it, what each means, and which people's decisions would come back.
+import { classOf, type Field, type Hop, type Lineage, type Means, type Trace } from './lineage.ts';
 
 /** One screen's mapping set, at its latest version. */
 export type ScreenSet = { id: string; title: string; lineage: Lineage };
@@ -80,3 +81,55 @@ export function meaningsInOrder(index: Map<string, Meaning>): Meaning[] {
 
 /** Screen fields nothing in the ontology holds yet, on every screen. */
 export const gapsOf = (sets: ScreenSet[]) => sets.flatMap((set) => set.lineage.traces.filter((t) => t.state === 'gap').map((trace) => ({ set, trace })));
+
+/** A screen field built from a column: the hops that read the column, and whether it's the field's only source. */
+export type Feed = { set: ScreenSet; trace: Trace; via: Hop[]; only: boolean };
+/** A Snowflake column, read from the other end: what it means, and every screen field built from it. */
+export type Column = {
+  key: string; field: Field;
+  /** What it means, and the screens whose sets say so; more than one entry means the sets disagree. */
+  own: { means: Means; sets: ScreenSet[] }[];
+  feeds: Feed[]; screens: ScreenSet[];
+  /** Fields built from it that mean another class: the meaning shifts on the way (decision 26). */
+  shifts: Feed[];
+  /** Fields a person confirmed: a change to the column changes the code that reads it, so they'd come back for a re-check. */
+  confirmed: Feed[];
+  problems: number;
+};
+/** A column's route: CORE.FCT_SETTLEMENT_ITEM.SETTLED_DT is #studio-column-CORE-FCT-SETTLEMENT-ITEM-SETTLED-DT. */
+export const columnRoute = (id: string) => id.replace(/^sf:/, '').replace(/[._]/g, '-');
+
+export function columnIndex(sets: ScreenSet[]): Map<string, Column> {
+  const index = new Map<string, Column>();
+  for (const set of sets) {
+    const l = set.lineage;
+    for (const field of l.fields.values()) {
+      if (field.layer !== 'sf') continue;
+      if (!index.has(field.id)) index.set(field.id, { key: field.id, field, own: [], feeds: [], screens: [], shifts: [], confirmed: [], problems: 0 });
+      const c = index.get(field.id)!;
+      const m = l.means.find((x) => x.field === field.id && !x.negated && x.slot);
+      if (m) {
+        const o = c.own.find((x) => x.means.slot === m.slot);
+        if (o) o.sets.push(set); else c.own.push({ means: m, sets: [set] });
+      }
+    }
+    for (const trace of l.traces) {
+      for (const col of trace.lanes.sf) {
+        const c = index.get(col.id)!;
+        const feed = { set, trace, via: trace.hops.filter((h) => h.to === col.id), only: trace.lanes.sf.length === 1 };
+        c.feeds.push(feed);
+        if (!c.screens.includes(set)) c.screens.push(set);
+        if (trace.shift?.field.id === col.id) c.shifts.push(feed);
+        if (trace.state === 'confirmed') c.confirmed.push(feed);
+      }
+    }
+  }
+  for (const c of index.values()) c.problems = c.shifts.length + (c.own.length > 1 ? 1 : 0);
+  return index;
+}
+
+/** The columns, those with something to look at first, then those most screens read. */
+export function columnsInOrder(index: Map<string, Column>): Column[] {
+  return [...index.values()].filter((c) => c.feeds.length)
+    .sort((a, b) => b.problems - a.problems || b.screens.length - a.screens.length || b.feeds.length - a.feeds.length || a.key.localeCompare(b.key));
+}

@@ -579,6 +579,37 @@ def main():
             page.wait_for_selector(f"{APP} .coach.lhome")
             page.wait_for_timeout(800)
         step("start from a meaning: every screen that shows it, where they disagree, and a decision on the second screen", meaning, "15-meaning")
+
+        def column():
+            # Start from a Snowflake column: what a change to it reaches, on every screen, and whose decisions it reopens.
+            page.goto(SITE + "#studio")
+            page.locator(APP).get_by_role("link", name="start from a column").click()
+            page.wait_for_selector(f"{APP} .coach.lhome .crow")
+            first = page.get_attribute(f"{APP} .coach.lhome .crow >> nth=0", "data-column")
+            assert_true(first == "sf:CORE.FCT_CAPTURE.CAPTURE_DT", f"the column with most to look at isn't first: {first}")
+            page.get_by_label("Find a column").fill("cb_id")
+            page.locator(f"{APP} .crow[data-column='sf:CORE.FCT_CHARGEBACK.CB_ID']").click()
+            page.wait_for_selector(f"{APP} .coach.column .cfeeds tr[data-feed]")
+            assert_true(page.locator(f"{APP} .coach.column .cfeeds tr[data-feed]").count() == 2, "the column doesn't show both screens' fields")
+            impact = page.inner_text(f"{APP} .coach.column .cimpact")
+            assert_true("2 screen fields on 2 screens" in impact and "re-check" in impact and "ana" in impact and "cara" in impact and "CQ-03" in impact,
+                        f"what a change reaches is wrong: {impact}")
+            page.wait_for_selector(f"{APP} .cfan .tb.lane-api", state="attached")
+            assert_true("CB_ID" in page.inner_text(f"{APP} .inspector h2"), "the inspector doesn't name the column")
+            # From the column to a field's meaning, and from the meaning back to a column.
+            page.locator(f"{APP} .cfeeds tr[data-feed='dispute-workbench:case']").get_by_role("button", name="Chargeback.id").click()
+            page.wait_for_selector(f"{APP} .coach.meaning tr[data-use='dispute-workbench:case']")
+            page.locator(f"{APP} .coach.meaning .muses .linkish.col[data-column='sf:CORE.FCT_CHARGEBACK.CB_ID']").click()
+            page.wait_for_selector(f"{APP} .coach.column")
+            # A column that feeds a field meaning something else, reached from that field's trace.
+            page.goto(SITE + "#studio-lineage-transaction-research-settled-on")
+            page.locator(f"{APP} .inspector .linkish.col[data-column='sf:CORE.FCT_CAPTURE.CAPTURE_DT']").click()
+            page.wait_for_selector(f"{APP} .coach.column .cimpact li.bad:has-text('Meaning shifts on the way')")
+            page.wait_for_selector(f"{APP} .cfan .tb.lane-ui.off", state="attached")
+            page.get_by_role("button", name="All columns").click()
+            page.wait_for_selector(f"{APP} .coach.lhome .crow")
+            page.wait_for_timeout(800)
+        step("start from a column: what a change reaches on every screen, and whose decisions it reopens", column, "16-column")
         browser.close()
 
     for e in errors:

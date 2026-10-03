@@ -1,15 +1,18 @@
 // Lineage by meaning, on screen. The front page lists every meaning the screens carry, those with something to look at
-// first, and every screen; a meaning's view draws each screen field and Snowflake column that means it, around it, and
-// says where they don't agree. Beside the map: what the ontology says it is. On a class: which of its slots screens show.
+// first, every screen and every Snowflake column; a meaning's view draws each screen field and Snowflake column that
+// means it, around it, and says where they don't agree. A column's view reads the other way: every screen field built
+// from it, what each means, and what a change to it would reopen. Beside the map: what the ontology says it is. On a
+// class: which of its slots screens show.
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { EASE_OUT, tr } from '../kit/motion';
 import { ReplayButton } from '../kit/ReplayButton';
 import { useReplay } from '../kit/useTimeline';
 import type { Model } from '../explorer/model';
-import { meansWords, tally } from './lineage';
-import { day, STATE_WORDS } from './Lineage';
-import { PROBLEMS, type Finding, type Meaning, type ScreenSet, type Use } from './meaning';
+import { hashFor } from '../kit/route';
+import { meansWords, tally, TRANSFORMS } from './lineage';
+import { day, personName, STATE_WORDS } from './Lineage';
+import { PROBLEMS, type Column, type Feed, type Finding, type Meaning, type ScreenSet, type Use } from './meaning';
 
 const plural = (n: number, one: string, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 const where = (id: string) => id.replace(/^[a-z]+:/, '');
@@ -26,6 +29,15 @@ function flagsOf(m: Meaning): { text: string; bad: boolean }[] {
   return out;
 }
 
+function columnFlags(c: Column): { text: string; bad: boolean }[] {
+  const out: { text: string; bad: boolean }[] = [];
+  if (c.shifts.length) out.push({ text: 'feeds a field that means something else', bad: true });
+  if (c.own.length > 1) out.push({ text: 'screens disagree on its meaning', bad: true });
+  if (!c.own.length) out.push({ text: 'nothing in the ontology yet', bad: false });
+  if (c.screens.length > 1) out.push({ text: `read by ${c.screens.length} screens`, bad: false });
+  return out;
+}
+
 /** What the ontology says a meaning is: its slot's description, or its class's. */
 function aboutOf(model: Model, key: string) {
   const [cls, slot] = key.split('.');
@@ -35,14 +47,17 @@ function aboutOf(model: Model, key: string) {
 }
 
 /** The panel above the map when Lineage opens: start from a meaning, or from a screen. */
-export function LineageHome({ sets, meanings, gaps, tab, setTab, onMeaning, onSet, onField, onClose }: {
-  sets: ScreenSet[]; meanings: Meaning[]; gaps: { set: ScreenSet; trace: Use['trace'] }[];
-  tab: 'meaning' | 'screen'; setTab(t: 'meaning' | 'screen'): void;
-  onMeaning(key: string): void; onSet(id: string): void; onField(set: string, slug: string): void; onClose(): void;
+export type HomeTab = 'meaning' | 'screen' | 'column';
+export function LineageHome({ sets, meanings, columns, gaps, tab, setTab, onMeaning, onColumn, onSet, onField, onClose }: {
+  sets: ScreenSet[]; meanings: Meaning[]; columns: Column[]; gaps: { set: ScreenSet; trace: Use['trace'] }[];
+  tab: HomeTab; setTab(t: HomeTab): void;
+  onMeaning(key: string): void; onColumn(key: string): void; onSet(id: string): void; onField(set: string, slug: string): void; onClose(): void;
 }) {
   const [q, setQ] = useState('');
   const words = q.trim().toLowerCase();
   const shown = meanings.filter((m) => !words || m.key.toLowerCase().includes(words) || m.uses.some((u) => u.trace.field.label.toLowerCase().includes(words)));
+  const shownCols = columns.filter((c) => !words || where(c.key).toLowerCase().includes(words) || c.own.some((o) => o.means.slot!.toLowerCase().includes(words))
+    || c.feeds.some((f) => f.trace.field.label.toLowerCase().includes(words)));
   return (
     <section className="coach lineage lhome" aria-label="Lineage">
       <header>
@@ -51,6 +66,7 @@ export function LineageHome({ sets, meanings, gaps, tab, setTab, onMeaning, onSe
         <span className="cact">
           <span className="seg tiny" role="group" aria-label="Start from">
             <button type="button" aria-pressed={tab === 'meaning'} onClick={() => setTab('meaning')}>By meaning</button>
+            <button type="button" aria-pressed={tab === 'column'} onClick={() => setTab('column')}>By column</button>
             <button type="button" aria-pressed={tab === 'screen'} onClick={() => setTab('screen')}>By screen</button>
           </span>
           <button type="button" className="vbtn tiny" onClick={onClose}>Close</button>
@@ -81,6 +97,23 @@ export function LineageHome({ sets, meanings, gaps, tab, setTab, onMeaning, onSe
             ))}.</p>
           )}
         </>
+      ) : tab === 'column' ? (
+        <>
+          <p className="how">Every Snowflake column the screens read. Pick one to see what a change to it reaches: each screen field built from it, what each means, and whose decisions would come back.</p>
+          <input className="msearch" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a column" placeholder="Find a column, a field or a meaning, such as cb_id" />
+          <ul className="mlist">
+            {shownCols.map((c) => (
+              <li key={c.key}>
+                <button type="button" className="mrow crow" data-column={c.key} onClick={() => onColumn(c.key)}>
+                  <code>{where(c.key)}</code>
+                  <span className="small muted">{plural(c.screens.length, 'screen')} · {plural(c.feeds.length, 'field')}</span>
+                  <span className="mflags">{columnFlags(c).map((f) => <span key={f.text} className={'mflag' + (f.bad ? ' bad' : '')}>{f.text}</span>)}</span>
+                </button>
+              </li>
+            ))}
+            {!shownCols.length && <li className="small muted">No column, field or meaning matches.</li>}
+          </ul>
+        </>
       ) : (
         <>
           <p className="how">Each screen's mapping set, written by the deep scan. Pick one to trace its fields from Snowflake to the screen.</p>
@@ -102,21 +135,29 @@ export function LineageHome({ sets, meanings, gaps, tab, setTab, onMeaning, onSe
   );
 }
 
-/** Beside the map on lineage's front page: why start from a meaning, and how to read the flags. */
-export function LineageAbout({ sets, meanings }: { sets: ScreenSet[]; meanings: Meaning[] }) {
+/** Beside the map on lineage's front page: why start from a meaning or a column, and how to read the flags. */
+export function LineageAbout({ sets, meanings, columns, tab }: { sets: ScreenSet[]; meanings: Meaning[]; columns: Column[]; tab: HomeTab }) {
   const fields = sets.reduce((n, s) => n + s.lineage.traces.length, 0);
   const shared = meanings.filter((m) => screens(m) > 1).length;
+  const wide = columns.filter((c) => c.screens.length > 1).length;
   return (
     <>
       <div className="ihead">
         <p className="qmeta"><b>Lineage</b> · illustrative</p>
-        <h2>Start from a meaning</h2>
+        <h2>{tab === 'column' ? 'Start from a column' : tab === 'screen' ? 'Start from a screen' : 'Start from a meaning'}</h2>
         <p className="small muted">Every system, file, table and column here is made up.</p>
       </div>
-      <section className="isec">
-        <h3>Why a meaning</h3>
-        <p className="small">An organization has hundreds of screens. Each field maps to the ontology, not to the next layer, so one meaning gathers every screen that shows it, whatever the screen calls it. {plural(sets.length, 'screen')} so far: {plural(fields, 'field')}, {plural(meanings.length, 'meaning')}, {shared} on more than one screen.</p>
-      </section>
+      {tab === 'column' ? (
+        <section className="isec">
+          <h3>Why a column</h3>
+          <p className="small">Before a column is renamed, retyped or dropped, see what reads it: every screen field built from it, what each means, and whose decisions would come back for a re-check. {plural(columns.length, 'column')} so far, {wide} read by more than one screen.</p>
+        </section>
+      ) : (
+        <section className="isec">
+          <h3>Why a meaning</h3>
+          <p className="small">An organization has hundreds of screens. Each field maps to the ontology, not to the next layer, so one meaning gathers every screen that shows it, whatever the screen calls it. {plural(sets.length, 'screen')} so far: {plural(fields, 'field')}, {plural(meanings.length, 'meaning')}, {shared} on more than one screen.</p>
+        </section>
+      )}
       <section className="isec">
         <h3>What the flags say</h3>
         <ul className="legend">
@@ -129,15 +170,15 @@ export function LineageAbout({ sets, meanings }: { sets: ScreenSet[]; meanings: 
       </section>
       <section className="isec">
         <h3>Where it's kept</h3>
-        <p className="small">One mapping set per screen in <code>ontology/mappings/</code>, each written by the deep scan. The index is worked out from them in the page.</p>
+        <p className="small">One mapping set per screen in <code>ontology/mappings/</code>, each written by the deep scan. Meanings and columns are worked out from them in the page.</p>
       </section>
     </>
   );
 }
 
 /** One meaning, above the map: every screen field and column that means it, drawn around it, and where they disagree. */
-export function MeaningPanel({ m, model, onUse, onMeaning, onHome, onClose, onAsk, editable }: {
-  m: Meaning; model: Model; onUse(set: string, slug: string): void; onMeaning(key: string): void; onHome(): void; onClose(): void;
+export function MeaningPanel({ m, model, onUse, onMeaning, onColumn, onHome, onClose, onAsk, editable }: {
+  m: Meaning; model: Model; onUse(set: string, slug: string): void; onMeaning(key: string): void; onColumn(key: string): void; onHome(): void; onClose(): void;
   onAsk(text: string): void; editable: boolean;
 }) {
   const about = aboutOf(model, m.key);
@@ -186,7 +227,7 @@ export function MeaningPanel({ m, model, onUse, onMeaning, onHome, onClose, onAs
                 <td>{u.set.title}</td>
                 <td>{field(u)}</td>
                 <td><span className={'st ' + u.trace.state}>{STATE_WORDS[u.trace.state]}</span> <span className="small muted">· {meansWords(u.means.predicate)}{u.means.author.startsWith('agent:') && !u.trace.confirmedBy ? `, ${u.means.confidence.toFixed(2)}` : ''}</span></td>
-                <td>{u.trace.lanes.sf.map((c) => <code key={c.id}>{where(c.id)}</code>)}</td>
+                <td>{u.trace.lanes.sf.map((c) => <button key={c.id} type="button" className="linkish col" data-column={c.id} onClick={() => onColumn(c.id)}><code>{where(c.id)}</code></button>)}</td>
               </tr>
             ))}
           </tbody>
@@ -251,6 +292,158 @@ function MeaningHub({ m }: { m: Meaning }) {
       <p className="small muted mkey"><span className="k exact" /> means exactly <span className="k close" /> means nearly <span className="k related" /> is derived from <span className="k off" /> means something else too</p>
       <ReplayButton label="Replay" onClick={replay} />
     </div>
+  );
+}
+
+/** One Snowflake column, above the map: every screen field built from it, and what a change to it would reach. */
+export function ColumnPanel({ c, who, onUse, onMeaning, onHome, onClose }: {
+  c: Column; who(id?: string | null): string; onUse(set: string, slug: string): void; onMeaning(key: string): void; onHome(): void; onClose(): void;
+}) {
+  const own = c.own[0]?.means ?? null;
+  const field = (f: Feed) => <button type="button" className="linkish" onClick={() => onUse(f.set.id, f.trace.slug)}>{f.trace.field.label}</button>;
+  const slot = (key: string) => <button type="button" className="linkish" data-meaning={key} onClick={() => onMeaning(key)}><code>{key}</code></button>;
+  const questions = c.screens.filter((x) => x.lineage.question);
+  return (
+    <section className="coach lineage column" aria-label="Column">
+      <header>
+        <span className="ctag">Column · illustrative</span>
+        <b><code>{where(c.key)}</code></b>
+        <span className="cact">
+          <button type="button" className="vbtn tiny" onClick={onHome}>All columns</button>
+          <button type="button" className="vbtn tiny" onClick={onClose}>Close</button>
+        </span>
+      </header>
+      <p className="how">{own ? <>In the ontology it {meansWords(own.predicate)} {slot(own.slot!)}.</> : 'Nothing in the ontology holds it yet.'} Before it changes, here is everything that reads it.</p>
+      <ColumnFan c={c} />
+      <ul className="mfinds cimpact" aria-label="What a change reaches">
+        <li className={c.feeds.length > 1 ? 'reach' : ''}><b>If it changes,</b> {plural(c.feeds.length, 'screen field')} on {plural(c.screens.length, 'screen')} change{c.feeds.length === 1 ? 's' : ''} with it: {c.feeds.map((f, i) => <span key={f.set.id + f.trace.slug}>{i ? ', ' : ''}{field(f)} on {f.set.title}</span>)}.</li>
+        {c.shifts.map((f) => (
+          <li key={'s' + f.set.id + f.trace.slug} className="bad"><b>Meaning shifts on the way.</b> On {f.set.title}, {field(f)} is built from it, but means {slot(f.trace.means!.slot!)}{own ? <>, where the column means <code>{own.slot}</code></> : ''}.</li>
+        ))}
+        {c.own.length > 1 && (
+          <li className="bad"><b>Screens disagree on what it means.</b> {c.own.map((o, i) => <span key={o.means.slot}>{i ? '; ' : ''}{o.sets.map((x) => x.title).join(' and ')} say{o.sets.length === 1 ? 's' : ''} {slot(o.means.slot!)}</span>)}.</li>
+        )}
+        {c.confirmed.length > 0 && (
+          <li><b>Would come back for a re-check.</b> {c.confirmed.map((f, i) => <span key={'c' + f.set.id + f.trace.slug}>{i ? ', ' : ''}{field(f)} on {f.set.title}, confirmed by {personName(f.trace.confirmedBy, who)}</span>)}. A change to the column changes the code that reads it, and a person's decision holds only while that code stays the same.</li>
+        )}
+        {questions.length > 0 && (
+          <li><b>Questions that read it.</b> {questions.map((x, i) => <span key={x.id}>{i ? ', ' : ''}<a href={hashFor('studio', x.lineage.question!)}>{x.lineage.question}</a> on {x.title}</span>)}.</li>
+        )}
+      </ul>
+      <div className="xwrap">
+        <table className="muses cfeeds">
+          <thead><tr><th>Screen</th><th>Field</th><th>How it's built from the column</th><th>What the field means</th></tr></thead>
+          <tbody>
+            {c.feeds.map((f) => (
+              <tr key={f.set.id + f.trace.slug} data-feed={`${f.set.id}:${f.trace.slug}`}>
+                <td>{f.set.title}</td>
+                <td>{field(f)}</td>
+                <td><span className="small">{f.via.map((h) => TRANSFORMS[h.transform]).join(', ')} into the data API{f.only ? ', its only column' : `, with ${plural(f.trace.lanes.sf.length - 1, 'other column')}`}</span></td>
+                <td>{f.trace.means?.slot ? slot(f.trace.means.slot) : <span className="muted">nothing yet</span>} <span className={'st ' + f.trace.state}>{STATE_WORDS[f.trace.state]}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+const FW = 780, SX = 8, SW = 210, AX = 292, AW = 220, KX = 572, KW = 200, BH = 40;
+
+/** The column on the right, the data API fields that read it in the middle, and the screen fields they reach on the
+ *  left, drawn as the data flows. A field that means something else is red. */
+function ColumnFan({ c }: { c: Column }) {
+  const [run, replay] = useReplay();
+  const apis = [...new Set(c.feeds.flatMap((f) => f.via.map((h) => h.from)))];
+  const apiOf = (id: string) => c.feeds.find((f) => f.via.some((h) => h.from === id))!;
+  const apiLabel = (id: string) => { const f = apiOf(id).set.lineage.fields.get(id); return f?.label ?? where(id); };
+  const apiHop = (id: string) => apiOf(id).via.find((h) => h.from === id)!;
+  const rows = Math.max(c.feeds.length, apis.length, 1);
+  const span = rows * (BH + GAP) - GAP;
+  const H = TOP + span + 16, mid = TOP + span / 2;
+  const fy = (i: number) => TOP + (span - (c.feeds.length * (BH + GAP) - GAP)) / 2 + i * (BH + GAP);
+  const ay = (i: number) => TOP + (span - (apis.length * (BH + GAP) - GAP)) / 2 + i * (BH + GAP);
+  const curve = (x1: number, y1: number, x2: number, y2: number) => `M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}`;
+  const cut = (t: string, n: number) => (t.length > n ? t.slice(0, n - 1) + '…' : t);
+  return (
+    <div className="trace">
+      <div className="xwrap">
+        <svg key={run} className="tgraph cfan" viewBox={`0 0 ${FW} ${H}`} width={FW} height={H} role="img"
+          aria-label={`${where(c.key)} feeds ${c.feeds.length} screen fields through ${apis.length} data API fields`}>
+          <text className="th" x={SX} y={14}>Screens</text>
+          <text className="th" x={AX} y={14}>Data API</text>
+          <text className="th lane-sf" x={KX} y={14}>Snowflake</text>
+          {apis.map((id, i) => (
+            <motion.path key={'k' + id} className={'hp t-' + apiHop(id).transform} d={curve(KX, mid, AX + AW, ay(i) + BH / 2)}
+              initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={tr({ duration: 0.4, delay: 0.3 + i * 0.08, ease: EASE_OUT })} />
+          ))}
+          {c.feeds.flatMap((f, i) => f.via.map((h) => {
+            const j = apis.indexOf(h.from);
+            return (
+              <motion.path key={'f' + i + h.from} className={'hp' + (c.shifts.includes(f) ? ' off' : '')} d={curve(AX, ay(j) + BH / 2, SX + SW, fy(i) + BH / 2)}
+                initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={tr({ duration: 0.4, delay: 0.8 + i * 0.08, ease: EASE_OUT })} />
+            );
+          }))}
+          <motion.g className="tb lane-sf" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={tr({ duration: 0.3 })}>
+            <title>{where(c.key)}</title>
+            <rect x={KX} y={mid - BH / 2} width={KW} height={BH} rx={7} />
+            <text x={KX + 9} y={mid - 2}>{cut(c.field.label, 26)}</text>
+            <text className="sub" x={KX + 9} y={mid + 13}>{cut(where(c.key).split('.').slice(0, -1).join('.'), 30)}</text>
+          </motion.g>
+          {apis.map((id, i) => (
+            <motion.g key={'a' + id} className="tb lane-api" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={tr({ duration: 0.25, delay: 0.5 + i * 0.06 })}>
+              <title>{where(id)}</title>
+              <rect x={AX} y={ay(i)} width={AW} height={BH} rx={7} />
+              <text x={AX + 9} y={ay(i) + 17}>{cut(apiLabel(id), 28)}</text>
+              <text className="sub" x={AX + 9} y={ay(i) + 32}>{TRANSFORMS[apiHop(id).transform]} from it · {cut(apiOf(id).set.title, 20)}</text>
+            </motion.g>
+          ))}
+          {c.feeds.map((f, i) => {
+            const off = c.shifts.includes(f);
+            return (
+              <motion.g key={'s' + i} className={'tb lane-ui' + (off ? ' off' : '')} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={tr({ duration: 0.25, delay: 1 + i * 0.06 })}>
+                <title>{`${f.trace.field.label} on ${f.set.title}`}</title>
+                <rect x={SX} y={fy(i)} width={SW} height={BH} rx={7} />
+                <text x={SX + 9} y={fy(i) + 17}>{cut(f.trace.field.label, 24)}</text>
+                <text className="sub" x={SX + 9} y={fy(i) + 32}>{off ? `means ${cut(f.trace.means!.slot!, 22)}` : cut(f.set.title, 28)}</text>
+              </motion.g>
+            );
+          })}
+        </svg>
+      </div>
+      <ReplayButton label="Replay" onClick={replay} />
+    </div>
+  );
+}
+
+/** Beside the map, for a column: what it means, and why to start from one. */
+export function ColumnDetail({ c, model }: { c: Column; model: Model }) {
+  const parts = where(c.key).split('.');
+  return (
+    <>
+      <div className="ihead">
+        <p className="qmeta"><b>Snowflake column</b> · {plural(c.screens.length, 'screen')} · {plural(c.feeds.length, 'field')}</p>
+        <h2>{parts.at(-1)}</h2>
+        <p className="small muted"><code>{parts.slice(0, -1).join('.')}</code>, illustrative</p>
+      </div>
+      <section className="isec">
+        <h3>What it means</h3>
+        {c.own.length ? c.own.map((o) => {
+          const about = aboutOf(model, o.means.slot!);
+          return <p key={o.means.slot} className="story">It {meansWords(o.means.predicate)} <code>{o.means.slot}</code>{about.text ? `: ${about.text.replace(/\.$/, '').replace(/^./, (x) => x.toLowerCase())}` : ''}.</p>;
+        }) : <p className="story">Nothing in the ontology holds it yet.</p>}
+      </section>
+      <section className="isec">
+        <h3>Why start from a column</h3>
+        <p className="small">Before a column is renamed, retyped or dropped, see what reads it. Every screen's mapping set says which fields are built from it, so a change shows its reach, and whose decisions it reopens, before it ships.</p>
+      </section>
+      <section className="isec">
+        <h3>Where it comes from</h3>
+        <ul className="legend">{c.screens.map((x) => <li key={x.id}>{x.title}: {x.lineage.version ?? 'its scan'}{x.lineage.date ? `, ${day(x.lineage.date)}` : ''}</li>)}</ul>
+        <p className="small muted">Each screen's deep scan reads Snowflake's column export, <code>INFORMATION_SCHEMA.COLUMNS</code>.</p>
+      </section>
+    </>
   );
 }
 

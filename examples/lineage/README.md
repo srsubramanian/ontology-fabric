@@ -18,7 +18,7 @@ changes/v4/                                a change still to come to transaction
 ## The screens
 
 - **Transaction research** shows one transaction's whole life (CQ-03), in three scans.
-- **Dispute workbench** shows one chargeback, in one scan (22 September). It shares meanings with transaction research, and that's the point: its "Settled on" reads only the settlement date, where transaction research falls back to the capture date; its "Merchant" is the merchant's legal name, where transaction research's is the name the cardholder sees; and it calls a dispute's reason "Reason", where transaction research says "Chargeback reason". Starting from a meaning shows each of these side by side.
+- **Dispute workbench** shows one chargeback, in one scan (22 September). It shares meanings with transaction research, and that's the point: its "Settled on" reads only the settlement date, where transaction research falls back to the capture date; its "Merchant" is the merchant's legal name, where transaction research's is the name the cardholder sees; and it calls a dispute's reason "Reason", where transaction research says "Chargeback reason". Starting from a meaning shows each of these side by side, and starting from a column shows that four columns feed both screens.
 
 ## The story transaction research's versions tell
 

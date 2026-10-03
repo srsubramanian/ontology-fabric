@@ -4,13 +4,13 @@
 // mappings waiting for a person. Each scan is a version, and the earlier ones are kept in ontology/mappings/history/: the
 // checks read every version, and that what each scan changed comes out as intended, with a person's decision holding
 // until the code under it changes. Last, lineage by meaning: every screen's fields gathered under what they mean, and
-// where the screens disagree. tools/test_studio.py runs it. Run by hand with:
+// where the screens disagree; and from a Snowflake column, what a change to it reaches. tools/test_studio.py runs it. Run by hand with:
 // node --experimental-strip-types web/scripts/check-lineage.ts
 import { readdirSync, readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 import { buildModel } from '../src/explorer/model.ts';
 import { buildLineage, buildVersions, compareLineage, LAYERS, parseSssom, tally, unknownSlots, versionsOf, type Change, type LineageDiff } from '../src/studio/lineage.ts';
-import { gapsOf, meaningIndex, meaningsInOrder, setTitle, type Finding, type ScreenSet } from '../src/studio/meaning.ts';
+import { columnIndex, columnRoute, columnsInOrder, gapsOf, meaningIndex, meaningsInOrder, setTitle, type Finding, type ScreenSet } from '../src/studio/meaning.ts';
 
 const root = new URL('../../', import.meta.url);
 const read = (name: string) => readFileSync(new URL(name, root), 'utf8');
@@ -123,4 +123,21 @@ const order = meaningsInOrder(index);
 expect(order[0]?.key === 'Settlement.settled_at' && order.slice(0, 3).every((m) => m.problems > 0) && order.filter((m) => m.problems).length === 3,
   'the meanings where screens disagree come first, three of them', order.slice(0, 4).map((m) => `${m.key} ${m.problems}`).join(', '));
 expect(gapsOf(screens).map((g) => `${g.trace.field.label} on ${g.set.id}`).join(', ') === 'Risk tier on transaction-research', 'the only field nothing holds is the risk tier');
+
+// From the other end: a Snowflake column, and everything a change to it reaches.
+const cols = columnIndex(screens);
+const feeds = (id: string) => (cols.get(id)?.feeds ?? []).map((f) => `${f.trace.field.label} on ${f.set.id}`).sort().join(', ');
+expect(feeds('sf:CORE.FCT_CHARGEBACK.CB_ID') === 'Case on dispute-workbench, Status on transaction-research', 'the chargeback id feeds the case on one screen and the status on the other', feeds('sf:CORE.FCT_CHARGEBACK.CB_ID'));
+const cb = cols.get('sf:CORE.FCT_CHARGEBACK.CB_ID')!;
+expect(cb.confirmed.map((f) => f.trace.confirmedBy).sort().join(', ') === 'person:ana, person:cara', 'a change to it would bring back both people\'s confirmations for a re-check', cb.confirmed.map((f) => f.trace.confirmedBy).join(', '));
+const cap = cols.get('sf:CORE.FCT_CAPTURE.CAPTURE_DT')!;
+expect(cap.shifts.map((f) => f.trace.field.label).join() === 'Settled on' && cap.own[0]?.means.slot === 'Capture.captured_at', 'the capture date feeds a field that means the settlement date: the shift, read from the column');
+expect(feeds('sf:CORE.FCT_SETTLEMENT_ITEM.SETTLED_DT') === 'Settled on on dispute-workbench, Settled on on transaction-research', 'the settlement date feeds both screens');
+const split = [...cols.values()].filter((c) => c.own.length > 1);
+expect(!split.length, 'every column means the same thing in every set that maps it', split.map((c) => c.key).join(', '));
+const routes = [...cols.keys()].map(columnRoute);
+expect(new Set(routes).size === routes.length && routes.every((r) => /^[A-Za-z0-9-]+$/.test(r)), 'every column has its own route, in letters, digits and hyphens');
+const corder = columnsInOrder(cols);
+expect(corder[0]?.key === 'sf:CORE.FCT_CAPTURE.CAPTURE_DT' && corder.slice(1, 5).every((c) => c.screens.length === 2), 'the column that shifts a meaning comes first, then those both screens read',
+  corder.slice(0, 5).map((c) => c.key).join(', '));
 process.exit(failed ? 1 : 0);

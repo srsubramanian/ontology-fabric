@@ -288,7 +288,7 @@ function Changes({ d, since, who }: { d: FieldDiff; since: string | null; who(id
 }
 
 /** Beside the map: what the picked field means, how it's built, and the decision on its mapping. */
-export function LineageDetail({ l, t, set = 'transaction-research', editable, who, decided, onDecide, onAsk, change = null, since = null, versions = [], latest = true, meaningOf, onMeaning }: {
+export function LineageDetail({ l, t, set = 'transaction-research', editable, who, decided, onDecide, onAsk, change = null, since = null, versions = [], latest = true, meaningOf, onMeaning, onColumn }: {
   l: Lineage; t: Trace | null; editable: boolean; who(id?: string | null): string;
   /** The screen's mapping set, named as its file is in ontology/mappings/. */
   set?: string;
@@ -301,6 +301,8 @@ export function LineageDetail({ l, t, set = 'transaction-research', editable, wh
   versions?: Version[]; latest?: boolean;
   /** Every screen's fields gathered under what they mean, to show the others that mean what this field does. */
   meaningOf?(key: string): Meaning | null; onMeaning?(key: string): void;
+  /** Open a Snowflake column: everything built from it, on every screen. */
+  onColumn?(key: string): void;
 }) {
   const [rejecting, setRejecting] = useState(false);
   const title = setTitle(l);
@@ -371,7 +373,7 @@ export function LineageDetail({ l, t, set = 'transaction-research', editable, wh
         })()}
         {t.sources.map((s) => {
           const f = l.fields.get(s.field)!;
-          return <p key={s.key} className={'small' + (t.shift && s.field === t.shift.field.id ? ' warn' : '')}>In Snowflake, <code>{where(f)}</code> {s.slot ? <>{meansWords(s.predicate)} <code>{s.slot}</code></> : 'means nothing in the ontology yet'}.</p>;
+          return <p key={s.key} className={'small' + (t.shift && s.field === t.shift.field.id ? ' warn' : '')}>In Snowflake, {onColumn ? <button type="button" className="linkish col" data-column={f.id} onClick={() => onColumn(f.id)}><code>{where(f)}</code></button> : <code>{where(f)}</code>} {s.slot ? <>{meansWords(s.predicate)} <code>{s.slot}</code></> : 'means nothing in the ontology yet'}.</p>;
         })}
         {t.shift && (
           <div className="said wrong">
