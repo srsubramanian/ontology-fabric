@@ -430,3 +430,36 @@
 .hops{grid-template-columns:minmax(0,1fr)}
 .hops li{min-width:0}
 .hops .code{max-width:100%; overflow-x:auto}
+
+/* Lineage versions: each scan is a version; what changed since an earlier one (illustrative) */
+.lver{display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px}
+.lver .seg button[aria-pressed="true"],.lsince .vbtn[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+.lsince{display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:.82rem}
+.lsince select{font:inherit; font-size:.8rem; color:var(--ink); background:var(--raised); border:1px solid var(--line); border-radius:6px; padding:2px 4px}
+.st.recheck{color:var(--ink); font-weight:700}
+.lmeans.st.recheck code{color:var(--ink)}
+.lchanges{display:flex; flex-wrap:wrap; gap:4px 12px; margin:0; font-size:.84rem}
+.lchanges .chg{font-weight:700}
+.lgrid.cmp{min-width:990px}
+.lgrid.cmp .lrow{grid-template-columns:92px minmax(136px,1fr) 76px minmax(100px,.85fr) 76px minmax(120px,1fr) 76px minmax(122px,1fr) 8px minmax(150px,1.2fr)}
+.lchg{font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.03em; color:var(--muted)}
+.lrow .lchg.c-reopened,.lrow .lchg.c-rebuilt,.lrow .lchg.c-remapped,.lrow .lchg.c-added,.lrow .lchg.c-gone,.lrow .lchg.c-confirmed{color:var(--ink)}
+.lrow .lchg.c-reopened::before{content:"↻ "}
+.lrow .lchg[class*=" c-"]{box-shadow:inset 3px 0 0 var(--ink)}
+.lrow.gone .lcell:not(.lchg){opacity:.5; text-decoration:line-through}
+.lhop.chg{color:var(--ink); font-weight:800; outline:1.5px solid var(--ink); outline-offset:-2px; border-radius:5px}
+.tgraph .hp.chg{stroke:var(--ink); stroke-width:3}
+.tgraph .hl.chg{fill:var(--ink); font-weight:800}
+.tgraph .tb.chg rect{stroke:var(--ink); stroke-width:2.4}
+.lchanged{border-left:3px solid var(--ink); padding-left:10px}
+.chglist{margin:0; padding-left:18px; display:grid; gap:7px; font-size:.84rem; grid-template-columns:minmax(0,1fr)}
+.chglist li{min-width:0}
+.chglist .hk{font-weight:800; font-size:.7rem; text-transform:uppercase; letter-spacing:.03em; color:var(--muted)}
+.chglist .re b{font-weight:800}
+.ldiff{margin-top:4px; max-width:100%; overflow-x:auto}
+.ldiff pre{margin:0; font-size:.72rem; line-height:1.5; padding:6px 8px; white-space:pre-wrap; overflow-wrap:anywhere}
+.ldiff .del,.ldiff .ins{padding-left:1.3em; text-indent:-1.3em}
+.ldiff .del{display:block; color:var(--code-del); background:color-mix(in srgb, var(--code-del) 12%, transparent)}
+.ldiff .ins{display:block; color:var(--code-ins); background:color-mix(in srgb, var(--code-ins) 12%, transparent)}
+.lversions{margin:0 0 6px; padding-left:18px; display:grid; gap:4px; font-size:.84rem}
+.lversions .small{display:block}
