@@ -23,7 +23,9 @@ export const THRESHOLD = 0.9;
 
 export type Row = Record<string, string>;
 export type Field = { id: string; label: string; layer: Layer };
-export type Hop = { from: string; to: string; transform: Transform; note: string; location: string };
+export type Hop = { from: string; to: string; transform: Transform; note: string; location: string;
+  /** The code that does it, from the set's code extension, in the language of the layer it's in. */
+  code: string };
 export type Means = {
   key: string; field: string; slot: string | null; predicate: string; confidence: number;
   author: string; reviewer: string; comment: string;
@@ -36,7 +38,11 @@ export type Trace = {
   /** Where the meaning shifts: the screen means one thing, a source it's built from another. */
   shift?: { screen: string; source: string; field: Field; hop?: Hop };
 };
-export type Lineage = { title: string; meta: Record<string, unknown>; fields: Map<string, Field>; hops: Hop[]; means: Means[]; traces: Trace[] };
+export type Lineage = {
+  title: string; meta: Record<string, unknown>; fields: Map<string, Field>; hops: Hop[]; means: Means[]; traces: Trace[];
+  /** The competency question the screen answers, from the set's competency_question extension. */
+  question: string | null;
+};
 /** A person's decision on a proposed mapping, kept on the shared draft. */
 export type MappingDecision = { state: 'accepted' | 'rejected'; reason?: string | null; by?: string | null; at?: number };
 
@@ -69,7 +75,7 @@ export function buildLineage(tsv: string, decisions: Record<string, MappingDecis
     field(r.subject_id, r.subject_label);
     if (r.predicate_id === 'prov:wasDerivedFrom') {
       field(r.object_id, r.object_label);
-      hops.push({ from: r.subject_id, to: r.object_id, transform: ((r.transform || 'pass') in TRANSFORMS ? r.transform || 'pass' : 'pass') as Transform, note: r.transform_note, location: r.location });
+      hops.push({ from: r.subject_id, to: r.object_id, transform: ((r.transform || 'pass') in TRANSFORMS ? r.transform || 'pass' : 'pass') as Transform, note: r.transform_note, location: r.location, code: r.code ?? '' });
     } else {
       const slot = r.object_id === 'sssom:NoTermFound' ? null : r.object_id.replace(/^fabric:/, '');
       const m: Means = { key: '', field: r.subject_id, slot, predicate: r.predicate_id, confidence: Number(r.confidence || 0), author: r.author_id, reviewer: r.reviewer_id, comment: r.comment };
@@ -110,7 +116,7 @@ export function buildLineage(tsv: string, decisions: Record<string, MappingDecis
     }
     return { slug: slug(f.label), field: f, lanes, hops: used, means: m, sources, state, shift };
   });
-  return { title: String(meta.mapping_set_title ?? 'Lineage'), meta, fields, hops, means, traces };
+  return { title: String(meta.mapping_set_title ?? 'Lineage'), meta, fields, hops, means, traces, question: typeof meta.competency_question === 'string' ? meta.competency_question : null };
 }
 
 /** Mappings to slots the ontology doesn't have, for the checks. */

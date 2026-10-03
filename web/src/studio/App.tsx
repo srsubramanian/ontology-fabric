@@ -324,7 +324,9 @@ export function App() {
   const [proof, setProof] = useState<Proof | null>(null);
   const [proofRunning, setProofRunning] = useState(false);
   const [writingTest, setWritingTest] = useState<{ step: string; ctl: AbortController } | null>(null);
-  useEffect(() => { setProving(null); setProof(null); }, [view]);
+  // A proof stays open while someone picks fields of the same screen's lineage; any other view closes it.
+  const viewKind = lineageView ? 'lineage' : view;
+  useEffect(() => { setProving(null); setProof(null); }, [viewKind]);
   const writingRef = useRef(writingTest);
   writingRef.current = writingTest;
   useEffect(() => () => writingRef.current?.ctl.abort(), []);
@@ -419,7 +421,7 @@ export function App() {
   const tidyUps = a.tidyUps;
   const added = useMemo(() => new Set(live(draft.classes).filter(([, e]) => e.added).map(([n]) => n)), [draft]);
   const addedRels = useMemo(() => new Set(a.changes.relationships), [a]);
-  const lightQ = question ?? mission?.id ?? (inquiry?.matches && inquiry.answered ? inquiry.matches : inquiry?.proposals?.answer?.name);
+  const lightQ = question ?? mission?.id ?? (lineageView ? lineage.question : null) ?? (inquiry?.matches && inquiry.answered ? inquiry.matches : inquiry?.proposals?.answer?.name);
   const walkLit = useMemo(() => (lightQ ? mapA.report.model?.questions.find((q) => q.id === lightQ)?.steps.map((x) => x.relationship.id) ?? [] : []), [mapA, lightQ]);
   // A mission's hints on the map: what it works on, what to use next, where to drag from, and where to place.
   const hints = useMemo(() => {
@@ -568,6 +570,8 @@ export function App() {
           )}
           {lineageView && (
             <LineagePanel l={lineage} pick={lineagePick} onClose={() => { location.hash = hashFor('studio', ''); }}
+              question={lineage.question ? { id: lineage.question, text: rawQuestions.questions.find((q) => q.id === lineage.question)?.question ?? '' } : null}
+              onProve={lineage.question ? () => startProof(lineage.question!, 'draft') : undefined}
               onPick={(sl) => { location.hash = hashFor('studio', sl ? `lineage-${sl}` : 'lineage'); }} />
           )}
           {proving && (

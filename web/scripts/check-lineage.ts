@@ -27,6 +27,14 @@ for (const file of readdirSync(new URL('ontology/mappings/', root)).filter((f) =
   expect(Object.keys((meta.curie_map ?? {}) as object).length > 0 && !!meta.mapping_set_id && !!meta.license, 'it has a curie map, an id and a licence');
 
   const l = buildLineage(tsv);
+  const cq = l.question ? model.questions.find((q) => q.id === l.question) : undefined;
+  expect(!l.question || (!!cq && !!cq.query), `the screen's question ${l.question ?? '(none)'} is one the ontology answers`);
+  if (cq) {
+    // A class counts when the screen shows it or one of its kinds, such as a Chargeback for DisputeEvent.
+    const touched = l.means.map((m) => m.slot?.split('.')[0]).filter((c): c is string => !!c && !!model.classes[c]);
+    const missed = cq.steps.map((x) => x.relationship.from).filter((c) => !touched.some((t) => model.classes[t].chain.includes(c)));
+    expect(!missed.length, `the screen shows every class ${cq.id} walks from`, missed.join(', '));
+  }
   const missing = unknownSlots(l, model);
   expect(!missing.length, 'every mapping points at a class or slot the ontology has', missing.join(', '));
   const partial = l.traces.filter((t) => LAYERS.some((x) => !t.lanes[x.id].length));
@@ -41,7 +49,7 @@ for (const file of readdirSync(new URL('ontology/mappings/', root)).filter((f) =
     expect(l.traces.find((x) => x.field.label === 'Status')?.state === 'confirmed', 'the status, derived on purpose, doesn\'t count as a shift');
     const shift = l.traces.find((x) => x.state === 'shift')!.shift!;
     expect(shift.screen === 'Settlement.settled_at' && shift.source === 'Capture.captured_at' && shift.hop?.transform === 'derive', 'the shift names both meanings and the hop that derives it');
-    const accepted = buildLineage(tsv, { 'ui:detail.device>Device.id': { state: 'accepted' } });
+    const accepted = buildLineage(tsv, { 'ui:TransactionLifecycle.device>Device.id': { state: 'accepted' } });
     expect(accepted.traces.find((x) => x.field.label === 'Device')?.state === 'confirmed', 'a person\'s decision confirms a mapping');
   }
 }

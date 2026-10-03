@@ -423,3 +423,10 @@
 .lcard:hover,.lcard:focus-visible{border-color:var(--wh); outline:none}
 .lrow .lmeans{position:sticky; right:0; background:var(--raised); box-shadow:-8px 0 8px -8px color-mix(in srgb, var(--ink) 30%, transparent); padding-left:8px}
 .lrow.on .lmeans{background:color-mix(in srgb, var(--onto) 8%, var(--raised))}
+.lq{display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; margin:0; font-size:.88rem}
+.lq b{color:var(--onto)}
+.hops .code{margin-top:4px}
+.hops .code pre{margin:0; font-size:.72rem; line-height:1.45; padding:6px 8px; overflow-x:auto; white-space:pre}
+.hops{grid-template-columns:minmax(0,1fr)}
+.hops li{min-width:0}
+.hops .code{max-width:100%; overflow-x:auto}

@@ -7,6 +7,7 @@ import { EASE_OUT, tr } from '../kit/motion';
 import { ReplayButton } from '../kit/ReplayButton';
 import { useReplay } from '../kit/useTimeline';
 import { classOf, LAYERS, meansWords, tally, THRESHOLD, TRANSFORMS, type Field, type Layer, type Lineage, type Means, type State, type Trace } from './lineage';
+import { CodeBlock } from '../kit/CodeBlock';
 import { RejectReason } from './Memory';
 
 export const STATE_WORDS: Record<State, string> = {
@@ -17,7 +18,11 @@ const short = (f: Field) => (f.layer === 'ui' ? f.label : f.label.replace(/\[\]$
 const where = (f: Field) => f.id.replace(/^[a-z]+:/, '');
 
 /** The panel above the map: the screen's fields, lane by lane, and the trace of the one picked. */
-export function LineagePanel({ l, pick, onPick, onClose }: { l: Lineage; pick: string | null; onPick(slug: string | null): void; onClose(): void }) {
+export function LineagePanel({ l, pick, onPick, onClose, question, onProve }: {
+  l: Lineage; pick: string | null; onPick(slug: string | null): void; onClose(): void;
+  /** The competency question the screen answers, and a way to prove it on sample data. */
+  question?: { id: string; text: string } | null; onProve?: () => void;
+}) {
   const [by, setBy] = useState<'field' | 'class'>('field');
   const t = tally(l.traces);
   const groups: [string, Trace[]][] = by === 'field' ? [['', l.traces]]
@@ -37,7 +42,11 @@ export function LineagePanel({ l, pick, onPick, onClose }: { l: Lineage; pick: s
           <button type="button" className="vbtn tiny" onClick={onClose}>Close</button>
         </span>
       </header>
-      <p className="how">Each field of the screen, traced from Snowflake through the data API and the backend to what the analyst sees, and what it means in the ontology. Every name here is made up.</p>
+      <p className="how">Each field of the screen, traced from Snowflake through the data API and the backend to what the analyst sees, and what it means in the ontology. Every name and line of code here is made up.</p>
+      {question && (
+        <p className="lq"><span>The screen answers <b>{question.id}</b>: {question.text}</span>
+          {onProve && <button type="button" className="vbtn tiny" onClick={onProve}>Prove it with sample data</button>}</p>
+      )}
       <p className="ltally" aria-label="Summary">
         <span><b>{l.traces.length}</b> fields</span>
         {(['confirmed', 'proposed', 'review', 'shift', 'gap', 'rejected'] as State[]).filter((s) => t[s]).map((s) => <span key={s} className={'st ' + s}><b>{t[s]}</b> {STATE_WORDS[s]}</span>)}
@@ -239,6 +248,7 @@ export function LineageDetail({ l, t, editable, who, decided, onDecide, onAsk }:
                 <span className={'hk t-' + h.transform}>{TRANSFORMS[h.transform]}</span> {stl(from)} <code>{short(from)}</code> → {stl(to)} <code>{short(to)}</code>
                 {h.note && <span className="small"> · {h.note}</span>}
                 {h.location && <span className="loc">{h.location}</span>}
+                {h.code && <CodeBlock code={h.code} lang={to.layer === 'ui' ? 'tsx' : to.layer === 'be' ? 'java' : 'sql'} />}
               </li>
             );
           })}
