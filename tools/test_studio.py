@@ -70,7 +70,8 @@ def main():
     for script, what in (("check-missions.ts", "every mission's solution passes"), ("check-ask.ts", "the asked question's design passes"),
                          ("check-story.ts", "the story lens reads every relationship"),
                          ("check-proof.ts", "every competency query runs on the sample world, and the asked question's test case passes"),
-                         ("check-memory.ts", "the team's decisions and the person's notes reach Claude and the proposals")):
+                         ("check-memory.ts", "the team's decisions and the person's notes reach Claude and the proposals"),
+                         ("check-lineage.ts", "the lineage mapping sets are SSSOM, point at the ontology, and trace every field")):
         run = subprocess.run(["node", "--experimental-strip-types", "--no-warnings", str(ROOT / "web" / "scripts" / script)],
                              capture_output=True, text=True)
         print(run.stdout.rstrip())
@@ -460,6 +461,61 @@ def main():
             assert_true(mine_now.get("level") == "autopilot" and len([m for m in (mine_now.get("mine") or {}).values() if m]) >= 7,
                         f"the person's private record is wrong: {mine_now.get('level')}, {len(mine_now.get('mine') or {})}")
         step("on autopilot, Claude proves its design first, and one click accepts it", autopilot, "13-autopilot")
+
+        def lineage():
+            page.goto(SITE + "#studio")
+            page.locator(f"{APP} .lcard").click()
+            page.wait_for_selector(f"{APP} .coach.lineage .lrow[data-trace]")
+            assert_true(page.locator(f"{APP} .coach.lineage .lrow[data-trace]").count() == 16, "the screen doesn't show its 16 fields")
+            assert_true("CQ-03" in page.inner_text(f"{APP} .coach.lineage .lq"), "the panel doesn't name the question the screen answers")
+            tally = page.inner_text(f"{APP} .ltally")
+            assert_true("1 meaning shifts" in tally and "1 nothing holds it" in tally and "2 waits for a person" in tally and "1 needs a re-check" in tally,
+                        f"the summary is wrong: {tally}")
+            page.locator(f"{APP} .lrow[data-trace=settled-on] .lfield").click()
+            page.wait_for_selector(f"{APP} .tgraph .tb.onto.off", state="attached")
+            assert_true("One field, two meanings" in page.inner_text(f"{APP} .inspector .said.wrong"), "the meaning shift isn't explained")
+            assert_true("COALESCE" in page.inner_text(f"{APP} .inspector .hops"), "the hops don't show the resolver's SQL")
+            page.locator(f"{APP} .coach.lineage").get_by_role("button", name="Prove it with sample data").click()
+            page.wait_for_selector(f"{APP} .coach.proof:has-text('CQ-03') .pchecks li.ok:has-text('It answers with')", timeout=10000)
+            page.locator(f"{APP} .lrow[data-trace=device] .lfield").click()
+            assert_true(page.locator(f"{APP} .coach.proof").count() == 1, "picking another field closed the proof")
+            page.get_by_role("button", name="Accept the mapping").click()
+            page.wait_for_selector(f"{APP} .lrow[data-trace=device][data-state=confirmed]")
+            month = page.evaluate("'m-' + new Date().toISOString().slice(0, 7)")
+            team = page.evaluate(f"async () => (await window.__stubDb.doc('memory/{month}').get()).data()")
+            assert_true(any(m and m.get("kind") == "mapping" and m.get("state") == "accepted" for m in (team or {}).get("entries", {}).values()),
+                        "the team's memory doesn't hold the mapping decision")
+            page.locator(f"{APP} .lrow[data-trace=risk-tier] .lfield").click()
+            page.get_by_role("button", name="Ask Claude what to add").click()
+            assert_true("Risk tier" in page.get_by_label("Ask a question or describe what to add").input_value(), "the gap didn't become a question to ask")
+            # The latest scan changed how the captured amount is built, so ana's confirmation on v2 comes back as a re-check.
+            page.locator(f"{APP} .lrow[data-trace=captured-amount] .lfield").click()
+            changed = page.inner_text(f"{APP} .inspector .lchanged")
+            assert_true("since v2" in changed and "Re-check" in changed and "ana" in changed, f"the re-check isn't explained: {changed}")
+            assert_true("captures" in page.inner_text(f"{APP} .inspector .ldiff .ins"), "the code diff doesn't show the new code")
+            page.get_by_role("button", name="Accept the mapping").click()
+            page.wait_for_selector(f"{APP} .lrow[data-trace=captured-amount][data-state=confirmed]")
+            page.locator(f"{APP} .coach.lineage").get_by_role("button", name="What changed").click()
+            page.wait_for_selector(f"{APP} .lgrid.cmp")
+            changes = page.inner_text(f"{APP} .lchanges")
+            assert_true("Since v2" in changes and "2 built differently" in changes and "1 to re-check" in changes and "16 places" in changes, f"what changed is wrong: {changes}")
+            assert_true("reopened" in (page.get_attribute(f"{APP} .lrow[data-trace=settled-on]", "data-change") or ""), "the settlement date isn't marked for a re-check")
+            page.locator(f"{APP} .coach.lineage").get_by_role("button", name="v1 · 6 Jul").click()
+            page.wait_for_function(f"document.querySelectorAll('{APP} .coach.lineage .lrow[data-trace]').length === 14")
+            assert_true(not page.locator(f"{APP} .lgrid.cmp").count(), "the first scan has nothing earlier to compare with")
+            page.locator(f"{APP} .lrow[data-trace=device] .lfield").click()
+            assert_true(not page.get_by_role("button", name="Accept the mapping").count(), "an earlier scan offers to decide on its mappings")
+            page.locator(f"{APP} .coach.lineage").get_by_role("button", name="v3 · 2 Oct · latest").click()
+            page.locator(f"{APP} .coach.lineage").get_by_role("button", name="What changed").click()
+            page.locator(f"{APP} .lsince select").select_option(label="v1, 6 Jul")
+            page.wait_for_selector(f"{APP} .lrow.gone[data-trace=auth-code]")
+            page.get_by_role("button", name="By ontology class").click()
+            page.wait_for_selector(f"{APP} .lgroup:has-text('Nothing in the ontology yet')")
+            page.locator(f"{APP} .lsince select").select_option(label="v2, 17 Aug")
+            page.locator(f"{APP} .lrow[data-trace=settled-on] .lfield").click()
+            page.wait_for_selector(f"{APP} .tgraph .hp.chg", state="attached")
+            page.wait_for_timeout(2400)  # the trace draws in, from Snowflake to the screen
+        step("trace a screen's fields to Snowflake and the ontology, accept a mapping, turn a gap into a question, and see what each scan changed", lineage, "14-lineage")
         browser.close()
 
     for e in errors:

@@ -19,6 +19,9 @@ import { accept, decide, ghosts, pending, previewDraft, settle, think, type Aske
 import { memoryId, type Memory } from './memory';
 import { Dial, MemoryPanel } from './Memory';
 import { useMemory } from './useMemory';
+import { buildVersions, classOf, compareLineage, tally, versionsOf, type Means } from './lineage';
+import { changeWords, day, LineageDetail, LineagePanel, STATE_WORDS } from './Lineage';
+import TXN_RESEARCH from '../../../ontology/mappings/transaction-research.sssom.tsv?raw';
 import { AskedList, InquiryCard, ProposalsPanel } from './Ask';
 import { usePresence, type Here, type Lens } from './presence';
 import { LensToggle, StoryClass, StoryRel } from './Story';
@@ -30,6 +33,11 @@ import { loadSql } from './sqlLoad';
 import { cleanScenario, writeTest } from './testcase';
 import { SessionCard, StartPull } from './Pull';
 import { sampleAdvice, useProfiles, useRuntime, type SampleError } from './runtime';
+
+// The Transaction Research mapping set's scans (illustrative): the earlier ones kept in history, then the current one.
+const TXN_HISTORY = import.meta.glob('../../../ontology/mappings/history/transaction-research.*.sssom.tsv', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const TXN_VERSIONS = versionsOf(TXN_RESEARCH, Object.values(TXN_HISTORY));
+const LATEST = TXN_VERSIONS.length - 1;
 import { useDraftStore } from './store';
 
 type Entry = { label: string; fwd: DraftUpdate; inv: DraftUpdate };
@@ -75,13 +83,27 @@ export function App() {
   const mission = view.startsWith('mission-') ? missionById(view.slice('mission-'.length)) ?? null : null;
   const inquiryId = view.startsWith('ask-') ? view.slice('ask-'.length) : null;
   const inquiry = inquiryId ? draft.inquiries?.[inquiryId] ?? null : null;
+  // Lineage: a screen's fields traced to the warehouse and to the ontology (illustrative). #studio-lineage-<field> picks one,
+  // and #studio-lineage-changes opens what the latest scan changed. Which scan shows, and what it's compared with, stay local.
+  const lineageView = view === 'lineage' || view.startsWith('lineage-');
+  const lineagePick = view.startsWith('lineage-') ? view.slice('lineage-'.length) : null;
+  const [lv, setLv] = useState<{ at: number; since: number | null }>({ at: LATEST, since: null });
+  useEffect(() => { if (view === 'lineage-changes') setLv({ at: LATEST, since: Math.max(0, LATEST - 1) }); }, [view]);
+  const lineages = useMemo(() => buildVersions(TXN_VERSIONS, draft.mappings ?? {}), [draft.mappings]);
+  const lineage = lineages[lv.at], current = lineages[LATEST];
+  const lineageDiff = useMemo(() => (lv.since !== null && lv.since < lv.at ? compareLineage(lineages[lv.since], lineages[lv.at]) : null), [lineages, lv]);
+  const priorDiff = useMemo(() => (lv.at > 0 ? compareLineage(lineages[lv.at - 1], lineages[lv.at]) : null), [lineages, lv.at]);
+  // The picked field's changes: since the version it's compared with, or else since the scan before, when they bear on it.
+  const pickedChange = (lineageDiff ?? priorDiff)?.fields.find((f) => f.slug === lineagePick) ?? null;
+  const fieldChange = lineageDiff || pickedChange?.kinds.some((k) => k !== 'moved') ? pickedChange : null;
+  const pickedTrace = lineage.traces.find((t) => t.slug === lineagePick) ?? (lineageDiff ? pickedChange?.before ?? null : null);
   const [rel, setRel] = useState<string | null>(null);
   const [picked, setPicked] = useState<Selection>(null);
   useEffect(() => { setRel(null); setPicked(null); }, [view]);
   const question = /^CQ-\d+$/.test(view) && rawQuestions.questions.some((q) => q.id === view) ? view : null;
   const exists = (s: Selection) => !!s && (s.kind === 'rel' ? model.relationships.some((r) => r.id === s.id) : Object.hasOwn(model.classes, s.id));
   // In a mission or a question, what's picked on the map stays local, since the route holds the mission or question.
-  const local = !!mission || !!inquiryId;
+  const local = !!mission || !!inquiryId || lineageView;
   const selected: Selection = local ? (exists(picked) ? picked : null)
     : rel && model.relationships.some((r) => r.id === rel) ? { kind: 'rel', id: rel }
       : Object.hasOwn(model.classes, view) ? { kind: 'class', id: view } : null;
@@ -316,7 +338,9 @@ export function App() {
   const [proof, setProof] = useState<Proof | null>(null);
   const [proofRunning, setProofRunning] = useState(false);
   const [writingTest, setWritingTest] = useState<{ step: string; ctl: AbortController } | null>(null);
-  useEffect(() => { setProving(null); setProof(null); }, [view]);
+  // A proof stays open while someone picks fields of the same screen's lineage; any other view closes it.
+  const viewKind = lineageView ? 'lineage' : view;
+  useEffect(() => { setProving(null); setProof(null); }, [viewKind]);
   const writingRef = useRef(writingTest);
   writingRef.current = writingTest;
   useEffect(() => () => writingRef.current?.ctl.abort(), []);
@@ -386,6 +410,20 @@ export function App() {
     }
   };
 
+  // A decision on a lineage mapping goes on the draft, for the pull request to write into the mapping set, and into memory.
+  const decideMapping = (m: Means, state: 'accepted' | 'rejected', reason: string | null) => {
+    const label = current.fields.get(m.field)?.label ?? m.field;
+    // The decision rests on how the field is built now: a later scan that changes it brings it back for a re-check.
+    const basis = current.traces.find((t) => t.means?.key === m.key)?.fingerprint ?? null;
+    void edit({ mappings: { [m.key]: { state, reason, by: rt.me.id, at: Date.now(), basis, version: current.version } } }, `${state === 'accepted' ? 'accept' : 'reject'} the mapping of ${label} to ${m.slot}`);
+    void mem.remember([[memoryId(), { state, kind: 'mapping', name: m.key, title: `Map “${label}” to ${m.slot}`, reason, question: current.title, by: rt.me.id, at: Date.now() }]])
+      .then((err) => err && setNote({ text: err, bad: true }));
+  };
+  const askAbout = (text: string) => {
+    setAsk(text);
+    window.setTimeout(() => document.querySelector<HTMLInputElement>('[data-app=studio] .ask input')?.focus(), 0);
+  };
+
   // What the checks say, and what they name, so the map can ring it. Problems in the ontology block the pull request;
   // the class map's tidy-ups don't, since its session tidies them.
   const problems = a.blocking;
@@ -399,10 +437,15 @@ export function App() {
   const tidyUps = a.tidyUps;
   const added = useMemo(() => new Set(live(draft.classes).filter(([, e]) => e.added).map(([n]) => n)), [draft]);
   const addedRels = useMemo(() => new Set(a.changes.relationships), [a]);
-  const lightQ = question ?? mission?.id ?? (inquiry?.matches && inquiry.answered ? inquiry.matches : inquiry?.proposals?.answer?.name);
+  const lightQ = question ?? mission?.id ?? (lineageView ? lineage.question : null) ?? (inquiry?.matches && inquiry.answered ? inquiry.matches : inquiry?.proposals?.answer?.name);
   const walkLit = useMemo(() => (lightQ ? mapA.report.model?.questions.find((q) => q.id === lightQ)?.steps.map((x) => x.relationship.id) ?? [] : []), [mapA, lightQ]);
   // A mission's hints on the map: what it works on, what to use next, where to drag from, and where to place.
   const hints = useMemo(() => {
+    if (lineageView) {
+      // The classes the screen touches stay bright, or those of the field picked.
+      const ms = pickedTrace ? [pickedTrace.means, ...pickedTrace.sources] : lineage.means;
+      return { focus: new Set(ms.map((m) => classOf(m?.slot ?? null)).filter((c): c is string => !!c)) };
+    }
     if (inquiry?.status === 'proposed') {
       // A question's hints: the classes it touches stay bright, and the proposal in hand pulses.
       const focus = new Set<string>();
@@ -424,7 +467,7 @@ export function App() {
     }
     const mine = mission.steps.flatMap((x) => (x.kind === 'place' ? [x.cls.name] : []));
     return { focus: new Set([...mission.focus, ...mine]), pulse, handleOn };
-  }, [mission, s, ctx, draft, inquiry, ghostSet, walkLit, mapModel, focusP]);
+  }, [mission, s, ctx, draft, inquiry, ghostSet, walkLit, mapModel, focusP, lineageView, pickedTrace, lineage]);
   const show = mission && s && (s.kind === 'place' || s.kind === 'link' || s.kind === 'walk') ? () => setDemo({
     key: Date.now(), ...(s.kind === 'place' ? { kind: 'place' as const, at: target! } : s.kind === 'link' ? { kind: 'drag' as const, from: s.from, to: s.to }
       : { kind: 'walk' as const, rels: s.walks }),
@@ -526,7 +569,7 @@ export function App() {
               onAcceptAll={() => acceptProposals(pending(inquiry))} />
           ) : (
             <section className="coach" aria-label="Your question"><p className="say muted">{store.draft ? 'This question isn\'t on the working draft. It may belong to an earlier draft.' : 'Loading the working draft…'}</p></section>
-          )) : welcome && !question && (
+          )) : welcome && !question && !lineageView && (
             <section className="coach welcome" aria-label="Welcome">
               <header><span className="ctag">New here?</span><b>Ask the ontology a question</b></header>
               <p className="say">Type a question in the box above, in your own words, the way you'd ask a colleague. Claude works out what the ontology is missing and proposes the design on the map. You keep what's right.</p>
@@ -540,6 +583,15 @@ export function App() {
                 <button type="button" className="vbtn" onClick={() => { setWelcome(false); kept.set('studio:welcomed', true); }}>I know my way around</button>
               </div>
             </section>
+          )}
+          {lineageView && (
+            <LineagePanel l={lineage} pick={lineagePick} onClose={() => { location.hash = hashFor('studio', ''); }}
+              question={lineage.question ? { id: lineage.question, text: rawQuestions.questions.find((q) => q.id === lineage.question)?.question ?? '' } : null}
+              onProve={lineage.question ? () => startProof(lineage.question!, 'draft') : undefined}
+              onPick={(sl) => { location.hash = hashFor('studio', sl ? `lineage-${sl}` : 'lineage'); }}
+              versions={TXN_VERSIONS} at={lv.at} since={lineageDiff ? lv.since : null} diff={lineageDiff}
+              onVersion={(i) => setLv(({ since }) => ({ at: i, since: since !== null && i > 0 ? Math.min(since, i - 1) : null }))}
+              onSince={(i) => setLv(({ at }) => ({ at, since: i }))} />
           )}
           {proving && (
             <ProofPanel key={proving.qid} editable={editable} canWrite={!!rt.sample} writing={writingTest?.step ?? null}
@@ -573,7 +625,7 @@ export function App() {
 
         <aside className="inspector" aria-live="polite">
           <LensToggle lens={lens} setLens={setLens} />
-          {local && selected && <button type="button" className="vbtn tiny back" onClick={() => select(null)}>← Back to the {mission ? 'mission' : 'proposals'}</button>}
+          {local && selected && <button type="button" className="vbtn tiny back" onClick={() => select(null)}>← Back to the {mission ? 'mission' : lineageView ? 'lineage' : 'proposals'}</button>}
           {mission && !selected ? (
             <MissionPanel m={mission} at={step} ctx={ctx} a={a} thought={thought} />
           ) : inquiryId && !selected ? (
@@ -583,6 +635,13 @@ export function App() {
                 tutor={mem.level === 'tutor' && Object.values(inquiry.proposals ?? {}).some((p) => p?.quiz)} />}
               <section className="isec"><h3>Questions asked · {asked.length}</h3><AskedList items={asked} who={who} running={running?.id ?? null} /></section>
             </>
+          ) : lineageView && !selected ? (
+            <LineageDetail l={lineage} t={pickedTrace} editable={editable} who={who} onDecide={decideMapping} onAsk={askAbout}
+              change={fieldChange} since={(lineageDiff ?? priorDiff)?.from ?? null} versions={TXN_VERSIONS} latest={lv.at === LATEST}
+              decided={(() => {
+                const d = lv.at === LATEST && pickedTrace?.means ? draft.mappings?.[pickedTrace.means.key] : null;
+                return d && (!d.basis || d.basis === pickedTrace!.fingerprint) ? d : null;
+              })()} />
           ) : question ? (
             <QuestionPanel ctx={ctx} a={a} editable={editable} edit={panel.edit} id={question} walking={walking} setWalking={setWalking}
               writeQuery={rt.sample ? () => void writeQuery() : undefined} busy={writingQuery}
@@ -602,6 +661,23 @@ export function App() {
                         : !pass ? <p className="small muted">The ontology's checks must pass first. Map tidy-ups don't block it.</p>
                           : <StartPull d={draft} a={a} mcp={rt.mcp} me={rt.me.id!} write={write} />}
               next={draft.status === 'pr' ? () => void store.startNext() : undefined}
+              lineage={(() => { const t = tally(current.traces), d = LATEST > 0 ? compareLineage(lineages[LATEST - 1], current) : null; return (
+                <section className="isec">
+                  <h3>Where the data comes from</h3>
+                  <a className="lcard" href={hashFor('studio', 'lineage')} data-view="lineage">
+                    <b>{current.title.replace(/ to the payments ontology \(illustrative\)$/, '')}</b>
+                    <span className="small muted">Illustrative · {current.traces.length} fields traced to Snowflake · {t.shift} {STATE_WORDS.shift} · {t.gap} with nothing to hold it · {t.review} {STATE_WORDS.review}</span>
+                  </a>
+                  {d && (
+                    <p className="small"><a href={hashFor('studio', 'lineage-changes')} data-view="lineage-changes">What the latest scan changed</a> ({current.version}, {day(current.date)}): {changeWords(d).join(', ') || 'nothing that bears on a meaning'}.</p>
+                  )}
+                  {current.traces.some((x) => x.state === 'shift' || x.state === 'gap' || x.state === 'recheck') && (
+                    <p className="small">Look at {current.traces.filter((x) => x.state === 'shift' || x.state === 'gap' || x.state === 'recheck').map((x, i) => (
+                      <span key={x.slug}>{i ? ', ' : ''}<a href={hashFor('studio', `lineage-${x.slug}`)} data-view={`lineage-${x.slug}`}>{x.field.label}</a> ({STATE_WORDS[x.state]})</span>
+                    ))}.</p>
+                  )}
+                </section>
+              ); })()}
               memory={<MemoryPanel team={mem.team} prefs={mem.prefs} shared={mem.shared} me={rt.me.id} who={who} editable={!!store.draft}
                 onForget={(id, at) => void mem.forget(id, at).then((err) => err && setNote({ text: err, bad: true }))}
                 onAbout={(t) => void mem.setPrefs({ about: t || null }).then((err) => err && setNote({ text: err, bad: true }))} />}
@@ -649,12 +725,14 @@ export function App() {
   );
 }
 
-function Overview({ d, a, ctx, thought, shared, loaded, who, gaps, editable, asked, running, pull, next, onPick, memory }: {
+function Overview({ d, a, ctx, thought, shared, loaded, who, gaps, editable, asked, running, pull, next, onPick, memory, lineage }: {
   d: DraftDoc; a: ReturnType<typeof analyse>; ctx: Ctx; thought: Set<string>; shared: boolean; loaded: boolean; who: (id?: string | null) => string;
   asked: [string, InquiryEdit][]; running: string | null;
   gaps: { id: string; question: string; domain: string }[]; editable: boolean; pull: React.ReactNode; next?: () => void; onPick: (id: string) => void;
   /** What the team decided before, and what this person told Claude. */
   memory: React.ReactNode;
+  /** Where a screen's data comes from, traced to the ontology. */
+  lineage: React.ReactNode;
 }) {
   const c = a.changes;
   const items = [
@@ -674,6 +752,7 @@ function Overview({ d, a, ctx, thought, shared, loaded, who, gaps, editable, ask
         <AskedList items={asked.slice(0, 6)} who={who} running={running} />
       </section>
       {memory}
+      {lineage}
       <section className="isec">
         <h3>Worked examples · learn by building</h3>
         <ul className="missions">

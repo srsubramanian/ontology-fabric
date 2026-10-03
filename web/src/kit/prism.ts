@@ -4,6 +4,11 @@ import 'prismjs/components/prism-json';
 import 'prismjs/components/prism-cypher';
 import 'prismjs/components/prism-yaml';
 import 'prismjs/components/prism-sql';
+// The lineage view shows each hop's code in its layer's language: TSX on the screen, Java in the backend.
+import 'prismjs/components/prism-java';
+import 'prismjs/components/prism-typescript';
+import 'prismjs/components/prism-jsx';
+import 'prismjs/components/prism-tsx';
 
 // Custom grammars (docs/style-guide.md).
 

@@ -2,6 +2,7 @@
 // stored as flat maps keyed by name, so two people editing different classes never overwrite each other: the
 // store merges nested objects, and a null entry means "removed". draftToPatch turns it into the LinkML patch the
 // checks run on and the pull request applies.
+import type { MappingDecision } from './lineage.ts';
 import type { LayoutPatch, PortSpec } from '../explorer/layout.ts';
 import { NODE, viewOf } from '../explorer/layout.ts';
 import type { RawQuestions, RawSchema, RawSlot } from '../explorer/model.ts';
@@ -85,6 +86,8 @@ export type DraftDoc = {
   inquiries?: Record<string, InquiryEdit | null>;
   /** Test cases that prove a question with sample data, keyed by question id. Illustrative; older drafts have none. */
   tests?: Record<string, TestEdit | null>;
+  /** Decisions on mappings a lineage view proposes, keyed by field and slot (lineage.ts). Older drafts have none. */
+  mappings?: Record<string, MappingDecision | null>;
   session?: { id: string | null; by: string; at: number; environment: string; branch: string; note?: string } | null;
 };
 
@@ -102,8 +105,9 @@ export type DraftUpdate = {
   answers?: Record<string, Partial<AnswerEdit> | null>;
   inquiries?: Record<string, Partial<InquiryEdit> | null>;
   tests?: Record<string, Partial<TestEdit> | null>;
+  mappings?: Record<string, Partial<MappingDecision> | null>;
 };
-const MAPS = ['classes', 'slots', 'enums', 'answers', 'inquiries', 'tests'] as const;
+const MAPS = ['classes', 'slots', 'enums', 'answers', 'inquiries', 'tests', 'mappings'] as const;
 
 export const slotKey = (cls: string, name: string) => `${cls}:${name}`;
 export const emptyDraft = (id: string, base: string): DraftDoc =>

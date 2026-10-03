@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import type { Analysis } from './analysis';
 import { patchYaml } from './analysis';
-import type { DraftDoc } from './draft';
+import { live, type DraftDoc } from './draft';
 import { mcpAdvice, type Mcp, type McpError } from './runtime';
 import type { DraftWrite } from './store';
 
@@ -37,6 +37,11 @@ export function sessionPrompt(d: DraftDoc, a: Analysis, title: string): string {
     '- questions: for each question id, replace its gap in ontology/competency-questions.yaml with the given answered_in, walks and query, and remove the gap. An id the file doesn\'t have yet is a new question someone asked in the studio: add it at the end of its domain\'s section, with its domain, question, answered_in, walks and query, keeping the id unless the file has taken it since.',
     '- layout: pos entries go in POS and ports entries in PORTS in web/src/explorer/layout.ts; a view entry replaces VIEW there.',
     '',
+    ...(live(d.mappings).length ? [
+      `Decisions on lineage mappings, in ontology/mappings/transaction-research.sssom.tsv. For each accepted one, set reviewer_id to the decider; for each rejected one, set predicate_modifier to Not and put the reason in comment. Each names the version of the file (mapping_set_version) it was made on: if the file is newer now, a scan has changed it since, so skip that decision and say so in the pull request. Keyed subject_id>object (fabric: Class.slot):`,
+      ...live(d.mappings).map(([k, m]) => `- ${k}: ${m.state}${m.version ? ` on ${m.version}` : ''}${m.reason ? ` (${m.reason})` : ''}`),
+      '',
+    ] : []),
     ...(a.tidyUps.length ? [
       `The class map's layout check names ${a.tidyUps.length} tidy-up${a.tidyUps.length === 1 ? '' : 's'} the studio left for you: ${a.tidyUps.join('; ')}. Move the draft's new classes and reroute their relationships in web/src/explorer/layout.ts until the check passes, keeping released classes where they are.`,
       '',
