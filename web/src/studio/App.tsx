@@ -540,6 +540,8 @@ export function App() {
           <button type="button" className="vbtn" disabled={!hist.undo.length || !editable} onClick={() => void undo()} title={hist.undo.at(-1)?.label}>Undo</button>
           <button type="button" className="vbtn" disabled={!hist.redo.length || !editable} onClick={() => void redo()}>Redo</button>
           <button type="button" className={'vbtn' + (showYaml ? ' on' : '')} aria-pressed={showYaml} onClick={() => setShowYaml(!showYaml)}>YAML</button>
+          <button type="button" className={'vbtn' + (lineageView ? ' on' : '')} aria-pressed={lineageView} title="Where a screen's data comes from, and what it means"
+            onClick={() => { location.hash = hashFor('studio', lineageView ? '' : 'lineage'); }}>Lineage</button>
         </span>
       </div>
       {store.draft && draft.base !== BASE && (
@@ -625,7 +627,7 @@ export function App() {
 
         <aside className="inspector" aria-live="polite">
           <LensToggle lens={lens} setLens={setLens} />
-          {local && selected && <button type="button" className="vbtn tiny back" onClick={() => select(null)}>← Back to the {mission ? 'mission' : lineageView ? 'lineage' : 'proposals'}</button>}
+          {selected && (local || !question) && <button type="button" className="vbtn tiny back" onClick={() => select(null)}>Back to the {mission ? 'mission' : lineageView ? 'lineage' : inquiryId ? 'proposals' : 'overview'}</button>}
           {mission && !selected ? (
             <MissionPanel m={mission} at={step} ctx={ctx} a={a} thought={thought} />
           ) : inquiryId && !selected ? (

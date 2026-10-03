@@ -463,6 +463,13 @@ def main():
         step("on autopilot, Claude proves its design first, and one click accepts it", autopilot, "13-autopilot")
 
         def lineage():
+            # From a class someone has open, the way back to the overview and the way to the lineage are both in sight.
+            page.goto(SITE + "#studio-Merchant")
+            page.get_by_role("button", name="Back to the overview").click()
+            page.wait_for_selector(f"{APP} .lcard")
+            page.goto(SITE + "#studio-Merchant")
+            page.locator(APP).get_by_role("button", name="Lineage", exact=True).click()
+            page.wait_for_selector(f"{APP} .coach.lineage .lrow[data-trace]")
             page.goto(SITE + "#studio")
             page.locator(f"{APP} .lcard").click()
             page.wait_for_selector(f"{APP} .coach.lineage .lrow[data-trace]")
