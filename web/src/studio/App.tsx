@@ -12,10 +12,13 @@ import { hashFor, isShowing, useHash } from '../kit/route';
 import { analyse, baseCoverage, patchYaml } from './analysis';
 import { Canvas, type Demo, type Mode, type Selection } from './Canvas';
 import { Coach, type Said } from './Coach';
-import { emptyDraft, inverse, live, type DraftDoc, type DraftUpdate, type InquiryEdit, type Point } from './draft';
+import { emptyDraft, inverse, live, type DraftDoc, type DraftUpdate, type InquiryEdit, type Point, type ProposalEdit } from './draft';
 import { addClass, addSlot, classExists, moveClass, removeClass, removeSlot, slotNameProblem, type Ctx } from './edits';
 import { ClassPanel, QuestionPanel, RelPanel } from './Inspector';
-import { accept, decide, ghosts, previewDraft, settle, think } from './inquiry';
+import { accept, decide, ghosts, pending, previewDraft, settle, think, type Asker } from './inquiry';
+import { memoryId, type Memory } from './memory';
+import { Dial, MemoryPanel } from './Memory';
+import { useMemory } from './useMemory';
 import { AskedList, InquiryCard, ProposalsPanel } from './Ask';
 import { usePresence, type Here, type Lens } from './presence';
 import { LensToggle, StoryClass, StoryRel } from './Story';
@@ -53,6 +56,11 @@ const kept = {
 export function App() {
   const rt = useRuntime();
   const store = useDraftStore(rt, BASE);
+  // Stage 5: how much Claude does for this person, and what the team and they decided before.
+  const mem = useMemory(rt);
+  const memRef = useRef(mem);
+  memRef.current = mem;
+  const asker = (): Asker => ({ level: memRef.current.level, team: memRef.current.team, prefs: memRef.current.prefs });
   const draft = store.draft ?? emptyDraft('loading', BASE);
   const a = useMemo(() => analyse(draft, rawSchema, rawQuestions), [draft]);
   const model = a.report.model ?? baseModel;
@@ -236,15 +244,20 @@ export function App() {
     const ctl = new AbortController();
     setRunning({ id, ctl, step: 'Reading your question', started: startedAt });
     try {
+      const who = asker();
       const reply = await think(rt.sample, () => ctxRef.current, q, {
-        signal: ctl.signal, step: (st) => setRunning((r) => r && { ...r, step: st }), note: again?.note || undefined, before: prev?.summary ?? undefined,
+        signal: ctl.signal, step: (st) => setRunning((r) => r && { ...r, step: st }), note: again?.note || undefined, before: prev?.summary ?? undefined, who,
       });
-      const settled = settle(ctxRef.current, q, reply);
+      const settled = settle(ctxRef.current, q, reply, who);
       // Proposals from an earlier run that this one doesn't repeat are dropped.
       const old = Object.keys(ctxRef.current.draft.inquiries?.[id]?.proposals ?? {});
       const proposals = { ...Object.fromEntries(old.map((k) => [k, null])), ...settled.proposals };
-      const e2 = await write({ inquiries: { [id]: { ...settled, proposals } as Partial<InquiryEdit> } });
+      const e2 = await write({ inquiries: { [id]: { ...settled, proposals, auto: null } as Partial<InquiryEdit> } });
       if (e2) setNote({ text: e2, bad: true });
+      // The draft may not have caught up with the write yet, so autopilot works from the design as settled.
+      else if (who.level === 'autopilot' && settled.proposals?.answer) {
+        await autopilot(id, { question: q, askedAt: startedAt, ...settled, proposals: settled.proposals } as InquiryEdit, ctl.signal, (st) => setRunning((r) => r && { ...r, step: st }));
+      }
     } catch (e) {
       const se = e as SampleError;
       await write({ inquiries: { [id]: { status: 'failed', error: se?.code === 'cancelled' ? 'Stopped.' : sampleAdvice(se) || 'Claude didn\'t finish.' } } });
@@ -252,13 +265,29 @@ export function App() {
   };
   const [focusP, setFocusP] = useState<string | null>(null);
   const titleOf = (id: string) => inquiry?.proposals?.[id]?.title ?? id;
+  // Every decision goes into the team's memory and the decider's own, with its reason, for Claude to read next time.
+  const remember = (inq: InquiryEdit, ids: string[], state: 'accepted' | 'rejected', reason: string | null) => {
+    const at = Date.now();
+    const ms: [string, Memory][] = ids.map((pid) => inq.proposals?.[pid]).filter((p): p is NonNullable<typeof p> => !!p && p.kind !== 'answer')
+      .map((p) => [memoryId(), {
+        state, kind: p.kind, name: p.name, title: p.title, question: inq.question.slice(0, 300), by: rt.me.id, at,
+        reason: reason ?? (Object.values(p.notes ?? {}).filter(Boolean).map((n) => n!.text).at(-1)?.slice(0, 300) || null),
+      }]);
+    void mem.remember(ms).then((err) => err && setNote({ text: err, bad: true }));
+  };
   const acceptProposals = (ids: string[]) => {
     if (!inquiry || !inquiryId) return;
-    void edit(accept(ctx, inquiryId, inquiry, ids, rt.me.id), ids.length > 1 ? `accept ${ids.length} proposals` : `accept: ${titleOf(ids[0])}`);
+    const u = accept(ctx, inquiryId, inquiry, ids, rt.me.id);
+    void edit(u, ids.length > 1 ? `accept ${ids.length} proposals` : `accept: ${titleOf(ids[0])}`);
+    const now = Object.entries(u.inquiries?.[inquiryId]?.proposals ?? {}).filter(([, p]) => p?.state === 'accepted').map(([pid]) => pid);
+    remember(inquiry, now, 'accepted', null);
   };
-  const decideProposal = (id: string, state: 'rejected' | 'proposed') => {
+  const decideProposal = (id: string, state: 'rejected' | 'proposed', reason: string | null = null) => {
     if (!inquiryId) return;
-    void edit(decide(inquiryId, id, state, rt.me.id), `${state === 'rejected' ? 'reject' : 'reconsider'}: ${titleOf(id)}`);
+    const u = decide(inquiryId, id, state, rt.me.id);
+    if (state === 'rejected') (u.inquiries![inquiryId]!.proposals![id] as Partial<ProposalEdit>).reason = reason;
+    void edit(u, `${state === 'rejected' ? 'reject' : 'reconsider'}: ${titleOf(id)}`);
+    if (state === 'rejected' && inquiry) remember(inquiry, [id], 'rejected', reason);
   };
   // The map shows the draft as it would be with every pending proposal accepted, those drawn as ghosts.
   const preview = useMemo(() => (inquiry?.status === 'proposed' ? analyse(previewDraft(draft, inquiry), rawSchema, rawQuestions) : null), [draft, inquiry]);
@@ -329,6 +358,32 @@ export function App() {
       const se = e as SampleError;
       if (se?.code !== 'cancelled') setNote({ text: sampleAdvice(se) || 'Claude didn\'t finish the test case.', bad: true });
     } finally { setWritingTest(null); }
+  };
+
+  // Autopilot: after proposing, Claude plants a test case on the design as it would be with every proposal accepted and
+  // proves the answer, so the person asking decides once, with the proof in front of them. Nothing lands until they do.
+  const autopilot = async (id: string, inq: InquiryEdit, signal: AbortSignal, step: (s: string) => void) => {
+    const ans = inq.proposals?.answer;
+    if (!rt.sample || !ans) return;
+    step('Autopilot: planting a test case');
+    await write({ inquiries: { [id]: { auto: { status: 'testing', at: Date.now(), error: null } } } });
+    try {
+      const pa = analyse(previewDraft(ctxRef.current.draft, inq), rawSchema, rawQuestions);
+      const q = pa.report.model?.questions.find((x) => x.id === ans.name);
+      if (!pa.report.model || !q?.query) throw new Error('the answer has no query to prove');
+      const SQL = q.language === 'sql' ? await loadSql() : null;
+      const sc = await writeTest(rt.sample, pa.report.model, pa.schema, { id: q.id, question: q.question, query: q.query, language: q.language, classes: q.classes }, SQL, { signal, step });
+      if (!sc.nodes?.length) throw new Error('Claude planted nothing');
+      step('Autopilot: proving the answer');
+      const pr = prove(pa.report.model, pa.schema, { query: q.query, language: q.language, scenario: sc }, SQL);
+      await write({ tests: { [q.id]: { scenario: JSON.stringify(sc), by: rt.me.id, at: Date.now(), author: 'claude' } },
+        inquiries: { [id]: { auto: { status: 'ready', passes: pr.ok, checks: pr.checks.map((c) => `${c.ok ? '✓' : '✗'} ${c.label}`), error: null, at: Date.now() } } } });
+      startProof(q.id, 'preview');
+    } catch (e) {
+      const se = e as SampleError;
+      const msg = se?.code === 'cancelled' ? 'stopped' : sampleAdvice(se) || (e as Error)?.message || 'something went wrong';
+      await write({ inquiries: { [id]: { auto: { status: 'failed', error: msg, at: Date.now() } } } });
+    }
   };
 
   // What the checks say, and what they name, so the map can ring it. Problems in the ontology block the pull request;
@@ -436,6 +491,7 @@ export function App() {
           {running ? <button type="button" className="vbtn" onClick={() => running.ctl.abort()}>Stop</button>
             : <button type="submit" className="vbtn go" disabled={!rt.sample || !ask.trim() || !editable}>Ask</button>}
         </form>}
+        {!mission && <Dial level={mem.level} setLevel={(l) => void mem.setPrefs({ level: l }).then((err) => err && setNote({ text: err, bad: true }))} />}
         {mission && <span className="mtitle"><b>{mission.id}</b> {rawQuestions.questions.find((q) => q.id === mission.id)?.question}</span>}
         <span className="tgroup">
           <button type="button" className="vbtn" disabled={!hist.undo.length || !editable} onClick={() => void undo()} title={hist.undo.at(-1)?.label}>Undo</button>
@@ -466,7 +522,8 @@ export function App() {
               onStop={() => running?.ctl.abort()} onAgain={(n) => void askQuestion('', { id: inquiryId, note: n })} onClose={() => { location.hash = hashFor('studio', ''); }}
               onShow={() => document.querySelector('[data-app=studio] .canvas .ghost')?.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' })}
               onProve={inquiry.proposals?.answer && inquiry.proposals.answer.state !== 'rejected' ? () => startProof(inquiry.proposals!.answer.name, 'preview')
-                : inquiry.matches && inquiry.answered ? () => startProof(inquiry.matches!, 'draft') : undefined} proving={!!proving} />
+                : inquiry.matches && inquiry.answered ? () => startProof(inquiry.matches!, 'draft') : undefined} proving={!!proving}
+              onAcceptAll={() => acceptProposals(pending(inquiry))} />
           ) : (
             <section className="coach" aria-label="Your question"><p className="say muted">{store.draft ? 'This question isn\'t on the working draft. It may belong to an earlier draft.' : 'Loading the working draft…'}</p></section>
           )) : welcome && !question && (
@@ -522,7 +579,8 @@ export function App() {
           ) : inquiryId && !selected ? (
             <>
               {inquiry && <ProposalsPanel inq={inquiry} preview={preview} editable={editable} focus={focusP} setFocus={setFocusP} lens={lens} who={who} onNote={editable ? comment : undefined}
-                onAccept={acceptProposals} onReject={(id) => decideProposal(id, 'rejected')} onReopen={(id) => decideProposal(id, 'proposed')} />}
+                onAccept={acceptProposals} onReject={(id, reason) => decideProposal(id, 'rejected', reason)} onReopen={(id) => decideProposal(id, 'proposed')}
+                tutor={mem.level === 'tutor' && Object.values(inquiry.proposals ?? {}).some((p) => p?.quiz)} />}
               <section className="isec"><h3>Questions asked · {asked.length}</h3><AskedList items={asked} who={who} running={running?.id ?? null} /></section>
             </>
           ) : question ? (
@@ -544,6 +602,9 @@ export function App() {
                         : !pass ? <p className="small muted">The ontology's checks must pass first. Map tidy-ups don't block it.</p>
                           : <StartPull d={draft} a={a} mcp={rt.mcp} me={rt.me.id!} write={write} />}
               next={draft.status === 'pr' ? () => void store.startNext() : undefined}
+              memory={<MemoryPanel team={mem.team} prefs={mem.prefs} shared={mem.shared} me={rt.me.id} who={who} editable={!!store.draft}
+                onForget={(id, at) => void mem.forget(id, at).then((err) => err && setNote({ text: err, bad: true }))}
+                onAbout={(t) => void mem.setPrefs({ about: t || null }).then((err) => err && setNote({ text: err, bad: true }))} />}
               onPick={(id) => (id.startsWith('CQ-') ? select({ kind: 'class', id }) : select(id.includes('.') ? { kind: 'rel', id } : { kind: 'class', id }))} />
           )}
         </aside>
@@ -588,10 +649,12 @@ export function App() {
   );
 }
 
-function Overview({ d, a, ctx, thought, shared, loaded, who, gaps, editable, asked, running, pull, next, onPick }: {
+function Overview({ d, a, ctx, thought, shared, loaded, who, gaps, editable, asked, running, pull, next, onPick, memory }: {
   d: DraftDoc; a: ReturnType<typeof analyse>; ctx: Ctx; thought: Set<string>; shared: boolean; loaded: boolean; who: (id?: string | null) => string;
   asked: [string, InquiryEdit][]; running: string | null;
   gaps: { id: string; question: string; domain: string }[]; editable: boolean; pull: React.ReactNode; next?: () => void; onPick: (id: string) => void;
+  /** What the team decided before, and what this person told Claude. */
+  memory: React.ReactNode;
 }) {
   const c = a.changes;
   const items = [
@@ -610,6 +673,7 @@ function Overview({ d, a, ctx, thought, shared, loaded, who, gaps, editable, ask
         <h3>Questions asked · {asked.length}</h3>
         <AskedList items={asked.slice(0, 6)} who={who} running={running} />
       </section>
+      {memory}
       <section className="isec">
         <h3>Worked examples · learn by building</h3>
         <ul className="missions">

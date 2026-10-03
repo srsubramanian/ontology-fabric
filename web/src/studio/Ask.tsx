@@ -7,11 +7,14 @@ import { hashFor } from '../kit/route';
 import type { Analysis } from './analysis';
 import type { InquiryEdit, ProposalEdit } from './draft';
 import { blockedBy, pending } from './inquiry';
+import { LEVELS } from './memory';
+import { Quiz, RejectReason } from './Memory';
 import { missionById } from './missions';
 import type { Lens } from './presence';
 import { proposalSentence } from './Story';
 
 const KIND: Record<ProposalEdit['kind'], string> = { class: 'Class', relationship: 'Link', field: 'Field', enum: 'List', answer: 'Answer' };
+const DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
 /** A run that started this long ago and never answered was left behind by a closed tab. */
 const STALE = 4 * 60_000;
 
@@ -30,7 +33,7 @@ export function inquiryState(inq: InquiryEdit, running: boolean): { label: strin
 }
 
 /** The card above the map: the question, what Claude made of it, and where its design stands. */
-export function InquiryCard({ inq, by, running, step, elapsed, preview, editable, canAsk, onStop, onAgain, onClose, onShow, onProve, proving }: {
+export function InquiryCard({ inq, by, running, step, elapsed, preview, editable, canAsk, onStop, onAgain, onClose, onShow, onProve, proving, onAcceptAll }: {
   inq: InquiryEdit; by: string; running: boolean; step?: string; elapsed: number;
   /** The checks on the draft with every pending proposal accepted. */
   preview: Analysis | null;
@@ -40,6 +43,8 @@ export function InquiryCard({ inq, by, running, step, elapsed, preview, editable
   onShow(): void;
   /** Runs the answer's query on a made-up sample world, with the design as it would be with every proposal accepted. */
   onProve?: () => void; proving?: boolean;
+  /** Autopilot's one click: accept every proposal still waiting. */
+  onAcceptAll?: () => void;
 }) {
   const [note, setNote] = useState('');
   const [again, setAgain] = useState(false);
@@ -50,7 +55,7 @@ export function InquiryCard({ inq, by, running, step, elapsed, preview, editable
   return (
     <section className="coach inquiry" aria-label="Your question" data-inquiry={inq.status}>
       <header>
-        <span className="ctag">Question · asked by {by}</span>
+        <span className="ctag">Question · asked by {by}{inq.level && inq.level !== 'copilot' ? ` · ${LEVELS.find((l) => l.id === inq.level)?.label}` : ''}</span>
         <span className="cact">
           {editable && canAsk && inq.status !== 'thinking' && <button type="button" className="vbtn tiny" aria-expanded={again} onClick={() => setAgain(!again)}>Ask again…</button>}
           <button type="button" className="vbtn tiny" onClick={onClose}>Close</button>
@@ -97,6 +102,7 @@ export function InquiryCard({ inq, by, running, step, elapsed, preview, editable
               )}
             </>
           )}
+          {inq.auto && <Autopilot inq={inq} editable={editable} onAcceptAll={onAcceptAll} running={running} step={step} onStop={onStop} />}
           {onProve && (
             <p className="row prove">
               <button type="button" className={'vbtn' + (proving ? ' on' : '')} onClick={onProve}>{proving ? 'Proving it below' : 'Prove it with sample data'}</button>
@@ -118,23 +124,31 @@ export function InquiryCard({ inq, by, running, step, elapsed, preview, editable
 }
 
 /** Beside the map: each proposal, why, what it comes with, what people said, and the decision. */
-export function ProposalsPanel({ inq, preview, editable, focus, setFocus, onAccept, onReject, onReopen, lens, who, onNote }: {
+export function ProposalsPanel({ inq, preview, editable, focus, setFocus, onAccept, onReject, onReopen, lens, who, onNote, tutor }: {
   inq: InquiryEdit; preview: Analysis | null; editable: boolean;
   focus: string | null; setFocus(id: string | null): void;
-  onAccept(ids: string[]): void; onReject(id: string): void; onReopen(id: string): void;
+  onAccept(ids: string[]): void; onReject(id: string, reason: string | null): void; onReopen(id: string): void;
+  /** One proposal at a time, each with its rule and question, for someone learning. */
+  tutor?: boolean;
   /** Story reads each proposal as a sentence; model by what it adds. */
   lens: Lens; who(id?: string | null): string;
   /** Comments on a proposal, when the draft is shared. */
   onNote?: (id: string, text: string) => void;
 }) {
-  const order = (inq.order ?? []).filter((id) => inq.proposals?.[id]);
+  const all = (inq.order ?? []).filter((id) => inq.proposals?.[id]);
   const waiting = pending(inq);
   const title = (id: string) => inq.proposals?.[id]?.title ?? id;
+  const [solved, setSolved] = useState<Set<string>>(new Set());
+  const [rejecting, setRejecting] = useState<string | null>(null);
   if (inq.status !== 'proposed' || inq.answered) return null;
+  // A tutor shows the proposals up to the first one still to decide, so they come one at a time.
+  const next = all.findIndex((id) => inq.proposals![id].state === 'proposed');
+  const order = tutor && next >= 0 ? all.slice(0, next + 1) : all;
+  const later = all.length - order.length;
   return (
     <section className="isec proposals">
-      <h3>Proposals · {order.length}
-        {editable && waiting.length > 1 && <button type="button" className="vbtn tiny go" onClick={() => onAccept(waiting)}>Accept all {waiting.length}</button>}
+      <h3>Proposals · {all.length}
+        {editable && !tutor && waiting.length > 1 && <button type="button" className="vbtn tiny go" onClick={() => onAccept(waiting)}>Accept all {waiting.length}</button>}
       </h3>
       {!order.length && <p className="small muted">Claude proposed nothing to add. Ask again with more detail.</p>}
       <ol className="plist2">
@@ -143,19 +157,31 @@ export function ProposalsPanel({ inq, preview, editable, focus, setFocus, onAcce
           const blocked = blockedBy(inq, id);
           const comes = p.needs.filter((n) => inq.proposals?.[n]?.state === 'proposed');
           const issues = preview && p.state === 'proposed' ? preview.blocking.filter((x) => x.includes(p.name)).slice(0, 2) : [];
+          const asking = !!tutor && editable && p.state === 'proposed' && !!p.quiz && !p.problem && !blocked;
+          const quizzing = asking && !solved.has(id);
           return (
             <li key={id} data-proposal={id} className={`${p.state}${focus === id ? ' focus' : ''}`}
               onMouseEnter={() => setFocus(id)} onMouseLeave={() => setFocus(null)} onFocus={() => setFocus(id)}>
               <p className="ptop"><span className={`kind k-${p.kind}`}>{KIND[p.kind]}</span><b>{lens === 'story' ? proposalSentence(p, preview) : p.title}</b></p>
               {p.why && <p className="small">{p.why}</p>}
+              {p.teach && (tutor || lens === 'story') && <p className="small teach"><b>The rule:</b> {p.teach}</p>}
+              {p.recalled && (
+                <p className={'small recalled ' + p.recalled.state}>
+                  {p.recalled.state === 'rejected' ? 'The team rejected this before' : 'The team accepted this before'}
+                  {p.recalled.reason ? `: “${p.recalled.reason}”` : ''} · {who(p.recalled.by)}, {DAY.format(new Date(p.recalled.at))}
+                </p>
+              )}
+              {p.state !== 'proposed' && p.reason && <p className="small muted">Why: “{p.reason}”</p>}
               {p.kind === 'answer' && lens === 'model' && <AnswerPreview p={p} />}
               {p.problem && <p className="small warn">The studio can't apply this: {p.problem}</p>}
               {!p.problem && blocked && p.state === 'proposed' && <p className="small warn">Needs “{title(blocked)}”, which was rejected.</p>}
               {issues.map((x) => <p key={x} className="small warn">{x}</p>)}
               {p.state === 'proposed' && !p.problem && !blocked && comes.length > 0 && <p className="small muted">Comes with: {comes.map(title).join('; ')}.</p>}
+              {asking && <Quiz quiz={p.quiz!} solved={!quizzing} onSolved={() => setSolved((x) => new Set(x).add(id))} onSkip={() => setSolved((x) => new Set(x).add(id))} />}
+              {rejecting === id && <RejectReason onReject={(r) => { setRejecting(null); onReject(id, r); }} onCancel={() => setRejecting(null)} />}
               <div className="pact">
-                {p.state === 'proposed' && editable && !p.problem && !blocked && <button type="button" className="vbtn tiny go" onClick={() => onAccept([id])}>Accept</button>}
-                {p.state === 'proposed' && editable && <button type="button" className="vbtn tiny" onClick={() => onReject(id)}>Reject</button>}
+                {p.state === 'proposed' && editable && !quizzing && rejecting !== id && !p.problem && !blocked && <button type="button" className="vbtn tiny go" onClick={() => onAccept([id])}>Accept</button>}
+                {p.state === 'proposed' && editable && !quizzing && rejecting !== id && <button type="button" className="vbtn tiny" onClick={() => setRejecting(id)}>Reject</button>}
                 {p.state === 'accepted' && <span className="done">✓ Accepted</span>}
                 {p.state === 'rejected' && <><span className="no">Rejected</span>{editable && <button type="button" className="linkish" onClick={() => onReopen(id)}>Reconsider</button>}</>}
               </div>
@@ -164,7 +190,35 @@ export function ProposalsPanel({ inq, preview, editable, focus, setFocus, onAcce
           );
         })}
       </ol>
+      {later > 0 && <p className="small muted">{later} more after this one.</p>}
     </section>
+  );
+}
+
+/** What autopilot did after proposing, and its one click. */
+function Autopilot({ inq, editable, onAcceptAll, running, step, onStop }: { inq: InquiryEdit; editable: boolean; onAcceptAll?: () => void; running: boolean; step?: string; onStop(): void }) {
+  const a = inq.auto!;
+  const waiting = pending(inq).length;
+  if (a.status === 'testing') {
+    return (
+      <p className="working" role="status"><span className="spin" aria-hidden="true" /> {running && step ? step : 'Autopilot is planting a test case and proving the answer'}…
+        {running && <button type="button" className="linkish" onClick={onStop}>Stop</button>}</p>
+    );
+  }
+  if (a.status === 'failed') return <p className="said wrong">Autopilot couldn't prove it: {a.error || 'something went wrong'}. Review the proposals yourself.</p>;
+  const failing = (a.checks ?? []).filter((c) => c.startsWith('✗'));
+  return (
+    <div className={'auto ' + (a.passes ? 'good' : 'bad')}>
+      <p className="verdict">{a.passes ? '✓ Autopilot planted a test case, and the answer passes it' : '✗ Autopilot planted a test case, and the answer fails it'}
+        {` · ${(a.checks ?? []).length - failing.length} of ${(a.checks ?? []).length} checks pass`}</p>
+      {failing.length > 0 && <ul className="small">{failing.map((c) => <li key={c}>{c}</li>)}</ul>}
+      {editable && waiting > 0 && onAcceptAll && (
+        <p className="row">
+          <button type="button" className={'vbtn ' + (a.passes ? 'go' : '')} onClick={onAcceptAll}>{a.passes ? `Accept all ${waiting}` : `Accept all ${waiting} anyway`}</button>
+          <span className="small muted">Or decide each one beside the map.</span>
+        </p>
+      )}
+    </div>
   );
 }
 

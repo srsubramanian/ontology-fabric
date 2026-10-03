@@ -7,6 +7,7 @@ import { analyse } from './analysis.ts';
 import { mergeDraft, type DraftDoc, type DraftUpdate, type InquiryEdit, type ProposalEdit } from './draft.ts';
 import { applyOps, type Ctx, type Op } from './edits.ts';
 import { openQuestions, RULES, schemaSummary } from './prompt.ts';
+import { memoryPrompt, recalledFor, recallTool, type Level, type Memory, type Prefs } from './memory.ts';
 import type { Sample, SampleTool } from './runtime.ts';
 
 export type Understanding = { phrase: string; means: string; maps_to: string | null };
@@ -14,8 +15,18 @@ export type Answer = { id?: string; domain?: string; question?: string; answered
 /** What Claude replies with. Nothing in it is trusted: every field is checked before use. */
 export type Reply = {
   understanding?: Understanding[]; matches?: string | null; answered?: boolean;
-  gap?: string; summary?: string; ops?: (Op & { why?: string })[]; answer?: Answer | null;
+  gap?: string; summary?: string; ops?: (Op & { why?: string; teach?: string; quiz?: unknown })[]; answer?: Answer | null;
 };
+/** What the person asking brings: how much Claude does for them, and what the team and they decided before. */
+export type Asker = { level: Level; team: [string, Memory][]; prefs: Prefs | null };
+
+/** A tutor's question, only when it has a question and two to four choices with exactly one right. */
+function cleanQuiz(q: unknown): ProposalEdit['quiz'] {
+  const x = q as { question?: unknown; choices?: unknown } | null;
+  if (!x || typeof x.question !== 'string' || !Array.isArray(x.choices)) return null;
+  const choices = x.choices.slice(0, 4).map((c) => ({ label: text(c?.label, 160), right: c?.right === true, why: text(c?.why, 300) })).filter((c) => c.label);
+  return choices.length >= 2 && choices.filter((c) => c.right).length === 1 ? { question: text(x.question, 240), choices } : null;
+}
 
 const DOMAINS = ['disputes', 'authorization', 'settlement', 'risk'];
 const merge = (a: DraftUpdate, b: DraftUpdate) => mergeDraft(a as DraftDoc, b as Record<string, unknown>) as DraftUpdate;
@@ -52,13 +63,14 @@ export function plan(ctx: Ctx, reply: Reply, asked: string): { proposals: Record
   const made = new Map<string, string>();
   (Array.isArray(reply.ops) ? reply.ops : []).slice(0, 24).forEach((o, i) => {
     if (!o || typeof o !== 'object') return;
-    const { why, ...op } = o;
+    const { why, teach, quiz, ...op } = o;
     const id = `p${i + 1}`;
     const d = describe(op as Op);
     const { update, skipped } = applyOps(c, [op as Op]);
     proposals[id] = {
       title: d.title, why: text(why), kind: d.kind, name: d.name, update: skipped.length ? {} : update,
       needs: unique(d.refs.map((r) => made.get(r))), problem: skipped[0] ?? null, state: 'proposed',
+      ...(teach ? { teach: text(teach, 300) } : {}), ...(cleanQuiz(quiz) ? { quiz: cleanQuiz(quiz) } : {}),
     };
     order.push(id);
     if (!skipped.length) { c = withUpdate(c, update); made.set(d.name, id); }
@@ -203,8 +215,9 @@ export function checkDesign(ctx: Ctx, reply: Reply, asked: string) {
 }
 
 /** The page functions Claude may call. Each reports what it's doing, so the person can follow along. */
-export function inquiryTools(get: () => Ctx, asked: string, step: (s: string) => void): SampleTool[] {
+export function inquiryTools(get: () => Ctx, asked: string, step: (s: string) => void, team?: () => [string, Memory][]): SampleTool[] {
   return [
+    ...(team && team().length ? [recallTool(team, step)] : []),
     {
       name: 'find_questions',
       description: 'Searches the competency questions for ones like the given text. Returns up to 5, each with its id, domain, text, whether the ontology answers it yet, and its walk or what it lacks. Use it first, to see whether the question is already asked.',
@@ -241,27 +254,35 @@ Each op is one of:
 {"op": "addRelationship", "from": "Merchant", "name": "paid_out_to", "to": "PayoutAccount", "multivalued": false, "description": "...", "why": "..."}
 Add only what the question needs, and reuse what the ontology has. Never rename or remove anything. When the question is already answered, return no ops and no answer.`;
 
-export function inquiryPrompt(ctx: Ctx, asked: string, tools: boolean, note?: string, before?: string): string {
+const TUTOR = `The person asking set Claude to tutor them: they are learning to model, in payments words. For each op, also add
+ "teach": "<one sentence naming the modelling rule behind it, such as: model events, not status fields>",
+ "quiz": {"question": "<a question in payments words that checks they see why this is the right design>", "choices": [{"label": "...", "right": true, "why": "<why it's right>"}, {"label": "...", "right": false, "why": "<why not, kindly>"}]}
+with two or three choices, exactly one right.`;
+
+export function inquiryPrompt(ctx: Ctx, asked: string, tools: boolean, note?: string, before?: string, who?: Asker): string {
   const a = analyse(ctx.draft, ctx.base, ctx.questions);
+  const memory = who ? memoryPrompt(who.team, who.prefs, asked) : '';
   return [
     'You are the design partner in a studio where payments people build a payments ontology, written in LinkML, on a live class map. Someone asked a question in their own words. Work out what the ontology needs to answer it, and propose the smallest design that does, as edits they will accept or reject one by one.',
     '', RULES, '', 'The ontology as it stands, with the team\'s working draft applied:', schemaSummary(a.schema), '',
     'Competency questions it can\'t answer yet:', openQuestions(a.questions) || '- none', '',
+    ...(memory ? [memory, ''] : []),
     `Their question: ${asked.trim()}`, '',
     ...(before ? [`Your last proposal: ${before}`, ''] : []),
     ...(note ? [`What they said about it: ${note.trim()}`, ''] : []),
     tools
-      ? 'Use the tools: find_questions to see whether a competency question asks this already, describe_class for the classes your design touches, and check_design on your ops and answer before you reply. Fix what check_design reports.'
+      ? `Use the tools: find_questions to see whether a competency question asks this already, describe_class for the classes your design touches,${who?.team.length ? ' recall for what the team decided before about them,' : ''} and check_design on your ops and answer before you reply. Fix what check_design reports.`
       : 'Check your design against the rules above before you reply: the studio runs the repository\'s checks on it.',
     '', SHAPE,
+    ...(who?.level === 'tutor' ? ['', TUTOR] : []),
   ].join('\n');
 }
 
 /** Asks Claude, with the tools where this view can run them, and without where it can't. */
-export async function think(sample: Sample, get: () => Ctx, asked: string, o: { signal: AbortSignal; step: (s: string) => void; note?: string; before?: string }): Promise<Reply> {
+export async function think(sample: Sample, get: () => Ctx, asked: string, o: { signal: AbortSignal; step: (s: string) => void; note?: string; before?: string; who?: Asker }): Promise<Reply> {
   const tools = await sample.limits?.().then((l) => !!l?.tools, () => false) ?? false;
-  const ask = (withTools: boolean) => sample.json<Reply>(inquiryPrompt(get(), asked, withTools, o.note, o.before), {
-    signal: o.signal, ...(withTools ? { tools: inquiryTools(get, asked, o.step) } : { cache: false }),
+  const ask = (withTools: boolean) => sample.json<Reply>(inquiryPrompt(get(), asked, withTools, o.note, o.before, o.who), {
+    signal: o.signal, ...(withTools ? { tools: inquiryTools(get, asked, o.step, o.who ? () => o.who!.team : undefined) } : { cache: false }),
   });
   try { return await ask(tools); } catch (e) {
     if ((e as { code?: string })?.code === 'tools_unavailable') return ask(false);
@@ -270,8 +291,10 @@ export async function think(sample: Sample, get: () => Ctx, asked: string, o: { 
 }
 
 /** Claude's reply, cleaned to what the inquiry keeps, with the proposals worked out on the draft. */
-export function settle(ctx: Ctx, asked: string, reply: Reply): Partial<InquiryEdit> {
+export function settle(ctx: Ctx, asked: string, reply: Reply, who?: Asker): Partial<InquiryEdit> {
   const { proposals, order } = plan(ctx, reply ?? {}, asked);
+  // A proposal the team decided on before carries that decision, so people see it where they decide.
+  if (who?.team.length) for (const p of Object.values(proposals)) { const r = recalledFor(who.team, p); if (r) p.recalled = r; }
   const matches = text(reply?.matches, 20) || null;
   return {
     status: 'proposed', error: null,
@@ -280,5 +303,6 @@ export function settle(ctx: Ctx, asked: string, reply: Reply): Partial<InquiryEd
     matches: matches && ctx.questions.questions.some((q) => q.id === matches) ? matches : null,
     answered: !!reply?.answered && !order.length,
     gap: text(reply?.gap, 600) || null, summary: text(reply?.summary, 300) || null, proposals, order,
+    ...(who ? { level: who.level } : {}),
   };
 }
