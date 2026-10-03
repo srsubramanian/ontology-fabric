@@ -3,18 +3,21 @@
 // warehouse, and the states the studio shows come out as the set intends: the gap, the meaning that shifts, and the
 // mappings waiting for a person. Each scan is a version, and the earlier ones are kept in ontology/mappings/history/: the
 // checks read every version, and that what each scan changed comes out as intended, with a person's decision holding
-// until the code under it changes. tools/test_studio.py runs it. Run by hand with:
+// until the code under it changes. Last, lineage by meaning: every screen's fields gathered under what they mean, and
+// where the screens disagree. tools/test_studio.py runs it. Run by hand with:
 // node --experimental-strip-types web/scripts/check-lineage.ts
 import { readdirSync, readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 import { buildModel } from '../src/explorer/model.ts';
 import { buildLineage, buildVersions, compareLineage, LAYERS, parseSssom, tally, unknownSlots, versionsOf, type Change, type LineageDiff } from '../src/studio/lineage.ts';
+import { gapsOf, meaningIndex, meaningsInOrder, setTitle, type Finding, type ScreenSet } from '../src/studio/meaning.ts';
 
 const root = new URL('../../', import.meta.url);
 const read = (name: string) => readFileSync(new URL(name, root), 'utf8');
 const model = buildModel(parse(read('ontology/payments.yaml')), parse(read('ontology/competency-questions.yaml')));
 
 let failed = 0;
+const screens: ScreenSet[] = [];
 const expect = (ok: boolean, label: string, detail = '') => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}${detail ? `: ${detail}` : ''}`); if (!ok) failed++; };
 
 const need = ['subject_id', 'predicate_id', 'object_id', 'mapping_justification'];
@@ -64,6 +67,7 @@ for (const file of readdirSync(new URL('ontology/mappings/', root)).filter((f) =
     expect(versions.every((v) => LAYERS.every((x) => v.read[x.id]?.source && v.read[x.id]?.at)), 'each version says what it read in every layer, and at which commit or day');
   }
 
+  screens.push({ id: stem, title: setTitle(now), lineage: now });
   const t = tally(now.traces);
   console.log(`     ${now.version ?? ''} ${now.traces.length} fields: ${t.confirmed} confirmed, ${t.proposed} proposed, ${t.review} waiting for a person, ${t.recheck} to re-check, ${t.shift} shifting, ${t.gap} gap${t.gap === 1 ? '' : 's'}`);
   if (file === 'transaction-research.sssom.tsv') {
@@ -99,4 +103,24 @@ for (const file of readdirSync(new URL('ontology/mappings/', root)).filter((f) =
       'a decision on the draft holds until the field is built differently, then comes back as a re-check');
   }
 }
+
+// Lineage by meaning, across every screen. The transaction research screen and the dispute workbench both show when a
+// payment settled, a merchant and a dispute's reason; the expectations below are what the illustrative sets intend.
+expect(screens.length >= 2 && screens.some((x) => x.id === 'dispute-workbench'), 'there are at least two screens, the dispute workbench among them', screens.map((x) => x.id).join(', '));
+const index = meaningIndex(screens);
+const kinds = (key: string) => (index.get(key)?.findings ?? []).map((f) => f.kind + (f.kind === 'built' && f.agree ? '(agree)' : '')).sort().join(' ');
+const on = (key: string) => [...new Set(index.get(key)?.uses.map((u) => u.set.id))].sort().join(', ');
+expect(on('Settlement.settled_at') === 'dispute-workbench, transaction-research' && kinds('Settlement.settled_at') === 'built shift',
+  'both screens show when a payment settled; one builds it from the capture date too, so it shifts and the screens build it differently', kinds('Settlement.settled_at'));
+const label = (key: string) => (index.get(key)?.findings.filter((f): f is Extract<Finding, { kind: 'label' }> => f.kind === 'label') ?? []).map((f) => f.other.means.slot).join(', ');
+expect(label('Merchant.name') === 'Organization.name' && label('Organization.name') === 'Merchant.name',
+  '"Merchant" on one screen is the name the cardholder sees, and on the other the legal name: the same label, two meanings', `${label('Merchant.name')}; ${label('Organization.name')}`);
+expect(kinds('Authorization.id') === 'built(agree) labels', 'the transaction id is read from different columns that each mean it, under two names, which isn\'t a problem', kinds('Authorization.id'));
+expect(index.get('Authorization.id')!.problems === 0, 'columns that agree aren\'t counted as a problem');
+const reason = index.get('Chargeback.has_reason')?.findings.find((f): f is Extract<Finding, { kind: 'labels' }> => f.kind === 'labels');
+expect(!!reason && reason.labels.map((x) => x.label).sort().join(', ') === 'Chargeback reason, Reason', 'a dispute\'s reason goes by two names', reason?.labels.map((x) => x.label).join(', '));
+const order = meaningsInOrder(index);
+expect(order[0]?.key === 'Settlement.settled_at' && order.slice(0, 3).every((m) => m.problems > 0) && order.filter((m) => m.problems).length === 3,
+  'the meanings where screens disagree come first, three of them', order.slice(0, 4).map((m) => `${m.key} ${m.problems}`).join(', '));
+expect(gapsOf(screens).map((g) => `${g.trace.field.label} on ${g.set.id}`).join(', ') === 'Risk tier on transaction-research', 'the only field nothing holds is the risk tier');
 process.exit(failed ? 1 : 0);

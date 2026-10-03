@@ -1,0 +1,410 @@
+{
+ "set": "dispute-workbench",
+ "metadata": {
+  "id": "https://example.com/mappings/dispute-workbench.sssom.tsv",
+  "title": "Dispute Workbench screen to the payments ontology (illustrative)",
+  "description": "Illustrative: the disputes team's screen for one chargeback case, in the same made-up React app, Spring backend and GraphQL data API as the transaction research screen. Written by the deep scan (web/scripts/lineage-scan.ts) from the made-up repositories in examples/lineage/; every system, file, table, column and line of code is invented. Two kinds of row: a field prov:wasDerivedFrom the field it is built from, with how (transform) and the code that does it, and a field's meaning in the ontology. fabric: names an ontology class's slot as the studio writes it, Class.slot.",
+  "license": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "curie_map": {
+   "ui": "https://example.com/txn-research-ui/",
+   "be": "https://example.com/txn-research-backend/",
+   "api": "https://example.com/transaction-data-api/",
+   "sf": "https://example.com/snowflake/PAYMENTS/",
+   "fabric": "https://ontology.example.com/payments/",
+   "person": "https://example.com/people/",
+   "agent": "https://example.com/agents/",
+   "repo": "https://bitbucket.example.com/projects/PAY/repos/",
+   "snowflake": "https://example.com/snowflake/",
+   "skos": "http://www.w3.org/2004/02/skos/core#",
+   "prov": "http://www.w3.org/ns/prov#",
+   "semapv": "https://w3id.org/semapv/vocab/",
+   "sssom": "https://w3id.org/sssom/"
+  }
+ },
+ "fields": [
+  {
+   "field": "ui:DisputeWorkbench.case",
+   "label": "Case",
+   "hops": [
+    {
+     "to": "be:DisputeCaseDto.caseId",
+     "label": "caseId",
+     "transform": "pass",
+     "note": "Shown as it comes",
+     "at": "src/features/disputes/DisputeWorkbench.tsx:18",
+     "code": "<Cell>{c.caseId}</Cell>"
+    },
+    {
+     "to": "api:Chargeback.id",
+     "label": "id",
+     "transform": "rename",
+     "note": "Renamed from id",
+     "at": "src/main/java/com/example/research/disputes/DisputeCaseMapper.java:10",
+     "code": "@Mapping(target = \"caseId\", source = \"id\")"
+    },
+    {
+     "to": "sf:CORE.FCT_CHARGEBACK.CB_ID",
+     "label": "CB_ID",
+     "transform": "format",
+     "note": "Prefixes cb: to the warehouse key, the ID rule (decision 4)",
+     "at": "src/main/java/com/example/dataapi/ChargebackResolver.java:18",
+     "code": "'cb:' || cb.CB_ID AS id"
+    }
+   ],
+   "means": {
+    "slot": "Chargeback.id",
+    "predicate": "skos:exactMatch",
+    "confidence": 0.97
+   }
+  },
+  {
+   "field": "ui:DisputeWorkbench.originalTransaction",
+   "label": "Original transaction",
+   "hops": [
+    {
+     "to": "be:DisputeCaseDto.originalTxn",
+     "label": "originalTxn",
+     "transform": "pass",
+     "note": "A link to the transaction research screen",
+     "at": "src/features/disputes/DisputeWorkbench.tsx:21",
+     "code": "<TxnLink id={c.originalTxn} />"
+    },
+    {
+     "to": "api:Chargeback.transactionId",
+     "label": "transactionId",
+     "transform": "rename",
+     "note": "Renamed from transactionId",
+     "at": "src/main/java/com/example/research/disputes/DisputeCaseMapper.java:11",
+     "code": "@Mapping(target = \"originalTxn\", source = \"transactionId\")"
+    },
+    {
+     "to": "sf:CORE.FCT_CAPTURE.AUTH_ID",
+     "label": "AUTH_ID",
+     "transform": "join",
+     "note": "The disputed capture's authorization, prefixed auth: (decision 4)",
+     "at": "src/main/java/com/example/dataapi/ChargebackResolver.java:19",
+     "code": "'auth:' || c.AUTH_ID AS transaction_id"
+    }
+   ],
+   "means": {
+    "slot": "Authorization.id",
+    "predicate": "skos:exactMatch",
+    "confidence": 0.96
+   }
+  },
+  {
+   "field": "ui:DisputeWorkbench.reason",
+   "label": "Reason",
+   "hops": [
+    {
+     "to": "be:DisputeCaseDto.reason",
+     "label": "reason",
+     "transform": "lookup",
+     "note": "The network's description beside the code",
+     "at": "src/features/disputes/DisputeWorkbench.tsx:24",
+     "code": "<ReasonChip code={c.reason} />"
+    },
+    {
+     "to": "api:Chargeback.reasonCode",
+     "label": "reasonCode",
+     "transform": "rename",
+     "note": "Renamed from reasonCode",
+     "at": "src/main/java/com/example/research/disputes/DisputeCaseMapper.java:12",
+     "code": "@Mapping(target = \"reason\", source = \"reasonCode\")"
+    },
+    {
+     "to": "sf:CORE.FCT_CHARGEBACK.REASON_CD",
+     "label": "REASON_CD",
+     "transform": "pass",
+     "note": "Passed through",
+     "at": "src/main/java/com/example/dataapi/ChargebackResolver.java:20",
+     "code": "cb.REASON_CD AS reason_code"
+    }
+   ],
+   "means": {
+    "slot": "Chargeback.has_reason",
+    "predicate": "skos:exactMatch",
+    "confidence": 0.96
+   }
+  },
+  {
+   "field": "ui:DisputeWorkbench.disputedAmount",
+   "label": "Disputed amount",
+   "hops": [
+    {
+     "to": "be:DisputeCaseDto.amount",
+     "label": "amount",
+     "transform": "format",
+     "note": "Currency symbol, two decimals",
+     "at": "src/features/disputes/DisputeWorkbench.tsx:27",
+     "code": "<Cell>{formatMoney(c.amount, c.currency)}</Cell>"
+    },
+    {
+     "to": "api:Chargeback.amount",
+     "label": "amount",
+     "transform": "pass",
+     "note": "Passed through",
+     "at": "src/main/java/com/example/research/disputes/DisputeCaseMapper.java:13",
+     "code": "@Mapping(target = \"amount\", source = \"amount\")"
+    },
+    {
+     "to": "sf:CORE.FCT_CHARGEBACK.AMT_MINOR",
+     "label": "AMT_MINOR",
+     "transform": "convert",
+     "note": "Minor units divided by 100",
+     "at": "src/main/java/com/example/dataapi/ChargebackResolver.java:21",
+     "code": "cb.AMT_MINOR / 100 AS amount"
+    }
+   ],
+   "means": {
+    "slot": "Chargeback.amount",
+    "predicate": "skos:exactMatch",
+    "confidence": 0.95
+   }
+  },
+  {
+   "field": "ui:DisputeWorkbench.opened",
+   "label": "Opened",
+   "hops": [
+    {
+     "to": "be:DisputeCaseDto.openedAt",
+     "label": "openedAt",
+     "transform": "format",
+     "note": "UTC to the analyst's own time zone",
+     "at": "src/features/disputes/DisputeWorkbench.tsx:30",
+     "code": "<Cell>{formatInZone(c.openedAt, user.timeZone)}</Cell>"
+    },
+    {
+     "to": "api:Chargeback.openedAt",
+     "label": "openedAt",
+     "transform": "pass",
+     "note": "Passed through",
+     "at": "src/main/java/com/example/research/disputes/DisputeCaseMapper.java:16",
+     "code": "@Mapping(target = \"openedAt\", source = \"openedAt\")"
+    },
+    {
+     "to": "sf:CORE.FCT_CHARGEBACK.OPENED_TS",
+     "label": "OPENED_TS",
+     "transform": "pass",
+     "note": "Passed through, in UTC",
+     "at": "src/main/java/com/example/dataapi/ChargebackResolver.java:24",
+     "code": "cb.OPENED_TS AS opened_at"
+    }
+   ],
+   "means": {
+    "slot": "Chargeback.opened_at",
+    "predicate": "skos:exactMatch",
+    "confidence": 0.96
+   }
+  },
+  {
+   "field": "ui:DisputeWorkbench.respondBy",
+   "label": "Respond by",
+   "hops": [
+    {
+     "to": "be:DisputeCaseDto.respondBy",
+     "label": "respondBy",
+     "transform": "format",
+     "note": "Days left, in red under five",
+     "at": "src/features/disputes/DisputeWorkbench.tsx:33",
+     "code": "<DaysLeft until={c.respondBy} />"
+    },
+    {
+     "to": "api:Chargeback.respondBy",
+     "label": "respondBy",
+     "transform": "pass",
+     "note": "Passed through",
+     "at": "src/main/java/com/example/research/disputes/DisputeCaseMapper.java:15",
+     "code": "@Mapping(target = \"respondBy\", source = \"respondBy\")"
+    },
+    {
+     "to": "sf:CORE.FCT_CHARGEBACK.RESPONSE_DUE_DT",
+     "label": "RESPONSE_DUE_DT",
+     "transform": "rename",
+     "note": "Renamed from RESPONSE_DUE_DT",
+     "at": "src/main/java/com/example/dataapi/ChargebackResolver.java:23",
+     "code": "cb.RESPONSE_DUE_DT AS respond_by"
+    }
+   ],
+   "means": {
+    "slot": "Chargeback.respond_by",
+    "predicate": "skos:exactMatch",
+    "confidence": 0.93
+   }
+  },
+  {
+   "field": "ui:DisputeWorkbench.stage",
+   "label": "Stage",
+   "hops": [
+    {
+     "to": "be:DisputeCaseDto.stage",
+     "label": "stage",
+     "transform": "pass",
+     "note": "Shown as a badge",
+     "at": "src/features/disputes/DisputeWorkbench.tsx:36",
+     "code": "<StageBadge stage={c.stage} />"
+    },
+    {
+     "to": "api:Chargeback.stageCode",
+     "label": "stageCode",
+     "transform": "lookup",
+     "note": "Stage code to words, from a table in the backend",
+     "at": "src/main/java/com/example/research/disputes/DisputeCaseService.java:23",
+     "code": "dto.setStage(stages.describe(cb.stageCode()));"
+    },
+    {
+     "to": "sf:CORE.FCT_CHARGEBACK.STAGE_CD",
+     "label": "STAGE_CD",
+     "transform": "pass",
+     "note": "Passed through",
+     "at": "src/main/java/com/example/dataapi/ChargebackResolver.java:25",
+     "code": "cb.STAGE_CD AS stage_code"
+    }
+   ],
+   "means": {
+    "slot": "DisputeEvent",
+    "predicate": "skos:relatedMatch",
+    "confidence": 0.86,
+    "comment": "A stage kept as a status code in the warehouse. The ontology keeps each step as its own event (decision 7): chargeback, representment, pre-arbitration, arbitration."
+   }
+  },
+  {
+   "field": "ui:DisputeWorkbench.merchant",
+   "label": "Merchant",
+   "hops": [
+    {
+     "to": "be:DisputeCaseDto.merchantName",
+     "label": "merchantName",
+     "transform": "pass",
+     "note": "Shown as it comes",
+     "at": "src/features/disputes/DisputeWorkbench.tsx:39",
+     "code": "<Cell>{c.merchantName}</Cell>"
+    },
+    {
+     "to": "api:Chargeback.merchant.legalName",
+     "label": "merchant.legalName",
+     "transform": "rename",
+     "note": "Renamed from merchant.legalName",
+     "at": "src/main/java/com/example/research/disputes/DisputeCaseMapper.java:17",
+     "code": "@Mapping(target = \"merchantName\", source = \"merchant.legalName\")"
+    },
+    {
+     "to": "sf:CORE.DIM_MERCHANT.LEGAL_NAME",
+     "label": "LEGAL_NAME",
+     "transform": "join",
+     "note": "Joined through the authorization's MERCHANT_ID",
+     "at": "src/main/java/com/example/dataapi/ChargebackResolver.java:26",
+     "code": "m.LEGAL_NAME AS merchant_legal_name"
+    }
+   ],
+   "means": {
+    "slot": "Organization.name",
+    "predicate": "skos:closeMatch",
+    "confidence": 0.92,
+    "comment": "The merchant's registered legal name, the one the acquirer files disputes under."
+   }
+  },
+  {
+   "field": "ui:DisputeWorkbench.settledOn",
+   "label": "Settled on",
+   "hops": [
+    {
+     "to": "be:DisputeCaseDto.settledOn",
+     "label": "settledOn",
+     "transform": "format",
+     "note": "Date only",
+     "at": "src/features/disputes/DisputeWorkbench.tsx:42",
+     "code": "<Cell>{formatDate(c.settledOn)}</Cell>"
+    },
+    {
+     "to": "api:Chargeback.settlementDate",
+     "label": "settlementDate",
+     "transform": "rename",
+     "note": "Renamed from settlementDate",
+     "at": "src/main/java/com/example/research/disputes/DisputeCaseMapper.java:18",
+     "code": "@Mapping(target = \"settledOn\", source = \"settlementDate\")"
+    },
+    {
+     "to": "sf:CORE.FCT_SETTLEMENT_ITEM.SETTLED_DT",
+     "label": "SETTLED_DT",
+     "transform": "join",
+     "note": "The disputed capture's settlement date, joined on the capture",
+     "at": "src/main/java/com/example/dataapi/ChargebackResolver.java:27",
+     "code": "s.SETTLED_DT AS settlement_date"
+    }
+   ],
+   "means": {
+    "slot": "Settlement.settled_at",
+    "predicate": "skos:exactMatch",
+    "confidence": 0.97
+   }
+  }
+ ],
+ "columns": [
+  {
+   "column": "sf:CORE.FCT_CHARGEBACK.CB_ID",
+   "label": "CB_ID",
+   "slot": "Chargeback.id",
+   "predicate": "skos:exactMatch",
+   "confidence": 0.97
+  },
+  {
+   "column": "sf:CORE.FCT_CAPTURE.AUTH_ID",
+   "label": "AUTH_ID",
+   "slot": "Authorization.id",
+   "predicate": "skos:exactMatch",
+   "confidence": 0.95,
+   "comment": "The capture's authorization."
+  },
+  {
+   "column": "sf:CORE.FCT_CHARGEBACK.REASON_CD",
+   "label": "REASON_CD",
+   "slot": "Chargeback.has_reason",
+   "predicate": "skos:exactMatch",
+   "confidence": 0.96
+  },
+  {
+   "column": "sf:CORE.FCT_CHARGEBACK.AMT_MINOR",
+   "label": "AMT_MINOR",
+   "slot": "Chargeback.amount",
+   "predicate": "skos:closeMatch",
+   "confidence": 0.93,
+   "comment": "Stored in minor units; the ontology's amount is in the currency's major unit."
+  },
+  {
+   "column": "sf:CORE.FCT_CHARGEBACK.OPENED_TS",
+   "label": "OPENED_TS",
+   "slot": "Chargeback.opened_at",
+   "predicate": "skos:exactMatch",
+   "confidence": 0.96
+  },
+  {
+   "column": "sf:CORE.FCT_CHARGEBACK.RESPONSE_DUE_DT",
+   "label": "RESPONSE_DUE_DT",
+   "slot": "Chargeback.respond_by",
+   "predicate": "skos:exactMatch",
+   "confidence": 0.91
+  },
+  {
+   "column": "sf:CORE.FCT_CHARGEBACK.STAGE_CD",
+   "label": "STAGE_CD",
+   "slot": "DisputeEvent",
+   "predicate": "skos:relatedMatch",
+   "confidence": 0.86
+  },
+  {
+   "column": "sf:CORE.DIM_MERCHANT.LEGAL_NAME",
+   "label": "LEGAL_NAME",
+   "slot": "Organization.name",
+   "predicate": "skos:closeMatch",
+   "confidence": 0.92
+  },
+  {
+   "column": "sf:CORE.FCT_SETTLEMENT_ITEM.SETTLED_DT",
+   "label": "SETTLED_DT",
+   "slot": "Settlement.settled_at",
+   "predicate": "skos:exactMatch",
+   "confidence": 0.97
+  }
+ ]
+}

@@ -1,0 +1,18 @@
+# A chargeback on its own, for the dispute workbench (made up for Ontology Fabric's lineage example).
+extend type Query {
+  chargeback(id: ID!): Chargeback
+}
+
+extend type Chargeback {
+  transactionId: ID!
+  amount: Float!
+  currencyCode: String!
+  openedAt: DateTime!
+  stageCode: String!
+  merchant: Merchant!
+  settlementDate: Date
+}
+
+extend type Merchant {
+  legalName: String!
+}

@@ -102,13 +102,21 @@ function snowflakeColumns(file: string): Set<string> {
   return new Set(rows.map((r) => `${r[s]}.${r[t]}.${r[c]}`.toUpperCase()));
 }
 
-/** A GraphQL schema's object types and each field's type. */
+/** A GraphQL schema's object types and each field's type. One file's `extend type` adds to another's type. */
 function graphqlTypes(text: string): Map<string, Map<string, string>> {
   const types = new Map<string, Map<string, string>>();
   for (const m of text.replace(/#.*$/gm, '').matchAll(/\b(?:type|interface|input)\s+(\w+)[^{]*\{([^}]*)\}/g)) {
-    types.set(m[1], new Map([...m[2].matchAll(/(\w+)\s*(?:\([^)]*\))?\s*:\s*\[?\s*(\w+)/g)].map((f) => [f[1], f[2]])));
+    const fields = types.get(m[1]) ?? new Map<string, string>();
+    for (const f of m[2].matchAll(/(\w+)\s*(?:\([^)]*\))?\s*:\s*\[?\s*(\w+)/g)) fields.set(f[1], f[2]);
+    types.set(m[1], fields);
   }
   return types;
+}
+/** The schema's text: one file, or every .graphqls and .graphql file in a folder. */
+function schemaText(path: string): string | null {
+  if (!existsSync(path)) return null;
+  if (!statSync(path).isDirectory()) return readFileSync(path, 'utf8');
+  return readdirSync(path).filter((f) => /\.graphqls?$/.test(f)).sort().map((f) => readFileSync(join(path, f), 'utf8')).join('\n');
 }
 
 function codeFiles(dir: string, out: string[] = []): string[] {
@@ -138,8 +146,8 @@ const lines = (p: string) => { if (!files.has(p)) files.set(p, existsSync(p) ? r
 /** Every hop checked against the code it names; the SQL ones checked again with sqlglot. */
 function checkHops(src: Sources, answer: Answer): Hop[] {
   const columns = snowflakeColumns(src.snowflake.columns);
-  const schemaFile = src.repos.api.graphql_schema ? resolve(src.repos.api.path, src.repos.api.graphql_schema) : null;
-  const types = schemaFile && existsSync(schemaFile) ? graphqlTypes(readFileSync(schemaFile, 'utf8')) : null;
+  const schema = src.repos.api.graphql_schema ? schemaText(resolve(src.repos.api.path, src.repos.api.graphql_schema)) : null;
+  const types = schema ? graphqlTypes(schema) : null;
   if (!types) warnings.push('The data API\'s GraphQL schema isn\'t named (repos.api.graphql_schema), so its fields aren\'t checked.');
   const beFiles = codeFiles(src.repos.be.path).filter((p) => /\.(java|kt)$/.test(p));
   const repoOf = (l: Layer) => (l === 'ui' ? src.repos.ui : l === 'be' ? src.repos.be : src.repos.api);

@@ -10,7 +10,7 @@ You read the code; `web/scripts/lineage-scan.ts` checks what you report against 
 ## Before you start
 
 1. **This repository must be private.** The mapping set carries lines of code and column names. Ask the person to confirm it before you scan real code, and stop if it isn't.
-2. **The sources file.** Copy `examples/lineage/sources.yaml` beside the clones and point it at them: the set's name, each repository's path (the branch to scan, pulled), the data API's GraphQL schema, and the Snowflake export.
+2. **The sources file.** Copy `examples/lineage/sources/transaction-research.yaml` beside the clones and point it at them: the set's name, each repository's path (the branch to scan, pulled), the data API's GraphQL schema (a file, or a folder of them), and the Snowflake export.
 3. **The Snowflake export.** Ask the person to run this and save it as CSV, then set `exported:` to the day:
    ```sql
    SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, DATA_TYPE, COMMENT
@@ -38,7 +38,7 @@ You read the code; `web/scripts/lineage-scan.ts` checks what you report against 
 
 ## The answer file
 
-Write `scan.json` outside the repository. `examples/lineage/scans/v3.json` is a full example; a set's first scan also carries `metadata`, as in `scans/v1.json`.
+Write `scan.json` outside the repository. `examples/lineage/scans/transaction-research/v3.json` is a full example; a set's first scan also carries `metadata`, as in `scans/transaction-research/v1.json` or `scans/dispute-workbench/v1.json`.
 
 ```json
 {
@@ -88,4 +88,4 @@ People accept and reject mappings in the studio. Its pull request applies them w
 
 ## Try it on the made-up repositories
 
-`python tools/test_lineage_scan.py` replays the illustrative history. It scans `examples/lineage/` as it stood at v1, applies people's decisions, then does the same for v2 and v3, and checks the files match `ontology/mappings/`. It then scans a v4 change and plants mistakes for the tool to catch. To practise the whole flow, scan `examples/lineage/sources.yaml` yourself with `--mappings` pointing at a scratch folder.
+`python tools/test_lineage_scan.py` replays the illustrative history. It scans `examples/lineage/` as it stood at v1, applies people's decisions, then does the same for v2 and v3, and checks the files match `ontology/mappings/`. It then scans a v4 change and plants mistakes for the tool to catch. To practise the whole flow, scan `examples/lineage/sources/dispute-workbench.yaml` yourself with `--mappings` pointing at a scratch folder.

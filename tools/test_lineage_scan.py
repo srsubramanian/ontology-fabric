@@ -1,10 +1,11 @@
 """The deep scan (decision 26), on the made-up repositories in examples/lineage/.
 
-It replays the transaction research screen's history: the deep scan reads the repositories as they stood at v1,
-people's decisions go in, then v2, more decisions, then v3. The three versions it writes must be the ones committed in
-ontology/mappings/, byte for byte, so the illustrative history the studio shows is exactly what the tool makes. Then it
-scans a change the repositories haven't had yet (v4): the data API sends the device's own id, and the screen shows the
-card's network. Last, it plants mistakes in what Claude Code reports, and checks that the scan names each one.
+It replays each screen's history. For transaction research, the deep scan reads the repositories as they stood at v1,
+people's decisions go in, then v2, more decisions, then v3; the dispute workbench has one scan and its decisions. What
+it writes must be the files committed in ontology/mappings/, byte for byte, so the illustrative lineage the studio shows
+is exactly what the tool makes. Then it scans a change the repositories haven't had yet (transaction research v4): the
+data API sends the device's own id, and the screen shows the card's network. Last, it plants mistakes in what Claude Code
+reports, and checks that the scan names each one.
 
     python tools/test_lineage_scan.py            # check
     python tools/test_lineage_scan.py --update   # rewrite the committed versions from the made-up repositories
@@ -22,13 +23,20 @@ ROOT = Path(__file__).resolve().parent.parent
 EX = ROOT / "examples" / "lineage"
 MAPPINGS = ROOT / "ontology" / "mappings"
 SET = "transaction-research"
+SETS = [SET, "dispute-workbench"]
 TOOL = ["node", "--experimental-strip-types", "--no-warnings", str(ROOT / "web" / "scripts" / "lineage-scan.ts")]
-# What each scan read: the made-up repositories' commits, and the day Snowflake's columns were exported.
-SCANS = [
-    ("v1", "2026-07-06", "ui=1a7e0c2,be=5d21f9a,api=c04b6e3,sf=2026-07-06", "after-v1"),
-    ("v2", "2026-08-17", "ui=8b3f412,be=e9c7a10,api=2f8d5b7,sf=2026-08-17", "after-v2"),
-    ("v3", "2026-10-02", "ui=3f9c2e1,be=a81d04b,api=77e2c90,sf=2026-10-02", None),
-]
+# Each screen's scans: what each read (the made-up repositories' commits, and the day Snowflake's columns were exported),
+# and the decisions people made after it.
+SCANS = {
+    SET: [
+        ("v1", "2026-07-06", "ui=1a7e0c2,be=5d21f9a,api=c04b6e3,sf=2026-07-06", "after-v1"),
+        ("v2", "2026-08-17", "ui=8b3f412,be=e9c7a10,api=2f8d5b7,sf=2026-08-17", "after-v2"),
+        ("v3", "2026-10-02", "ui=3f9c2e1,be=a81d04b,api=77e2c90,sf=2026-10-02", None),
+    ],
+    "dispute-workbench": [
+        ("v1", "2026-09-22", "ui=5e2a7d0,be=b3c91f4,api=9d4e6a2,sf=2026-09-22", "after-v1"),
+    ],
+}
 
 failed = 0
 
@@ -39,14 +47,15 @@ def expect(ok, label, detail=""):
     failed += 0 if ok else 1
 
 
-def state(tmp: Path, name: str) -> Path:
-    """The made-up repositories as they stood at a scan: today's files, with that scan's overlay."""
-    d = tmp / f"state-{name}"
+def state(tmp: Path, name: str, set_: str = SET) -> Path:
+    """The made-up repositories as they stood at a scan: today's files, with that scan's overlay. The overlays in
+    earlier/ and changes/ are transaction research's history; the dispute workbench's one scan reads today's files."""
+    d = tmp / f"state-{set_}-{name}"
     shutil.copytree(EX / "repos", d / "repos")
     shutil.copytree(EX / "snowflake", d / "snowflake")
-    shutil.copy(EX / "sources.yaml", d)
+    shutil.copytree(EX / "sources", d / "sources")
     over = EX / ("changes" if name == "v4" else "earlier") / name
-    if over.exists():
+    if set_ == SET and over.exists():
         shutil.copytree(over, d, dirs_exist_ok=True)
     return d
 
@@ -56,8 +65,8 @@ def tool(*args):
     return r.returncode, r.stdout + r.stderr
 
 
-def scan(tmp, mappings, name, date, read, answer=None, *more):
-    code, out = tool("scan", "--sources", state(tmp, name) / "sources.yaml", "--answer", answer or EX / "scans" / f"{name}.json",
+def scan(tmp, mappings, name, date, read, answer=None, *more, set_=SET):
+    code, out = tool("scan", "--sources", state(tmp, name, set_) / "sources" / f"{set_}.yaml", "--answer", answer or EX / "scans" / set_ / f"{name}.json",
                      "--mappings", mappings, "--date", date, "--read", read, "--require-sql-check", "--json", *more)
     try:
         return code, json.loads(out[out.index("{"):]) if "{" in out else {}, out
@@ -74,17 +83,18 @@ def main():
         # 1. The history, replayed: scan, decide, scan, decide, scan.
         mappings = tmp / "mappings"
         mappings.mkdir()
-        for i, (name, date, read, decisions) in enumerate(SCANS):
-            code, s, out = scan(tmp / f"r{i}", mappings, name, date, read)
-            expect(code == 0 and s.get("written") and s.get("version") == name, f"the deep scan writes {name} from the made-up repositories",
-                   "; ".join(s.get("problems", [])) or out[-400:] if code else "")
-            for w in s.get("warnings", []):
-                print(f"     note {w}")
-            if decisions:
-                code, out = tool("decide", "--set", SET, "--decisions", EX / "decisions" / f"{decisions}.json", "--mappings", mappings)
-                expect(code == 0, f"people's decisions after {name} go into it", out.strip().splitlines()[-1])
+        for set_, scans in SCANS.items():
+            for i, (name, date, read, decisions) in enumerate(scans):
+                code, s, out = scan(tmp / f"{set_}-{i}", mappings, name, date, read, set_=set_)
+                expect(code == 0 and s.get("written") and s.get("version") == name, f"the deep scan writes {set_} {name} from the made-up repositories",
+                       "; ".join(s.get("problems", [])) or out[-400:] if code else "")
+                for w in s.get("warnings", []):
+                    print(f"     note {w}")
+                if decisions:
+                    code, out = tool("decide", "--set", set_, "--decisions", EX / "decisions" / set_ / f"{decisions}.json", "--mappings", mappings)
+                    expect(code == 0, f"people's decisions after {set_} {name} go into it", out.strip().splitlines()[-1])
         written = {p.relative_to(mappings): p.read_text() for p in mappings.rglob("*.tsv")}
-        committed = {p.relative_to(MAPPINGS): p.read_text() for p in MAPPINGS.rglob(f"{SET}*.tsv")}
+        committed = {p.relative_to(MAPPINGS): p.read_text() for p in MAPPINGS.rglob("*.tsv") if any(p.name.startswith(x + ".") for x in SETS)}
         if update:
             for rel, text in written.items():
                 (MAPPINGS / rel).parent.mkdir(parents=True, exist_ok=True)
@@ -98,11 +108,13 @@ def main():
                     if a != b:
                         print(f"     {rel} differs:")
                         print("".join(list(difflib.unified_diff(a.splitlines(True), b.splitlines(True), "committed", "scanned", n=0))[:12]))
-            expect(same, "the committed v1, v2 and v3 are exactly what the scans write (python tools/test_lineage_scan.py --update rewrites them)")
+            expect(same, "the committed mapping sets and their history are exactly what the scans write (python tools/test_lineage_scan.py --update rewrites them)")
 
         # 2. The next change: the device's own id instead of the fingerprint, and a new field for the card's network.
         m4 = tmp / "m4"
         shutil.copytree(mappings, m4)
+        for p in m4.rglob("dispute-workbench*.tsv"):
+            p.unlink()
         code, s, out = scan(tmp / "v4", m4, "v4", "2026-10-20", "ui=6c1e9b4,be=d07f3a2,api=4b9e1c8,sf=2026-10-20")
         changed = {c["field"]: c["kinds"] for c in s.get("changes", []) if c["kinds"] != ["moved"]}
         expect(code == 0 and s.get("version") == "v4", "a change in the code makes v4", "; ".join(s.get("problems", [])) or out[-300:] if code else "")
@@ -118,7 +130,7 @@ def main():
         expect(code == 0 and "skipped" in out, "a decision made on v3 isn't written into v4", out.strip().splitlines()[-1])
 
         # 3. Mistakes in what Claude Code reports, each named by the scan.
-        base = json.loads((EX / "scans" / "v3.json").read_text())
+        base = json.loads((EX / "scans" / SET / "v3.json").read_text())
         before = tmp / "before"
         before.mkdir()
         (before / f"{SET}.sssom.tsv").write_text((mappings / "history" / f"{SET}.v2.sssom.tsv").read_text())
@@ -132,7 +144,7 @@ def main():
             change(a)
             p = tmp / "planted.json"
             p.write_text(json.dumps(a))
-            code, s, out = scan(tmp / f"m{abs(hash(label))}", before, "v3", "2026-10-02", SCANS[2][2], p, "--dry-run")
+            code, s, out = scan(tmp / f"m{abs(hash(label))}", before, "v3", "2026-10-02", SCANS[SET][2][2], p, "--dry-run")
             hits = [x for x in s.get("problems", []) if says in x]
             expect(code != 0 and hits, f"it names {label}", hits[0] if hits else out[-300:])
 

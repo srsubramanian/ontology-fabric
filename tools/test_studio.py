@@ -466,12 +466,12 @@ def main():
             # From a class someone has open, the way back to the overview and the way to the lineage are both in sight.
             page.goto(SITE + "#studio-Merchant")
             page.get_by_role("button", name="Back to the overview").click()
-            page.wait_for_selector(f"{APP} .lcard")
+            page.wait_for_selector(f"{APP} .lcard[data-set=transaction-research]")
             page.goto(SITE + "#studio-Merchant")
             page.locator(APP).get_by_role("button", name="Lineage", exact=True).click()
-            page.wait_for_selector(f"{APP} .coach.lineage .lrow[data-trace]")
+            page.wait_for_selector(f"{APP} .coach.lhome .mrow")
             page.goto(SITE + "#studio")
-            page.locator(f"{APP} .lcard").click()
+            page.locator(f"{APP} .lcard[data-set=transaction-research]").click()
             page.wait_for_selector(f"{APP} .coach.lineage .lrow[data-trace]")
             assert_true(page.locator(f"{APP} .coach.lineage .lrow[data-trace]").count() == 16, "the screen doesn't show its 16 fields")
             assert_true("CQ-03" in page.inner_text(f"{APP} .coach.lineage .lq"), "the panel doesn't name the question the screen answers")
@@ -523,6 +523,62 @@ def main():
             page.wait_for_selector(f"{APP} .tgraph .hp.chg", state="attached")
             page.wait_for_timeout(2400)  # the trace draws in, from Snowflake to the screen
         step("trace a screen's fields to Snowflake and the ontology, accept a mapping, turn a gap into a question, and see what each scan changed", lineage, "14-lineage")
+
+        def meaning():
+            # Start from a meaning: find one, see every screen that shows it, and where they disagree.
+            page.goto(SITE + "#studio")
+            page.locator(APP).get_by_role("link", name="Start from a meaning").click()
+            page.wait_for_selector(f"{APP} .coach.lhome .mrow")
+            first = page.get_attribute(f"{APP} .coach.lhome .mrow >> nth=0", "data-meaning")
+            assert_true(first == "Settlement.settled_at", f"the meaning with most to look at isn't first: {first}")
+            page.get_by_label("Find a meaning or a field").fill("merchant")
+            page.wait_for_function(f"!document.querySelector('{APP} .mrow[data-meaning=\"Settlement.settled_at\"]')")
+            assert_true(page.locator(f"{APP} .mrow[data-meaning='Merchant.name']").count() == 1, "searching for merchant doesn't find Merchant.name")
+            page.get_by_label("Find a meaning or a field").fill("settled")
+            page.locator(f"{APP} .mrow[data-meaning='Settlement.settled_at']").click()
+            page.wait_for_selector(f"{APP} .coach.meaning .muses tr[data-use]")
+            assert_true(page.locator(f"{APP} .coach.meaning .muses tr[data-use]").count() == 2, "the meaning doesn't show both screens' fields")
+            finds = page.inner_text(f"{APP} .coach.meaning .mfinds")
+            assert_true("Meaning shifts." in finds and "Built differently." in finds and "CAPTURE_DT" in finds, f"the findings are wrong: {finds}")
+            page.wait_for_selector(f"{APP} .mhub .tb.off", state="attached")
+            assert_true("Settlement" in page.inner_text(f"{APP} .inspector h2"), "the inspector doesn't say what the meaning is")
+            # From the meaning to one screen's field, and back.
+            page.locator(f"{APP} .muses tr[data-use='dispute-workbench:settled-on']").get_by_role("button", name="Settled on").click()
+            page.wait_for_selector(f"{APP} .lrow.on[data-trace=settled-on]")
+            assert_true(page.locator(f"{APP} .coach.lineage .lrow[data-trace]").count() == 9, "the dispute workbench doesn't show its 9 fields")
+            assert_true("One other screen field means it too" in page.inner_text(f"{APP} .inspector .elsewhere"), "the field doesn't say another screen shows it")
+            page.locator(f"{APP} .inspector .elsewhere").get_by_role("button", name="Start from Settlement.settled_at").click()
+            page.wait_for_selector(f"{APP} .coach.meaning")
+            # The same label, meaning something else on the other screen.
+            page.get_by_role("button", name="All meanings").click()
+            page.locator(f"{APP} .mrow[data-meaning='Merchant.name']").click()
+            page.wait_for_selector(f"{APP} .coach.meaning .mfinds li.bad:has-text('Same label, other meaning')")
+            page.locator(f"{APP} .coach.meaning .mfinds").get_by_role("button", name="Organization.name").click()
+            page.wait_for_selector(f"{APP} .coach.meaning tr[data-use='dispute-workbench:merchant']")
+            page.locator(f"{APP} .coach.meaning .mfinds").get_by_role("button", name="Ask Claude what to do").click()
+            asked = page.get_by_label("Ask a question or describe what to add").input_value()
+            assert_true("Merchant" in asked and "Merchant.name" in asked, f"the disagreement didn't become a question to ask: {asked}")
+            # A class says which of its slots the screens show.
+            page.goto(SITE + "#studio-Settlement")
+            page.wait_for_selector(f"{APP} .inspector .screenuses")
+            assert_true("to look at" in page.inner_text(f"{APP} .inspector .screenuses"), "the class doesn't flag the meaning screens disagree on")
+            page.locator(f"{APP} .inspector .screenuses").get_by_role("button", name="settled_at").click()
+            page.wait_for_selector(f"{APP} .coach.meaning")
+            # By screen: the dispute workbench, where a decision goes on the draft for its own mapping set.
+            page.get_by_role("button", name="All meanings").click()
+            page.get_by_role("button", name="By screen").click()
+            page.locator(f"{APP} .lscreens .lcard[data-set=dispute-workbench]").click()
+            page.locator(f"{APP} .lrow[data-trace=stage] .lfield").click()
+            page.get_by_role("button", name="Accept the mapping").click()
+            page.wait_for_selector(f"{APP} .lrow[data-trace=stage][data-state=confirmed]")
+            sets = page.evaluate("""async () => { const cur = await window.__stubDb.doc('studio/current').get();
+              const d = (await window.__stubDb.doc('drafts/' + cur.data().draftId).get()).data();
+              return Object.values(d.mappings || {}).filter(Boolean).map((m) => m.set).sort(); }""")
+            assert_true("dispute-workbench" in sets and "transaction-research" in sets, f"the decisions don't name their mapping sets: {sets}")
+            page.get_by_role("button", name="All screens and meanings").click()
+            page.wait_for_selector(f"{APP} .coach.lhome")
+            page.wait_for_timeout(800)
+        step("start from a meaning: every screen that shows it, where they disagree, and a decision on the second screen", meaning, "15-meaning")
         browser.close()
 
     for e in errors:

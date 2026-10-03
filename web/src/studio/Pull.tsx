@@ -37,11 +37,11 @@ export function sessionPrompt(d: DraftDoc, a: Analysis, title: string): string {
     '- questions: for each question id, replace its gap in ontology/competency-questions.yaml with the given answered_in, walks and query, and remove the gap. An id the file doesn\'t have yet is a new question someone asked in the studio: add it at the end of its domain\'s section, with its domain, question, answered_in, walks and query, keeping the id unless the file has taken it since.',
     '- layout: pos entries go in POS and ports entries in PORTS in web/src/explorer/layout.ts; a view entry replaces VIEW there.',
     '',
-    ...(live(d.mappings).length ? [
-      'Decisions on lineage mappings, for ontology/mappings/transaction-research.sssom.tsv. Write them, exactly as below, to a file and apply them with `node --experimental-strip-types web/scripts/lineage-scan.ts decide --set transaction-research --decisions <file>`. It names each accepted mapping\'s reviewer, marks each rejected one predicate_modifier Not with its reason, and skips any made on an older version of the file than it is now, since a scan has changed it since. Say in the pull request which it skipped.',
-      '```json', JSON.stringify(live(d.mappings).map(([key, m]) => ({ key, state: m.state, by: m.by ?? 'person', reason: m.reason ?? null, version: m.version ?? null }))), '```',
+    ...[...new Set(live(d.mappings).map(([, m]) => m.set ?? 'transaction-research'))].sort().flatMap((set) => [
+      `Decisions on lineage mappings, for ontology/mappings/${set}.sssom.tsv. Write them, exactly as below, to a file and apply them with \`node --experimental-strip-types web/scripts/lineage-scan.ts decide --set ${set} --decisions <file>\`. It names each accepted mapping's reviewer, marks each rejected one predicate_modifier Not with its reason, and skips any made on an older version of the file than it is now, since a scan has changed it since. Say in the pull request which it skipped.`,
+      '```json', JSON.stringify(live(d.mappings).filter(([, m]) => (m.set ?? 'transaction-research') === set).map(([key, m]) => ({ key, state: m.state, by: m.by ?? 'person', reason: m.reason ?? null, version: m.version ?? null }))), '```',
       '',
-    ] : []),
+    ]),
     ...(a.tidyUps.length ? [
       `The class map's layout check names ${a.tidyUps.length} tidy-up${a.tidyUps.length === 1 ? '' : 's'} the studio left for you: ${a.tidyUps.join('; ')}. Move the draft's new classes and reroute their relationships in web/src/explorer/layout.ts until the check passes, keeping released classes where they are.`,
       '',

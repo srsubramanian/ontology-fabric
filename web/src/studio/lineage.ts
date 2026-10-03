@@ -61,7 +61,9 @@ export type Lineage = {
  *  was when they decided (its fingerprint, the basis). */
 export type MappingDecision = { state: 'accepted' | 'rejected'; reason?: string | null; by?: string | null; at?: number; basis?: string | null;
   /** The version of the mapping set it was made on, for the pull request to skip it if a newer scan has landed. */
-  version?: string | null };
+  version?: string | null;
+  /** The mapping set it belongs to, one per screen (transaction-research when not named, as before there were two). */
+  set?: string | null };
 
 /** SSSOM's TSV: commented YAML metadata, then a header row and one mapping per row. */
 export function parseSssom(tsv: string): { meta: Record<string, unknown>; rows: Row[] } {

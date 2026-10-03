@@ -1,0 +1,15 @@
+# What the backend asks the transaction data API for, for the dispute workbench (made up).
+query disputeCase($id: ID!) {
+  chargeback(id: $id) {
+    id
+    transactionId
+    reasonCode
+    amount
+    currencyCode
+    respondBy
+    openedAt
+    stageCode
+    merchant { legalName }
+    settlementDate
+  }
+}
