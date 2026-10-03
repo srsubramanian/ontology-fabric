@@ -50,17 +50,26 @@ export type Mcp = {
   callTool(server: string, tool: string, input?: unknown, options?: { cache?: false }): Promise<{ payload?: unknown }>;
 };
 
+/** Everyone viewing the page right now: each one's presence object, kept current by the platform. */
+export type RoomPeer = { peer: string; by: string | null; isMe: boolean; sameTab: boolean; kind: 'viewer' | 'agent'; guest: boolean;
+  presence: Readonly<Record<string, unknown>>; updatedAt: number };
+export type Room = {
+  presence(patch: Record<string, unknown>): Promise<void>;
+  peers(): readonly RoomPeer[];
+  onPeers(handler: (change: { peers: readonly RoomPeer[] }) => void, onError?: (e: { code: string }) => void): () => void;
+};
+
 type Use = { use(name: string): Promise<unknown> };
 const claude = (): Use | undefined => (window as unknown as { claude?: Use }).claude;
 
 export type Runtime = {
   /** False until every capability has answered: present, or null for absent. */
   ready: boolean;
-  db: Db | null; user: User | null; sample: Sample | null; mcp: Mcp | null;
+  db: Db | null; user: User | null; sample: Sample | null; mcp: Mcp | null; room: Room | null;
   me: { id: string | null; canEdit: boolean; isOwner: boolean };
 };
 
-const NONE: Runtime = { ready: false, db: null, user: null, sample: null, mcp: null, me: { id: null, canEdit: false, isOwner: false } };
+const NONE: Runtime = { ready: false, db: null, user: null, sample: null, mcp: null, room: null, me: { id: null, canEdit: false, isOwner: false } };
 let resolved: Promise<Runtime> | undefined;
 
 /** Resolves every capability once for the page. Without window.claude, everything is absent at once. */
@@ -69,10 +78,10 @@ function resolve(): Promise<Runtime> {
     const c = claude();
     if (!c?.use) return { ...NONE, ready: true };
     const get = (name: string) => c.use(name).catch(() => null);
-    const [db, user, sample, mcp] = await Promise.all([get('db'), get('user'), get('sample'), get('mcp')]);
+    const [db, user, sample, mcp, room] = await Promise.all([get('db'), get('user'), get('sample'), get('mcp'), get('room')]);
     const me = user ? await (user as User).me() : null;
     return {
-      ready: true, db: db as Db | null, user: user as User | null, sample: sample as Sample | null, mcp: mcp as Mcp | null,
+      ready: true, db: db as Db | null, user: user as User | null, sample: sample as Sample | null, mcp: mcp as Mcp | null, room: room as Room | null,
       me: { id: me?.id ?? null, canEdit: !!me?.canEdit, isOwner: !!me?.isOwner },
     };
   })());

@@ -38,6 +38,8 @@ export type ProposalEdit = {
   problem?: string | null;
   state: 'proposed' | 'accepted' | 'rejected';
   decidedBy?: string | null; decidedAt?: number | null;
+  /** What people said about it, keyed by a generated id so two comments never overwrite each other. */
+  notes?: Record<string, { by?: string | null; at: number; text: string } | null> | null;
 };
 /** A question someone asked in their own words, what Claude made of it, and the design it proposed. */
 export type InquiryEdit = {
@@ -70,8 +72,16 @@ export type DraftDoc = {
   answers: Record<string, AnswerEdit | null>;
   /** Questions people asked in their own words, keyed by a generated id. Older drafts have none. */
   inquiries?: Record<string, InquiryEdit | null>;
+  /** Test cases that prove a question with sample data, keyed by question id. Illustrative; older drafts have none. */
+  tests?: Record<string, TestEdit | null>;
   session?: { id: string | null; by: string; at: number; environment: string; branch: string; note?: string } | null;
 };
+
+/**
+ * A test case for a question (decision 25, stage 4): the instances to plant on the sample world, the rows to expect,
+ * and its story in words. The case is kept as JSON text, so a new one replaces the old whole rather than merging.
+ */
+export type TestEdit = { scenario: string; by?: string | null; at?: number; author: 'claude' | 'person' };
 
 /** One change to the draft: entries, or parts of entries, to merge into its maps; null removes one. */
 export type DraftUpdate = {
@@ -80,12 +90,13 @@ export type DraftUpdate = {
   enums?: Record<string, Partial<EnumEdit> | null>;
   answers?: Record<string, Partial<AnswerEdit> | null>;
   inquiries?: Record<string, Partial<InquiryEdit> | null>;
+  tests?: Record<string, Partial<TestEdit> | null>;
 };
-const MAPS = ['classes', 'slots', 'enums', 'answers', 'inquiries'] as const;
+const MAPS = ['classes', 'slots', 'enums', 'answers', 'inquiries', 'tests'] as const;
 
 export const slotKey = (cls: string, name: string) => `${cls}:${name}`;
 export const emptyDraft = (id: string, base: string): DraftDoc =>
-  ({ id, base, status: 'open', createdAt: Date.now(), updatedAt: Date.now(), classes: {}, slots: {}, enums: {}, answers: {}, inquiries: {} });
+  ({ id, base, status: 'open', createdAt: Date.now(), updatedAt: Date.now(), classes: {}, slots: {}, enums: {}, answers: {}, inquiries: {}, tests: {} });
 
 /** Entries that are there: null and undefined fields read as absent. */
 export const live = <T>(m: Record<string, T | null> | undefined) =>

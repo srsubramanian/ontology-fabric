@@ -272,3 +272,65 @@
 .canvas .gtag{font-size:10px; font-weight:800; letter-spacing:.04em; fill:var(--onto)}
 .canvas .cr.ghost .ce{stroke:var(--onto); stroke-dasharray:6 4}
 .canvas .cr.ghost .ch,.canvas .cr.ghost .cl{fill:var(--onto)}
+
+/* Two lenses side by side: the story lens, people here, and comments */
+.studio{--p0:#C2410C; --p1:#0E7490; --p2:#A21CAF; --p3:#4D7C0F}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .studio{--p0:#FB923C; --p1:#22D3EE; --p2:#E879F9; --p3:#A3E635}}
+:root[data-theme="dark"] .studio{--p0:#FB923C; --p1:#22D3EE; --p2:#E879F9; --p3:#A3E635}
+.pc0{--pc:var(--p0)} .pc1{--pc:var(--p1)} .pc2{--pc:var(--p2)} .pc3{--pc:var(--p3)}
+.inspector .lens{display:flex; width:max-content; margin:0 0 12px auto}
+.inspector .lens button{padding:4px 12px; font-size:.8rem}
+.story{margin:0 0 6px; line-height:1.5; font-size:.95rem}
+.stories{list-style:none; margin:0; padding:0; display:grid; gap:6px}
+.stories li{display:grid; gap:2px}
+.story.link{border:0; background:none; padding:0; font:inherit; font-size:.92rem; text-align:left; color:var(--ink); cursor:pointer; line-height:1.45}
+.story.link:hover{color:var(--onto)}
+.notes{display:grid; gap:4px}
+.note{margin:0; font-size:.84rem; line-height:1.4; border-left:2px solid var(--line); padding-left:8px}
+.sstatus .here{display:flex; flex-wrap:wrap; gap:6px}
+.sstatus .who{display:inline-flex; align-items:center; gap:6px; font:inherit; font-size:.78rem; font-weight:700; color:var(--ink); background:var(--paper); border:1px solid var(--pc); border-radius:999px; padding:1px 9px; cursor:pointer; max-width:340px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis}
+.sstatus .who i{width:8px; height:8px; border-radius:50%; background:var(--pc); flex:none}
+.sstatus .who span{font-weight:500; color:var(--muted); overflow:hidden; text-overflow:ellipsis}
+.canvas .pring{fill:none; stroke:var(--pc); stroke-width:2.4; stroke-dasharray:2 3}
+.canvas .pcur path{fill:var(--pc); stroke:var(--raised); stroke-width:1.2}
+.canvas .pcur rect{fill:var(--pc)}
+.canvas .pcur text{font-size:10.5px; font-weight:700; fill:var(--raised)}
+.canvas .pcur.away{opacity:.45}
+.notes .linkish,.stories .linkish{justify-self:start; text-align:left}
+
+/* Prove it with data: a question's query on a made-up sample world, its checks, rows and test case */
+.coach.proof{border-left-color:var(--graph)}
+.coach.proof .ctag{color:var(--graph)}
+.coach.proof[data-lane=sql]{border-left-color:var(--wh)}
+.coach.proof[data-lane=sql] .ctag{color:var(--wh)}
+.coach.proof .qbig{font-size:.98rem}
+.proof .params{display:flex; flex-wrap:wrap; gap:6px; margin:0}
+.proof .param{font-size:.8rem; background:var(--paper); border:1px solid var(--line); border-radius:999px; padding:2px 10px; overflow-wrap:anywhere}
+.proof .param code{font-family:"JetBrains Mono",ui-monospace,monospace; font-size:.76rem; color:var(--muted)}
+.pchecks{list-style:none; margin:0; padding:0; display:grid; gap:3px; font-size:.88rem}
+.pchecks .ok{color:var(--query)}
+.pchecks .bad{color:var(--bad); font-weight:700}
+.pchecks .muted{font-weight:400}
+.proof .ptable{background:var(--paper); border:1px solid var(--line); border-radius:8px; max-height:280px; overflow:auto}
+.proof table{border-collapse:collapse; font-size:.8rem; font-variant-numeric:tabular-nums; min-width:100%}
+.proof th,.proof td{text-align:left; padding:4px 10px; border-bottom:1px solid var(--line); white-space:nowrap}
+.proof th{position:sticky; top:0; background:var(--paper); font-family:"JetBrains Mono",ui-monospace,monospace; font-size:.72rem; color:var(--muted)}
+.proof td{font-family:"JetBrains Mono",ui-monospace,monospace; font-size:.75rem}
+.proof tr.planted td{background:color-mix(in srgb, var(--query) 10%, var(--paper))}
+.proof .pref{color:var(--query); font-weight:700}
+.ptest{display:grid; gap:6px; border-top:1px solid var(--line); padding-top:8px}
+.ptest h3{margin:0; font-size:.78rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.ptest .say{font-size:.92rem}
+.ptest .row{margin-top:0}
+.ptest .vbtn.danger{margin-top:0}
+.ptest .xwrap{overflow-x:auto; background:none; border:0}
+.pgraph{display:block; font-family:"JetBrains Mono",ui-monospace,monospace}
+.pgraph .ph{font-family:"Schibsted Grotesk",system-ui,sans-serif; font-size:10px; font-weight:800; fill:var(--muted)}
+.pgraph .pl{fill:none; stroke:var(--line); stroke-width:1.4}
+.pgraph .pn rect{fill:var(--paper); stroke:var(--muted); stroke-width:1.2}
+.pgraph .pn text{font-size:10px; font-weight:700; fill:var(--ink)}
+.pgraph .pn .pc{font-weight:400; fill:var(--muted); font-size:9px}
+.pgraph .pn.hit rect{fill:color-mix(in srgb, var(--query) 16%, var(--paper)); stroke:var(--query); stroke-width:2}
+.pgraph .pn.miss rect{stroke-dasharray:4 3}
+.pgraph .pn.wrong rect{fill:color-mix(in srgb, var(--bad) 14%, var(--paper)); stroke:var(--bad); stroke-width:2}
+.ibody .prove,.isec .prove{margin-top:4px}

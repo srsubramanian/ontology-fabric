@@ -26,5 +26,54 @@
       "walks": ["PayoutAccountChange.for_merchant", "Chargeback.disputes", "Capture.captures", "Authorization.at_merchant"],
       "query": "MATCH (ch:PayoutAccountChange)-[:FOR_MERCHANT]->(m:Merchant)\nMATCH (cb:Chargeback)-[:DISPUTES]->(:Capture)-[:CAPTURES]->(:Authorization)-[:AT_MERCHANT]->(m)\nWHERE cb.opened_at >= ch.changed_at AND cb.opened_at < ch.changed_at + duration('P7D')\nRETURN m.id AS merchant, ch.changed_at AS changed_at, count(DISTINCT cb) AS disputes_after\nORDER BY disputes_after DESC\nLIMIT 50"
     }
+  },
+  "test": {
+    "story": "Coastline Outfitters moved its payouts to a new bank account on 20 August, and three chargebacks arrived in the seven days after; a fourth came on 30 August, outside the week. Maple Street Cafe had two chargebacks the same week but never changed its account, so the question shouldn't name it.",
+    "nodes": [
+      {"ref": "m1", "class": "Merchant", "props": {"name": "Coastline Outfitters", "mcc": "5999"}},
+      {"ref": "m2", "class": "Merchant", "props": {"name": "Maple Street Cafe", "mcc": "5812"}},
+      {"ref": "ch1", "class": "PayoutAccountChange", "props": {"changed_at": "2026-08-20T09:00:00Z"}},
+      {"ref": "cb1", "class": "Chargeback", "props": {"opened_at": "2026-08-21T10:00:00Z"}},
+      {"ref": "cap1", "class": "Capture", "props": {}},
+      {"ref": "a1", "class": "Authorization", "props": {}},
+      {"ref": "cb2", "class": "Chargeback", "props": {"opened_at": "2026-08-23T15:30:00Z"}},
+      {"ref": "cap2", "class": "Capture", "props": {}},
+      {"ref": "a2", "class": "Authorization", "props": {}},
+      {"ref": "cb3", "class": "Chargeback", "props": {"opened_at": "2026-08-25T08:15:00Z"}},
+      {"ref": "cap3", "class": "Capture", "props": {}},
+      {"ref": "a3", "class": "Authorization", "props": {}},
+      {"ref": "cb4", "class": "Chargeback", "props": {"opened_at": "2026-08-30T11:00:00Z"}},
+      {"ref": "cap4", "class": "Capture", "props": {}},
+      {"ref": "a4", "class": "Authorization", "props": {}},
+      {"ref": "cb5", "class": "Chargeback", "props": {"opened_at": "2026-08-22T12:00:00Z"}},
+      {"ref": "cap5", "class": "Capture", "props": {}},
+      {"ref": "a5", "class": "Authorization", "props": {}},
+      {"ref": "cb6", "class": "Chargeback", "props": {"opened_at": "2026-08-24T17:45:00Z"}},
+      {"ref": "cap6", "class": "Capture", "props": {}},
+      {"ref": "a6", "class": "Authorization", "props": {}}
+    ],
+    "links": [
+      {"from": "ch1", "rel": "for_merchant", "to": "m1"},
+      {"from": "cb1", "rel": "disputes", "to": "cap1"},
+      {"from": "cap1", "rel": "captures", "to": "a1"},
+      {"from": "a1", "rel": "at_merchant", "to": "m1"},
+      {"from": "cb2", "rel": "disputes", "to": "cap2"},
+      {"from": "cap2", "rel": "captures", "to": "a2"},
+      {"from": "a2", "rel": "at_merchant", "to": "m1"},
+      {"from": "cb3", "rel": "disputes", "to": "cap3"},
+      {"from": "cap3", "rel": "captures", "to": "a3"},
+      {"from": "a3", "rel": "at_merchant", "to": "m1"},
+      {"from": "cb4", "rel": "disputes", "to": "cap4"},
+      {"from": "cap4", "rel": "captures", "to": "a4"},
+      {"from": "a4", "rel": "at_merchant", "to": "m1"},
+      {"from": "cb5", "rel": "disputes", "to": "cap5"},
+      {"from": "cap5", "rel": "captures", "to": "a5"},
+      {"from": "a5", "rel": "at_merchant", "to": "m2"},
+      {"from": "cb6", "rel": "disputes", "to": "cap6"},
+      {"from": "cap6", "rel": "captures", "to": "a6"},
+      {"from": "a6", "rel": "at_merchant", "to": "m2"}
+    ],
+    "params": {},
+    "expect": {"include": [{"merchant": "@m1", "disputes_after": 3}], "exclude": [{"merchant": "@m2"}]}
   }
 }

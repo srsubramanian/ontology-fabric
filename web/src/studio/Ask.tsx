@@ -8,6 +8,8 @@ import type { Analysis } from './analysis';
 import type { InquiryEdit, ProposalEdit } from './draft';
 import { blockedBy, pending } from './inquiry';
 import { missionById } from './missions';
+import type { Lens } from './presence';
+import { proposalSentence } from './Story';
 
 const KIND: Record<ProposalEdit['kind'], string> = { class: 'Class', relationship: 'Link', field: 'Field', enum: 'List', answer: 'Answer' };
 /** A run that started this long ago and never answered was left behind by a closed tab. */
@@ -28,7 +30,7 @@ export function inquiryState(inq: InquiryEdit, running: boolean): { label: strin
 }
 
 /** The card above the map: the question, what Claude made of it, and where its design stands. */
-export function InquiryCard({ inq, by, running, step, elapsed, preview, editable, canAsk, onStop, onAgain, onClose, onShow }: {
+export function InquiryCard({ inq, by, running, step, elapsed, preview, editable, canAsk, onStop, onAgain, onClose, onShow, onProve, proving }: {
   inq: InquiryEdit; by: string; running: boolean; step?: string; elapsed: number;
   /** The checks on the draft with every pending proposal accepted. */
   preview: Analysis | null;
@@ -36,6 +38,8 @@ export function InquiryCard({ inq, by, running, step, elapsed, preview, editable
   onStop(): void; onAgain(note: string): void; onClose(): void;
   /** Brings the proposals on the map into view. */
   onShow(): void;
+  /** Runs the answer's query on a made-up sample world, with the design as it would be with every proposal accepted. */
+  onProve?: () => void; proving?: boolean;
 }) {
   const [note, setNote] = useState('');
   const [again, setAgain] = useState(false);
@@ -93,6 +97,12 @@ export function InquiryCard({ inq, by, running, step, elapsed, preview, editable
               )}
             </>
           )}
+          {onProve && (
+            <p className="row prove">
+              <button type="button" className={'vbtn' + (proving ? ' on' : '')} onClick={onProve}>{proving ? 'Proving it below' : 'Prove it with sample data'}</button>
+              <span className="small muted">Runs the answer on a made-up world, in this page{answer && answer.state === 'proposed' ? ', as if every proposal were accepted' : ''}.</span>
+            </p>
+          )}
         </>
       )}
 
@@ -107,11 +117,15 @@ export function InquiryCard({ inq, by, running, step, elapsed, preview, editable
   );
 }
 
-/** Beside the map: each proposal, why, what it comes with, and the decision. */
-export function ProposalsPanel({ inq, preview, editable, focus, setFocus, onAccept, onReject, onReopen }: {
+/** Beside the map: each proposal, why, what it comes with, what people said, and the decision. */
+export function ProposalsPanel({ inq, preview, editable, focus, setFocus, onAccept, onReject, onReopen, lens, who, onNote }: {
   inq: InquiryEdit; preview: Analysis | null; editable: boolean;
   focus: string | null; setFocus(id: string | null): void;
   onAccept(ids: string[]): void; onReject(id: string): void; onReopen(id: string): void;
+  /** Story reads each proposal as a sentence; model by what it adds. */
+  lens: Lens; who(id?: string | null): string;
+  /** Comments on a proposal, when the draft is shared. */
+  onNote?: (id: string, text: string) => void;
 }) {
   const order = (inq.order ?? []).filter((id) => inq.proposals?.[id]);
   const waiting = pending(inq);
@@ -132,9 +146,9 @@ export function ProposalsPanel({ inq, preview, editable, focus, setFocus, onAcce
           return (
             <li key={id} data-proposal={id} className={`${p.state}${focus === id ? ' focus' : ''}`}
               onMouseEnter={() => setFocus(id)} onMouseLeave={() => setFocus(null)} onFocus={() => setFocus(id)}>
-              <p className="ptop"><span className={`kind k-${p.kind}`}>{KIND[p.kind]}</span><b>{p.title}</b></p>
+              <p className="ptop"><span className={`kind k-${p.kind}`}>{KIND[p.kind]}</span><b>{lens === 'story' ? proposalSentence(p, preview) : p.title}</b></p>
               {p.why && <p className="small">{p.why}</p>}
-              {p.kind === 'answer' && <AnswerPreview p={p} />}
+              {p.kind === 'answer' && lens === 'model' && <AnswerPreview p={p} />}
               {p.problem && <p className="small warn">The studio can't apply this: {p.problem}</p>}
               {!p.problem && blocked && p.state === 'proposed' && <p className="small warn">Needs “{title(blocked)}”, which was rejected.</p>}
               {issues.map((x) => <p key={x} className="small warn">{x}</p>)}
@@ -145,6 +159,7 @@ export function ProposalsPanel({ inq, preview, editable, focus, setFocus, onAcce
                 {p.state === 'accepted' && <span className="done">✓ Accepted</span>}
                 {p.state === 'rejected' && <><span className="no">Rejected</span>{editable && <button type="button" className="linkish" onClick={() => onReopen(id)}>Reconsider</button>}</>}
               </div>
+              <Notes notes={p.notes} who={who} onNote={onNote && ((t) => onNote(id, t))} />
             </li>
           );
         })}
@@ -181,5 +196,23 @@ export function AskedList({ items, who, running }: { items: [string, InquiryEdit
         );
       })}
     </ul>
+  );
+}
+
+/** What people said about a proposal, oldest first, and a box to add to it. */
+function Notes({ notes, who, onNote }: { notes: ProposalEdit['notes']; who(id?: string | null): string; onNote?: (text: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const list = Object.values(notes ?? {}).filter((n): n is NonNullable<typeof n> => !!n).sort((x, y) => x.at - y.at);
+  return (
+    <div className="notes">
+      {list.map((n, i) => <p key={i} className="note"><b>{who(n.by)}</b> {n.text}</p>)}
+      {onNote && (open ? (
+        <form className="again" onSubmit={(e) => { e.preventDefault(); if (text.trim()) { onNote(text.trim()); setText(''); setOpen(false); } }}>
+          <input value={text} onChange={(e) => setText(e.target.value)} aria-label="Your comment" placeholder="Say what you think of it" autoFocus />
+          <button type="submit" className="vbtn tiny" disabled={!text.trim()}>Comment</button>
+        </form>
+      ) : <button type="button" className="linkish small" onClick={() => setOpen(true)}>Comment</button>)}
+    </div>
   );
 }

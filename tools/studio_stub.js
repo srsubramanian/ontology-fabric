@@ -32,16 +32,16 @@
   const me = { id: 'u_me', name: 'Ada Engineer', avatarUrl: '', color: '#888', email: null, isOwner: true, canEdit: true };
   const user = {
     me: async () => me, id: async () => me.id,
-    profiles: async (ids) => Object.fromEntries([].concat(ids).map((id) => [id, { id, name: id === 'u_me' ? 'Ada Engineer' : '', avatarUrl: '', color: '#888', email: null, isMe: id === 'u_me' }])),
+    profiles: async (ids) => Object.fromEntries([].concat(ids).map((id) => [id, { id, name: { u_me: 'Ada Engineer', u_ana: 'Ana Analyst' }[id] || '', avatarUrl: '', color: '#888', email: null, isMe: id === 'u_me' }])),
   };
-  // Claude answers with what the test asked it to: a design for a question someone asked, using the page's tools
-  // first the way Claude would, or a query for a competency question.
+  // Claude answers with what the test asked it to: a design for a question someone asked, or a test case that proves
+  // one, using the page's tools first the way Claude would, or a query for a competency question.
   const answers = window.__studioClaude || {};
   const sample = async (input, opts = {}) => {
     window.__sampleCalls = (window.__sampleCalls || []).concat([input]);
-    const asked = /design partner/.test(input);
-    if (asked && opts.tools) {
-      for (const call of answers.inquiryCalls || []) {
+    const asked = /design partner/.test(input), testing = /You write a test case/.test(input);
+    if ((asked || testing) && opts.tools) {
+      for (const call of (testing ? answers.testCalls : answers.inquiryCalls) || []) {
         await new Promise((r) => setTimeout(r, 150));
         const tool = opts.tools.find((t) => t.name === call.name);
         let out;
@@ -49,7 +49,7 @@
         window.__toolResults = (window.__toolResults || []).concat([{ name: call.name, out }]);
       }
     }
-    const reply = JSON.stringify(asked ? answers.inquiry : /Write the query/.test(input) ? answers.query : answers.build);
+    const reply = JSON.stringify(asked ? answers.inquiry : testing ? answers.test : /Write the query/.test(input) ? answers.query : answers.build);
     let text = '';
     for (const part of reply.match(/[\s\S]{1,200}/g)) {
       await new Promise((r) => setTimeout(r, 30));
@@ -70,7 +70,30 @@
       throw { code: 'tool_error', message: 'unknown tool' };
     },
   };
-  const caps = { db, user, sample, mcp };
+  // Who's here: this tab, plus anyone the test brings in with window.__stubRoom.set(peer, by, presence).
+  const peers = new Map();
+  const self = { peer: 'p_me', by: me.id, isMe: true, sameTab: true, kind: 'viewer', guest: false, presence: {}, updatedAt: Date.now() };
+  peers.set(self.peer, self);
+  const roomListeners = new Set();
+  const tellPeers = () => setTimeout(() => {
+    const list = Object.freeze([...peers.values()].map((p) => Object.freeze({ ...p, presence: Object.freeze({ ...p.presence }) })));
+    roomListeners.forEach((f) => f({ peers: list, joined: [], left: [], updated: [] }));
+  }, 0);
+  const room = {
+    presence: async (patch) => {
+      const next = { ...self.presence };
+      for (const [k, v] of Object.entries(patch)) { if (v === null) delete next[k]; else next[k] = v; }
+      self.presence = next; window.__myPresence = next; tellPeers();
+    },
+    peers: () => [...peers.values()],
+    onPeers: (h) => { roomListeners.add(h); tellPeers(); return () => roomListeners.delete(h); },
+    connected: () => true,
+  };
+  window.__stubRoom = {
+    set: (peer, by, presence) => { peers.set(peer, { peer, by, isMe: false, sameTab: false, kind: 'viewer', guest: false, presence, updatedAt: Date.now() }); tellPeers(); },
+    leave: (peer) => { peers.delete(peer); tellPeers(); },
+  };
+  const caps = { db, user, sample, mcp, room };
   window.__stubDb = db;
   window.claude = { use: async (name) => caps[name] ?? null };
 })();
