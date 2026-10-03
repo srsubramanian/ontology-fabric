@@ -25,7 +25,7 @@
   - Overview: `#map`, `#chN` and `#chN-K` (`#chN:K` still works), or any element's id.
   - Retrieval: `#retrieval` for its map, then `#retrieval-s1` to `#retrieval-s11`.
   - Class explorer: `#explorer` for its map, `#explorer-<ClassName>` (such as `#explorer-Chargeback`) and `#explorer-CQ-NN` for a competency question.
-  - Design studio: `#studio` for its map and working draft, `#studio-<ClassName>` with that class selected, `#studio-CQ-NN` to answer a question, `#studio-mission-CQ-NN` for that question's mission, and `#studio-ask-<id>` for a question someone asked.
+  - Design studio: `#studio` for its map and working draft, `#studio-<ClassName>` with that class selected, `#studio-CQ-NN` to answer a question, `#studio-mission-CQ-NN` for that question's mission, `#studio-ask-<id>` for a question someone asked, and `#studio-lineage` for a screen's lineage, with `#studio-lineage-<field>` for one of its fields.
   - Links between apps are hash links too, such as `#explorer` from chapter 1. Build an app's routes with `hashFor` in `web/src/kit/route.ts`.
 - **Chapters split into sub-pages**, with underlined tabs and Previous/Next buttons. Arrow keys move between sub-pages.
 - **A view's animation runs when it's shown** (or when it scrolls into view with Motion's `inView`), and always has a replay button. In `web/`, a view mounts when shown, which starts its `useTimeline` steps; the replay button remounts the animated part with a new key from `useReplay`.

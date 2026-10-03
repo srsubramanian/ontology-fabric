@@ -366,3 +366,60 @@
 .memory .fld{margin-top:8px}
 .seg button[aria-checked="true"]{background:var(--ink); color:var(--paper)}
 .seg button:disabled{cursor:default; opacity:.55}
+
+/* Lineage: a screen's fields traced lane by lane to Snowflake, and to what they mean in the ontology (illustrative) */
+.coach.lineage{border-left-color:var(--wh)}
+.coach.lineage .ctag{color:var(--wh)}
+.coach.lineage .xwrap{background:none; border:0; border-radius:0; overflow-x:auto}
+.ltally{display:flex; flex-wrap:wrap; gap:4px 14px; margin:0; font-size:.84rem}
+.st.confirmed,.st.proposed{color:var(--onto)}
+.st.review{color:var(--muted)}
+.st.shift,.st.gap{color:var(--bad)}
+.st.rejected{color:var(--muted); text-decoration:line-through}
+.lgrid{display:grid; min-width:900px}
+.lrow{display:grid; grid-template-columns:minmax(136px,1fr) 76px minmax(100px,.85fr) 76px minmax(120px,1fr) 76px minmax(122px,1fr) 8px minmax(150px,1.2fr); align-items:center; border-bottom:1px solid var(--line); padding:4px 0}
+.lrow.on{background:color-mix(in srgb, var(--onto) 8%, transparent)}
+.lhead{font-size:.7rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.lhead .lane-sf{color:var(--wh)}
+.lhead .lmeans{color:var(--onto)}
+.lcell{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.82rem; padding:0 4px}
+.lfield{font:inherit; font-weight:700; color:var(--ink); background:none; border:0; padding:2px 0; cursor:pointer; text-align:left; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.lfield:hover,.lfield:focus-visible{color:var(--onto); outline:none; text-decoration:underline}
+.lchip{font-family:"JetBrains Mono",ui-monospace,monospace; font-size:.74rem}
+.lchip em{font-style:normal; color:var(--muted)}
+.lane-sf .lchip{color:var(--wh)}
+.lhop{font-size:.68rem; color:var(--muted); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.lhop.t-derive,.lhop.t-aggregate,.lhop.t-convert,.lhop.t-lookup{color:var(--ink); font-weight:700}
+.lmeans{display:grid; line-height:1.25}
+.lmeans code{font-size:.74rem; color:var(--onto); overflow:hidden; text-overflow:ellipsis}
+.lmeans small{font-size:.68rem}
+.lmeans.st.shift code,.lmeans.st.gap code{color:var(--bad)}
+.lgroup{margin:8px 0 2px; font-size:.78rem; font-weight:800; color:var(--onto)}
+.trace{display:grid; gap:4px; border-top:1px solid var(--line); padding-top:8px}
+.tgraph{display:block; font-family:"Schibsted Grotesk",system-ui,sans-serif}
+.tgraph .th{font-size:10px; font-weight:800; fill:var(--muted); letter-spacing:.04em}
+.tgraph .th.lane-sf{fill:var(--wh)}
+.tgraph .tb rect{fill:var(--paper); stroke:var(--muted); stroke-width:1.2}
+.tgraph .tb text{font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; fill:var(--ink)}
+.tgraph .tb.lane-ui text{font-family:"Schibsted Grotesk",system-ui,sans-serif; font-weight:700; font-size:12px}
+.tgraph .tb.lane-sf rect{stroke:var(--wh)}
+.tgraph .tb.onto rect{stroke:var(--onto); stroke-width:1.8; fill:color-mix(in srgb, var(--onto) 8%, var(--paper))}
+.tgraph .tb.onto text{fill:var(--onto); font-weight:700}
+.tgraph .tb.off rect{stroke:var(--bad); fill:color-mix(in srgb, var(--bad) 10%, var(--paper))}
+.tgraph .tb.off text,.tgraph .tb.none text{fill:var(--bad)}
+.tgraph .tb.none rect{stroke:var(--bad); stroke-dasharray:4 3}
+.tgraph .hp{fill:none; stroke:var(--muted); stroke-width:1.5}
+.tgraph .hp.t-derive,.tgraph .hp.t-aggregate,.tgraph .hp.t-convert,.tgraph .hp.t-lookup{stroke:var(--ink)}
+.tgraph .hl{font-size:10px; fill:var(--muted); font-weight:700}
+.tgraph .ml{fill:none; stroke:var(--onto); stroke-width:1.4; stroke-dasharray:4 3}
+.tgraph .ml.off,.tgraph .ml.none{stroke:var(--bad)}
+.tgraph .ah{fill:var(--muted)}
+.legend{list-style:none; margin:0; padding:0; display:grid; gap:5px; font-size:.84rem}
+.legend .st{font-weight:700; margin-right:4px}
+.hops{margin:0; padding-left:18px; display:grid; gap:7px; font-size:.84rem}
+.hops .hk{font-weight:800; font-size:.7rem; text-transform:uppercase; letter-spacing:.03em; color:var(--muted)}
+.hops .loc{display:block; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:.7rem; color:var(--muted); overflow-wrap:anywhere}
+.lcard{display:grid; gap:2px; text-decoration:none; color:var(--ink); border:1px solid var(--line); border-left:3px solid var(--wh); border-radius:8px; padding:7px 10px}
+.lcard:hover,.lcard:focus-visible{border-color:var(--wh); outline:none}
+.lrow .lmeans{position:sticky; right:0; background:var(--raised); box-shadow:-8px 0 8px -8px color-mix(in srgb, var(--ink) 30%, transparent); padding-left:8px}
+.lrow.on .lmeans{background:color-mix(in srgb, var(--onto) 8%, var(--raised))}

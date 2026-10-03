@@ -14,7 +14,7 @@ export const LEVELS: { id: Level; label: string; says: string }[] = [
 
 /** One decision on a proposal, as the team remembers it. */
 export type Memory = {
-  state: 'accepted' | 'rejected'; kind: ProposalEdit['kind']; name: string; title: string;
+  state: 'accepted' | 'rejected'; kind: ProposalEdit['kind'] | 'mapping'; name: string; title: string;
   reason?: string | null; question: string; by?: string | null; at: number;
 };
 /** What one person keeps for themselves: their setting, what they told Claude, and their own recent decisions. */

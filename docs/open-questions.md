@@ -49,6 +49,11 @@ Follow the build order in chapter 7 of the overview (`site/index.html#ch7`), wit
     - A tutor's questions are Claude's own, checked only for shape (two to four choices, exactly one right). Have a payments expert review a sample.
   - Ask anything today: a proposal's place on the map is worked out when Claude proposes it. If the draft changes before it's accepted, it can land somewhere crowded and leave a tidy-up. Re-place on accept if that happens often.
   - A question asked in the studio gets the next free id, checked again when its answer is accepted. Two people accepting new questions at the same moment could still take one id; the pull request's session renumbers if the file has taken it.
+- Lineage (decision 26), next:
+  - Replace the illustrative mapping set with the real one for the transaction research screen: a Claude Code session reads the screen's, the backend's and the data API's repositories and Snowflake's metadata, read-only, and writes the same SSSOM format. First the repository goes private, and the session needs read access to the three repositories and to Snowflake's metadata, or exported view definitions.
+  - Open with the owner: what each layer is built with, whether a data catalog (such as DataHub, Collibra or Alation) already holds column lineage to read rather than rebuild, and which question the screen answers most, as its first competency question.
+  - Go further left: the source systems and pipelines that load Snowflake, in the same format.
+  - Pull requests open only when the draft changes the ontology; decisions on mappings ride along with one. Let them open a pull request of their own if people use the view on its own.
 - The design studio, next:
   - Missions cover the 8 risk gaps. Write them for the other domains' questions as gaps open, and have each owning team review its mission's illustrative classes, codes and queries before they reach a pull request.
   - Placement when the map is crowded. Each mission on its own leaves the map clean; all eight on one draft leave 5 to 7 tidy-ups, since their designed spots overlap and the fallback search gives up after 160 tries. A wider, slower search could run in a worker, or the class map could grow a second room.
