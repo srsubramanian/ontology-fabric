@@ -51,7 +51,7 @@ Follow the build order in chapter 7 of the overview (`site/index.html#ch7`), wit
   - A question asked in the studio gets the next free id, checked again when its answer is accepted. Two people accepting new questions at the same moment could still take one id; the pull request's session renumbers if the file has taken it.
 - Lineage (decision 26), next:
   - Replace the illustrative mapping set with the real one for the transaction research screen: a Claude Code session reads the screen's, the backend's and the data API's repositories and Snowflake's metadata, read-only, and writes the same SSSOM format. First the repository goes private, and the session needs read access to the three repositories and to Snowflake's metadata, or exported view definitions.
-  - Open with the owner: what each layer is built with, whether a data catalog (such as DataHub, Collibra or Alation) already holds column lineage to read rather than rebuild, and which question the screen answers most, as its first competency question.
+  - The owner's real stack (asked 3 October 2026): the screen is React; the backend is Java with Spring; the data API is GraphQL, with the SQL written in its resolvers; Snowflake has no data catalog, so its own metadata is the source for that hop. The code can't be shared yet, so work stays on illustrative data shaped like this stack. Analysts open the screen most to see a transaction's whole life, which CQ-03 already asks.
   - Go further left: the source systems and pipelines that load Snowflake, in the same format.
   - Pull requests open only when the draft changes the ontology; decisions on mappings ride along with one. Let them open a pull request of their own if people use the view on its own.
 - The design studio, next:
