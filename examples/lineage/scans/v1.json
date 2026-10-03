@@ -1,0 +1,640 @@
+{
+ "set": "transaction-research",
+ "metadata": {
+  "id": "https://example.com/mappings/transaction-research.sssom.tsv",
+  "title": "Transaction Research screen to the payments ontology (illustrative)",
+  "description": "Illustrative, shaped like the owner's stack: a transaction research screen in React, a Java and Spring backend that maps a GraphQL data API's types into its own DTOs, and resolvers whose SQL reads Snowflake. Written by the deep scan (web/scripts/lineage-scan.ts) from the made-up repositories in examples/lineage/; every system, file, table, column and line of code is invented. Two kinds of row: a field prov:wasDerivedFrom the field it is built from, with how (transform) and the code that does it, and a field's meaning in the ontology (skos:exactMatch, closeMatch or relatedMatch, or sssom:NoTermFound for a gap). fabric: names an ontology class's slot as the studio writes it, Class.slot.",
+  "license": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "competency_question": "CQ-03",
+  "curie_map": {
+   "ui": "https://example.com/txn-research-ui/",
+   "be": "https://example.com/txn-research-backend/",
+   "api": "https://example.com/transaction-data-api/",
+   "sf": "https://example.com/snowflake/PAYMENTS/",
+   "fabric": "https://ontology.example.com/payments/",
+   "person": "https://example.com/people/",
+   "agent": "https://example.com/agents/",
+   "repo": "https://bitbucket.example.com/projects/PAY/repos/",
+   "snowflake": "https://example.com/snowflake/",
+   "skos": "http://www.w3.org/2004/02/skos/core#",
+   "prov": "http://www.w3.org/ns/prov#",
+   "semapv": "https://w3id.org/semapv/vocab/",
+   "sssom": "https://w3id.org/sssom/"
+  }
+ },
+ "fields": [
+  {
+   "field": "ui:TransactionLifecycle.transactionId",
+   "label": "Transaction ID",
+   "hops": [
+    {
+     "to": "be:TransactionLifecycleDto.txnId",
+     "label": "txnId",
+     "transform": "pass",
+     "note": "Shown as it comes",
+     "at": "src/features/transaction-research/TransactionLifecycle.tsx:19",
+     "code": "<Cell>{txn.txnId}</Cell>"
+    },
+    {
+     "to": "api:Transaction.transactionId",
+     "label": "transactionId",
+     "transform": "rename",
+     "note": "Renamed from transactionId",
+     "at": "src/main/java/com/example/research/TransactionLifecycleMapper.java:10",
+     "code": "@Mapping(target = \"txnId\", source = \"transactionId\")"
+    },
+    {
+     "to": "sf:CORE.FCT_AUTHORIZATION.AUTH_ID",
+     "label": "AUTH_ID",
+     "transform": "format",
+     "note": "Prefixes auth: to the warehouse key, the ID rule (decision 4)",
+     "at": "src/main/java/com/example/dataapi/TransactionResolver.java:16",
+     "code": "'auth:' || a.AUTH_ID AS transaction_id"
+    }
+   ],
+   "means": {
+    "slot": "Authorization.id",
+    "predicate": "skos:exactMatch",
+    "confidence": 0.98
+   }
+  },
+  {
+   "field": "ui:TransactionLifecycle.status",
+   "label": "Status",
+   "hops": [
+    {
+     "to": "be:TransactionLifecycleDto.status",
+     "label": "status",
+     "transform": "pass",
+     "note": "Shown as a badge",
+     "at": "src/features/transaction-research/TransactionLifecycle.tsx:22",
+     "code": "<StatusBadge status={txn.status} />"
+    },
+    {
+     "to": "api:Transaction.lifecycle",
+     "label": "lifecycle[]",
+     "transform": "derive",
+     "note": "The latest event: captured or settled",
+     "at": "src/main/java/com/example/research/TransactionLifecycleService.java:22",
+     "code": "dto.setStatus(LifecycleStatus.latest(t.lifecycle()));"
+    },
+    {
+     "to": "sf:CORE.FCT_CAPTURE.CAPTURE_ID",
+     "label": "CAPTURE_ID",
+     "transform": "join",
+     "note": "One event per capture",
+     "at": "src/main/java/com/example/dataapi/TransactionResolver.java:40",
+     "code": "SELECT 'captured' AS kind, c.CAPTURE_ID AS id, c.CAPTURE_TS AS at FROM CORE.FCT_CAPTURE c WHERE c.AUTH_ID = :authId"
+    },
+    {
+     "to": "sf:CORE.FCT_SETTLEMENT_ITEM.SETTLEMENT_ID",
+     "label": "SETTLEMENT_ID",
+     "transform": "join",
+     "note": "One event per settlement, joined on the capture",
+     "at": "src/main/java/com/example/dataapi/TransactionResolver.java:41",
+     "code": "UNION ALL SELECT 'settled', s.SETTLEMENT_ID, s.SETTLED_DT FROM CORE.FCT_SETTLEMENT_ITEM s JOIN CORE.FCT_CAPTURE c USING (CAPTURE_ID) WHERE c.AUTH_ID = :authId"
+    }
+   ],
+   "means": {
+    "slot": "PaymentEvent",
+    "predicate": "skos:relatedMatch",
+    "confidence": 0.9,
+    "comment": "Derived on the screen from the latest event. The ontology keeps the events, never a status field (decision 7)."
+   }
+  },
+  {
+   "field": "ui:TransactionLifecycle.authorizedAt",
+   "label": "Authorized",
+   "hops": [
+    {
+     "to": "be:TransactionLifecycleDto.authTime",
+     "label": "authTime",
+     "transform": "format",
+     "note": "UTC to the analyst's own time zone",
+     "at": "src/features/transaction-research/TransactionLifecycle.tsx:25",
+     "code": "<Cell>{formatInZone(txn.authTime, user.timeZone)}</Cell>"
+    },
+    {
+     "to": "api:Transaction.authorizedAt",
+     "label": "authorizedAt",
+     "transform": "rename",
+     "note": "Renamed from authorizedAt",
+     "at": "src/main/java/com/example/research/TransactionLifecycleMapper.java:11",
+     "code": "@Mapping(target = \"authTime\", source = \"authorizedAt\")"
+    },
+    {
+     "to": "sf:CORE.FCT_AUTHORIZATION.AUTH_TS",
+     "label": "AUTH_TS",
+     "transform": "pass",
+     "note": "Passed through, in UTC",
+     "at": "src/main/java/com/example/dataapi/TransactionResolver.java:17",
+     "code": "a.AUTH_TS AS authorized_at"
+    }
+   ],
+   "means": {
+    "slot": "Authorization.authorized_at",
+    "predicate": "skos:exactMatch",
+    "confidence": 0.96
+   }
+  },
+  {
+   "field": "ui:TransactionLifecycle.authAmount",
+   "label": "Authorized amount",
+   "hops": [
+    {
+     "to": "be:TransactionLifecycleDto.authAmt",
+     "label": "authAmt",
+     "transform": "format",
+     "note": "Currency symbol, two decimals",
+     "at": "src/features/transaction-research/TransactionLifecycle.tsx:28",
+     "code": "<Cell>{formatMoney(txn.authAmt, txn.currency)}</Cell>"
+    },
+    {
+     "to": "api:Transaction.amountAuthorized",
+     "label": "amountAuthorized",
+     "transform": "rename",
+     "note": "Renamed from amountAuthorized",
+     "at": "src/main/java/com/example/research/TransactionLifecycleMapper.java:12",
+     "code": "@Mapping(target = \"authAmt\", source = \"amountAuthorized\")"
+    },
+    {
+     "to": "sf:CORE.FCT_AUTHORIZATION.AMT_MINOR",
+     "label": "AMT_MINOR",
+     "transform": "convert",
+     "note": "Minor units divided by 100, for every currency",
+     "at": "src/main/java/com/example/dataapi/TransactionResolver.java:18",
+     "code": "a.AMT_MINOR / 100 AS amount_authorized"
+    }
+   ],
+   "means": {
+    "slot": "Authorization.amount",
+    "predicate": "skos:exactMatch",
+    "confidence": 0.95
+   }
+  },
+  {
+   "field": "ui:TransactionLifecycle.currency",
+   "label": "Currency",
+   "hops": [
+    {
+     "to": "be:TransactionLifecycleDto.currency",
+     "label": "currency",
+     "transform": "pass",
+     "note": "Shown as it comes",
+     "at": "src/features/transaction-research/TransactionLifecycle.tsx:31",
+     "code": "<Cell>{txn.currency}</Cell>"
+    },
+    {
+     "to": "api:Transaction.currencyCode",
+     "label": "currencyCode",
+     "transform": "rename",
+     "note": "Renamed from currencyCode",
+     "at": "src/main/java/com/example/research/TransactionLifecycleMapper.java:13",
+     "code": "@Mapping(target = \"currency\", source = \"currencyCode\")"
+    },
+    {
+     "to": "sf:CORE.FCT_AUTHORIZATION.CURRENCY_NUM",
+     "label": "CURRENCY_NUM",
+     "transform": "lookup",
+     "note": "ISO 4217 numeric code (840) to its letters (USD), from REF.ISO_CURRENCY",
+     "at": "src/main/java/com/example/dataapi/TransactionResolver.java:19",
+     "code": "cur.ALPHA_CODE AS currency_code"
+    }
+   ],
+   "means": {
+    "slot": "Authorization.currency",
+    "predicate": "skos:exactMatch",
+    "confidence": 0.96
+   }
+  },
+  {
+   "field": "ui:TransactionLifecycle.response",
+   "label": "Response",
+   "hops": [
+    {
+     "to": "be:TransactionLifecycleDto.responseText",
+     "label": "responseText",
+     "transform": "pass",
+     "note": "Shown as it comes",
+     "at": "src/features/transaction-research/TransactionLifecycle.tsx:34",
+     "code": "<Cell>{txn.responseText}</Cell>"
+    },
+    {
+     "to": "api:Transaction.responseCode",
+     "label": "responseCode",
+     "transform": "lookup",
+     "note": "Response code to words, from a table in the backend",
+     "at": "src/main/java/com/example/research/TransactionLifecycleService.java:23",
+     "code": "dto.setResponseText(responseCodes.describe(t.responseCode()));"
+    },
+    {
+     "to": "sf:CORE.FCT_AUTHORIZATION.RESP_CD",
+     "label": "RESP_CD",
+     "transform": "pass",
+     "note": "Passed through",
+     "at": "src/main/java/com/example/dataapi/TransactionResolver.java:20",
+     "code": "a.RESP_CD AS response_code"
+    }
+   ],
+   "means": {
+    "slot": "Authorization.has_response",
+    "predicate": "skos:exactMatch",
+    "confidence": 0.94
+   }
+  },
+  {
+   "field": "ui:TransactionLifecycle.authCode",
+   "label": "Auth code",
+   "hops": [
+    {
+     "to": "be:TransactionLifecycleDto.authCode",
+     "label": "authCode",
+     "transform": "pass",
+     "note": "Shown as it comes",
+     "at": "src/features/transaction-research/TransactionLifecycle.tsx:37",
+     "code": "<Cell>{txn.authCode}</Cell>"
+    },
+    {
+     "to": "api:Transaction.approvalCode",
+     "label": "approvalCode",
+     "transform": "rename",
+     "note": "Renamed from approvalCode",
+     "at": "src/main/java/com/example/research/TransactionLifecycleMapper.java:20",
+     "code": "@Mapping(target = \"authCode\", source = \"approvalCode\")"
+    },
+    {
+     "to": "sf:CORE.FCT_AUTHORIZATION.APPROVAL_CD",
+     "label": "APPROVAL_CD",
+     "transform": "pass",
+     "note": "Passed through",
+     "at": "src/main/java/com/example/dataapi/TransactionResolver.java:21",
+     "code": "a.APPROVAL_CD AS approval_code"
+    }
+   ],
+   "means": {
+    "slot": null,
+    "predicate": "skos:exactMatch",
+    "confidence": 0.0,
+    "comment": "Nothing in the ontology holds the issuer's approval code."
+   }
+  },
+  {
+   "field": "ui:TransactionLifecycle.card",
+   "label": "Card",
+   "hops": [
+    {
+     "to": "be:TransactionLifecycleDto.maskedPan",
+     "label": "maskedPan",
+     "transform": "format",
+     "note": "Shown with the card's brand icon",
+     "at": "src/features/transaction-research/TransactionLifecycle.tsx:40",
+     "code": "<Cell>{formatCard(txn.maskedPan)}</Cell>"
+    },
+    {
+     "to": "api:Transaction.card.last4",
+     "label": "card.last4",
+     "transform": "derive",
+     "note": "Builds a masked number from the last four digits",
+     "at": "src/main/java/com/example/research/TransactionLifecycleService.java:24",
+     "code": "dto.setMaskedPan(\"•••• \" + t.card().last4());"
+    },
+    {
+     "to": "sf:CORE.DIM_CARD.PAN_LAST4",
+     "label": "PAN_LAST4",
+     "transform": "join",
+     "note": "Joined on CARD_TOKEN",
+     "at": "src/main/java/com/example/dataapi/TransactionResolver.java:22",
+     "code": "k.PAN_LAST4 AS card_last4"
+    }
+   ],
+   "means": {
+    "slot": "Card.id",
+    "predicate": "skos:closeMatch",
+    "confidence": 0.85,
+    "comment": "The screen shows the last four digits; the ontology knows a card only by its token (card:{token}) and keeps no card digits."
+   }
+  },
+  {
+   "field": "ui:TransactionLifecycle.merchant",
+   "label": "Merchant",
+   "hops": [
+    {
+     "to": "be:TransactionLifecycleDto.merchantName",
+     "label": "merchantName",
+     "transform": "pass",
+     "note": "Shown as it comes",
+     "at": "src/features/transaction-research/TransactionLifecycle.tsx:43",
+     "code": "<Cell>{txn.merchantName}</Cell>"
+    },
+    {
+     "to": "api:Transaction.merchant.name",
+     "label": "merchant.name",
+     "transform": "rename",
+     "note": "Renamed from merchant.name",
+     "at": "src/main/java/com/example/research/TransactionLifecycleMapper.java:14",
+     "code": "@Mapping(target = \"merchantName\", source = \"merchant.name\")"
+    },
+    {
+     "to": "sf:CORE.DIM_MERCHANT.LEGAL_NAME",
+     "label": "LEGAL_NAME",
+     "transform": "join",
+     "note": "Joined on MERCHANT_ID",
+     "at": "src/main/java/com/example/dataapi/TransactionResolver.java:23",
+     "code": "m.LEGAL_NAME AS merchant_name"
+    }
+   ],
+   "means": {
+    "slot": "Organization.name",
+    "predicate": "skos:closeMatch",
+    "confidence": 0.92,
+    "comment": "The legal name of the organization behind the merchant."
+   }
+  },
+  {
+   "field": "ui:TransactionLifecycle.category",
+   "label": "Category",
+   "hops": [
+    {
+     "to": "be:TransactionLifecycleDto.mcc",
+     "label": "mcc",
+     "transform": "lookup",
+     "note": "Adds the category's description, from a table in the screen's code",
+     "at": "src/features/transaction-research/TransactionLifecycle.tsx:46",
+     "code": "<Cell>{mccLabel(txn.mcc)}</Cell>"
+    },
+    {
+     "to": "api:Transaction.merchant.categoryCode",
+     "label": "merchant.categoryCode",
+     "transform": "rename",
+     "note": "Renamed from merchant.categoryCode",
+     "at": "src/main/java/com/example/research/TransactionLifecycleMapper.java:15",
+     "code": "@Mapping(target = \"mcc\", source = \"merchant.categoryCode\")"
+    },
+    {
+     "to": "sf:CORE.DIM_MERCHANT.MCC",
+     "label": "MCC",
+     "transform": "join",
+     "note": "Joined on MERCHANT_ID",
+     "at": "src/main/java/com/example/dataapi/TransactionResolver.java:24",
+     "code": "m.MCC AS category_code"
+    }
+   ],
+   "means": {
+    "slot": "Merchant.mcc",
+    "predicate": "skos:exactMatch",
+    "confidence": 0.97
+   }
+  },
+  {
+   "field": "ui:TransactionLifecycle.device",
+   "label": "Device",
+   "hops": [
+    {
+     "to": "be:TransactionLifecycleDto.deviceId",
+     "label": "deviceId",
+     "transform": "pass",
+     "note": "Shown as it comes",
+     "at": "src/features/transaction-research/TransactionLifecycle.tsx:49",
+     "code": "<Cell>{txn.deviceId}</Cell>"
+    },
+    {
+     "to": "api:Transaction.deviceFingerprint",
+     "label": "deviceFingerprint",
+     "transform": "rename",
+     "note": "Renamed from deviceFingerprint",
+     "at": "src/main/java/com/example/research/TransactionLifecycleMapper.java:17",
+     "code": "@Mapping(target = \"deviceId\", source = \"deviceFingerprint\")"
+    },
+    {
+     "to": "sf:CORE.FCT_AUTHORIZATION.DEVICE_FP",
+     "label": "DEVICE_FP",
+     "transform": "pass",
+     "note": "Passed through",
+     "at": "src/main/java/com/example/dataapi/TransactionResolver.java:26",
+     "code": "a.DEVICE_FP AS device_fingerprint"
+    }
+   ],
+   "means": {
+    "slot": "Device.id",
+    "predicate": "skos:closeMatch",
+    "confidence": 0.72,
+    "comment": "The API sends a browser fingerprint; a device in the ontology is known by dev:{device_id}. The same identifier, or a different one?"
+   }
+  },
+  {
+   "field": "ui:TransactionLifecycle.capturedAmount",
+   "label": "Captured amount",
+   "hops": [
+    {
+     "to": "be:TransactionLifecycleDto.capturedAmt",
+     "label": "capturedAmt",
+     "transform": "format",
+     "note": "Currency symbol, two decimals",
+     "at": "src/features/transaction-research/TransactionLifecycle.tsx:54",
+     "code": "<Cell>{formatMoney(txn.capturedAmt, txn.currency)}</Cell>"
+    },
+    {
+     "to": "api:Transaction.capturedAmount",
+     "label": "capturedAmount",
+     "transform": "rename",
+     "note": "Renamed from capturedAmount",
+     "at": "src/main/java/com/example/research/TransactionLifecycleMapper.java:19",
+     "code": "@Mapping(target = \"capturedAmt\", source = \"capturedAmount\")"
+    },
+    {
+     "to": "sf:CORE.FCT_CAPTURE.AMT_MINOR",
+     "label": "AMT_MINOR",
+     "transform": "convert",
+     "note": "Minor units divided by 100, from the capture",
+     "at": "src/main/java/com/example/dataapi/TransactionResolver.java:27",
+     "code": "c.AMT_MINOR / 100 AS captured_amount"
+    }
+   ],
+   "means": {
+    "slot": "Capture.amount",
+    "predicate": "skos:exactMatch",
+    "confidence": 0.95
+   }
+  },
+  {
+   "field": "ui:TransactionLifecycle.settledOn",
+   "label": "Settled on",
+   "hops": [
+    {
+     "to": "be:TransactionLifecycleDto.settledDate",
+     "label": "settledDate",
+     "transform": "format",
+     "note": "Date only",
+     "at": "src/features/transaction-research/TransactionLifecycle.tsx:57",
+     "code": "<Cell>{formatDate(txn.settledDate)}</Cell>"
+    },
+    {
+     "to": "api:Transaction.settlementDate",
+     "label": "settlementDate",
+     "transform": "rename",
+     "note": "Renamed from settlementDate",
+     "at": "src/main/java/com/example/research/TransactionLifecycleMapper.java:18",
+     "code": "@Mapping(target = \"settledDate\", source = \"settlementDate\")"
+    },
+    {
+     "to": "sf:CORE.FCT_SETTLEMENT_ITEM.SETTLED_DT",
+     "label": "SETTLED_DT",
+     "transform": "join",
+     "note": "The settlement date, joined on the capture",
+     "at": "src/main/java/com/example/dataapi/TransactionResolver.java:28",
+     "code": "s.SETTLED_DT AS settlement_date"
+    }
+   ],
+   "means": {
+    "slot": "Settlement.settled_at",
+    "predicate": "skos:exactMatch",
+    "confidence": 0.97
+   }
+  },
+  {
+   "field": "ui:TransactionLifecycle.riskTier",
+   "label": "Risk tier",
+   "hops": [
+    {
+     "to": "be:TransactionLifecycleDto.riskTier",
+     "label": "riskTier",
+     "transform": "pass",
+     "note": "Shown as a badge",
+     "at": "src/features/transaction-research/TransactionLifecycle.tsx:62",
+     "code": "<RiskBadge tier={txn.riskTier} />"
+    },
+    {
+     "to": "api:Transaction.merchant.riskTier",
+     "label": "merchant.riskTier",
+     "transform": "rename",
+     "note": "Renamed from merchant.riskTier",
+     "at": "src/main/java/com/example/research/TransactionLifecycleMapper.java:16",
+     "code": "@Mapping(target = \"riskTier\", source = \"merchant.riskTier\")"
+    },
+    {
+     "to": "sf:RISK.MERCHANT_RISK_SCORES.TIER",
+     "label": "TIER",
+     "transform": "join",
+     "note": "The latest score, joined on MERCHANT_ID",
+     "at": "src/main/java/com/example/dataapi/TransactionResolver.java:25",
+     "code": "rs.TIER AS risk_tier"
+    }
+   ],
+   "means": {
+    "slot": null,
+    "predicate": "skos:exactMatch",
+    "confidence": 0.0,
+    "comment": "Nothing in the ontology holds a merchant's risk tier."
+   }
+  }
+ ],
+ "columns": [
+  {
+   "column": "sf:CORE.FCT_AUTHORIZATION.AUTH_ID",
+   "label": "AUTH_ID",
+   "slot": "Authorization.id",
+   "predicate": "skos:exactMatch",
+   "confidence": 0.98
+  },
+  {
+   "column": "sf:CORE.FCT_CAPTURE.CAPTURE_ID",
+   "label": "CAPTURE_ID",
+   "slot": "Capture.id",
+   "predicate": "skos:exactMatch",
+   "confidence": 0.97
+  },
+  {
+   "column": "sf:CORE.FCT_SETTLEMENT_ITEM.SETTLEMENT_ID",
+   "label": "SETTLEMENT_ID",
+   "slot": "Settlement.id",
+   "predicate": "skos:exactMatch",
+   "confidence": 0.97
+  },
+  {
+   "column": "sf:CORE.FCT_AUTHORIZATION.AUTH_TS",
+   "label": "AUTH_TS",
+   "slot": "Authorization.authorized_at",
+   "predicate": "skos:exactMatch",
+   "confidence": 0.96
+  },
+  {
+   "column": "sf:CORE.FCT_AUTHORIZATION.AMT_MINOR",
+   "label": "AMT_MINOR",
+   "slot": "Authorization.amount",
+   "predicate": "skos:closeMatch",
+   "confidence": 0.93,
+   "comment": "Stored in minor units; the ontology's amount is in the currency's major unit."
+  },
+  {
+   "column": "sf:CORE.FCT_AUTHORIZATION.CURRENCY_NUM",
+   "label": "CURRENCY_NUM",
+   "slot": "Authorization.currency",
+   "predicate": "skos:closeMatch",
+   "confidence": 0.92,
+   "comment": "The numeric code; the ontology keeps the letters."
+  },
+  {
+   "column": "sf:CORE.FCT_AUTHORIZATION.RESP_CD",
+   "label": "RESP_CD",
+   "slot": "Authorization.has_response",
+   "predicate": "skos:exactMatch",
+   "confidence": 0.95
+  },
+  {
+   "column": "sf:CORE.FCT_AUTHORIZATION.APPROVAL_CD",
+   "label": "APPROVAL_CD",
+   "slot": null,
+   "predicate": "skos:exactMatch",
+   "confidence": 0.0
+  },
+  {
+   "column": "sf:CORE.DIM_CARD.PAN_LAST4",
+   "label": "PAN_LAST4",
+   "slot": "Card.id",
+   "predicate": "skos:closeMatch",
+   "confidence": 0.85
+  },
+  {
+   "column": "sf:CORE.DIM_MERCHANT.LEGAL_NAME",
+   "label": "LEGAL_NAME",
+   "slot": "Organization.name",
+   "predicate": "skos:closeMatch",
+   "confidence": 0.92
+  },
+  {
+   "column": "sf:CORE.DIM_MERCHANT.MCC",
+   "label": "MCC",
+   "slot": "Merchant.mcc",
+   "predicate": "skos:exactMatch",
+   "confidence": 0.97
+  },
+  {
+   "column": "sf:CORE.FCT_AUTHORIZATION.DEVICE_FP",
+   "label": "DEVICE_FP",
+   "slot": "Device.id",
+   "predicate": "skos:closeMatch",
+   "confidence": 0.72
+  },
+  {
+   "column": "sf:CORE.FCT_CAPTURE.AMT_MINOR",
+   "label": "AMT_MINOR",
+   "slot": "Capture.amount",
+   "predicate": "skos:closeMatch",
+   "confidence": 0.93
+  },
+  {
+   "column": "sf:CORE.FCT_SETTLEMENT_ITEM.SETTLED_DT",
+   "label": "SETTLED_DT",
+   "slot": "Settlement.settled_at",
+   "predicate": "skos:exactMatch",
+   "confidence": 0.97
+  },
+  {
+   "column": "sf:RISK.MERCHANT_RISK_SCORES.TIER",
+   "label": "TIER",
+   "slot": null,
+   "predicate": "skos:exactMatch",
+   "confidence": 0.0
+  }
+ ]
+}

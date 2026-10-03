@@ -54,9 +54,12 @@ pip install -r tools/requirements.txt
 python -m playwright install chromium
 python tools/smoke_test.py
 python tools/test_studio.py
+python tools/test_lineage_scan.py
 ```
 
-The test loads every view of every app three times: on a desktop in light and in dark, and on a 390 px phone. Each time it visits all three apps in one page load, so switching between them is tested too. It fails on JavaScript errors, on any view that scrolls sideways or on a view that shows the wrong app, and saves screenshots of every view to `screenshots/<app>/`, with the dark ones in `dark/`.
+`test_lineage_scan.py` runs the lineage deep scan on the made-up repositories in `examples/lineage/` and checks it writes the studio's illustrative versions exactly.
+
+The smoke test loads every view of every app three times: on a desktop in light and in dark, and on a 390 px phone. Each time it visits all three apps in one page load, so switching between them is tested too. It fails on JavaScript errors, on any view that scrolls sideways or on a view that shows the wrong app, and saves screenshots of every view to `screenshots/<app>/`, with the dark ones in `dark/`.
 
 ## Where things are written down
 

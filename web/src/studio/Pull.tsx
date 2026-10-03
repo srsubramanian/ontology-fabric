@@ -38,8 +38,8 @@ export function sessionPrompt(d: DraftDoc, a: Analysis, title: string): string {
     '- layout: pos entries go in POS and ports entries in PORTS in web/src/explorer/layout.ts; a view entry replaces VIEW there.',
     '',
     ...(live(d.mappings).length ? [
-      `Decisions on lineage mappings, in ontology/mappings/transaction-research.sssom.tsv. For each accepted one, set reviewer_id to the decider; for each rejected one, set predicate_modifier to Not and put the reason in comment. Each names the version of the file (mapping_set_version) it was made on: if the file is newer now, a scan has changed it since, so skip that decision and say so in the pull request. Keyed subject_id>object (fabric: Class.slot):`,
-      ...live(d.mappings).map(([k, m]) => `- ${k}: ${m.state}${m.version ? ` on ${m.version}` : ''}${m.reason ? ` (${m.reason})` : ''}`),
+      'Decisions on lineage mappings, for ontology/mappings/transaction-research.sssom.tsv. Write them, exactly as below, to a file and apply them with `node --experimental-strip-types web/scripts/lineage-scan.ts decide --set transaction-research --decisions <file>`. It names each accepted mapping\'s reviewer, marks each rejected one predicate_modifier Not with its reason, and skips any made on an older version of the file than it is now, since a scan has changed it since. Say in the pull request which it skipped.',
+      '```json', JSON.stringify(live(d.mappings).map(([key, m]) => ({ key, state: m.state, by: m.by ?? 'person', reason: m.reason ?? null, version: m.version ?? null }))), '```',
       '',
     ] : []),
     ...(a.tidyUps.length ? [

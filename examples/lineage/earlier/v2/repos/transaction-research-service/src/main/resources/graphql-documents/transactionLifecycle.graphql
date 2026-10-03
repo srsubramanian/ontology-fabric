@@ -1,0 +1,18 @@
+# What the backend asks the transaction data API for (made up).
+query transactionLifecycle($id: ID!) {
+  transaction(id: $id) {
+    transactionId
+    authorizedAt
+    amountAuthorized
+    currencyCode
+    responseCode
+    card { last4 }
+    merchant { name categoryCode riskTier }
+    deviceFingerprint
+    settlementDate
+    lifecycle { kind id at }
+    capturedAmount
+    refunds { id amount }
+    chargebacks { id reasonCode respondBy }
+  }
+}

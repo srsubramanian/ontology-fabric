@@ -58,6 +58,9 @@ jobs:
       - name: The studio's whole flow, against a stand-in runtime
         run: python tools/test_studio.py
 
+      - name: The lineage deep scan rewrites the illustrative versions from the made-up repositories
+        run: python tools/test_lineage_scan.py
+
       - name: Keep the screenshots
         if: always()
         uses: actions/upload-artifact@v6

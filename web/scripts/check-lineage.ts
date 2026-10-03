@@ -18,7 +18,7 @@ let failed = 0;
 const expect = (ok: boolean, label: string, detail = '') => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}${detail ? `: ${detail}` : ''}`); if (!ok) failed++; };
 
 const need = ['subject_id', 'predicate_id', 'object_id', 'mapping_justification'];
-const standard = new Set([...need, 'subject_label', 'object_label', 'author_id', 'reviewer_id', 'confidence', 'mapping_tool', 'comment', 'subject_source', 'subject_source_version']);
+const standard = new Set([...need, 'subject_label', 'object_label', 'author_id', 'reviewer_id', 'confidence', 'mapping_tool', 'comment', 'subject_source', 'subject_source_version', 'predicate_modifier']);
 /** What every version of a set must be: SSSOM, its extra columns declared, and every field traced to the ontology. */
 function sssom(file: string, tsv: string) {
   const { meta, rows } = parseSssom(tsv);

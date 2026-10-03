@@ -320,13 +320,13 @@ export function LineageDetail({ l, t, editable, who, decided, onDecide, onAsk, c
             <ol className="lversions">
               {[...versions].reverse().map((v) => (
                 <li key={v.version}>
-                  <b>{v.version}</b> · {day(v.date, true)}{v === versions[versions.length - 1] ? ' · latest' : ''}
+                  <b>{v.version}</b> · {day(v.date, true)}{v === versions[versions.length - 1] ? ' · latest' : ''}{v.tool ? ` · ${v.tool}` : ''}
                   <span className="small muted"> Read {LAYERS.filter((x) => x.id !== 'sf' && v.read[x.id]).map((x) => `${v.read[x.id]!.source.replace(/^repo:/, '')} at ${v.read[x.id]!.at}`).join(', ')}
                     {v.read.sf ? `, and Snowflake's ${v.read.sf.source.replace(/^snowflake:/, '')} schema of ${day(v.read.sf.at)}` : ''}.</span>
                 </li>
               ))}
             </ol>
-            <p className="small">Each scan reads the code and the schema, and Claude maps only what's new or changed. Merged, it's the next version, and the earlier ones stay in <code>ontology/mappings/history/</code>. A person's decision holds until the code under it changes; then it comes back as a re-check.</p>
+            <p className="small">Each scan reads the code and the schema, and Claude maps only what's new or changed. Merged, it's the next version, and the earlier ones stay in <code>ontology/mappings/history/</code>. A person's decision holds until the code under it changes; then it comes back as a re-check. These three were written by the deep scan from made-up repositories, in <code>examples/lineage/</code>.</p>
           </section>
         )}
       </>
@@ -384,7 +384,7 @@ export function LineageDetail({ l, t, editable, who, decided, onDecide, onAsk, c
               <li key={i}>
                 <span className={'hk t-' + h.transform}>{TRANSFORMS[h.transform]}</span> {stl(from)} <code>{short(from)}</code> → {stl(to)} <code>{short(to)}</code>
                 {h.note && <span className="small"> · {h.note}</span>}
-                {h.location && <span className="loc">{h.location}</span>}
+                {h.location && <span className="loc">{h.source ? `${h.source.replace(/^repo:/, '')} · ` : ''}{h.location}</span>}
                 {h.code && <CodeBlock code={h.code} lang={to.layer === 'ui' ? 'tsx' : to.layer === 'be' ? 'java' : 'sql'} />}
               </li>
             );

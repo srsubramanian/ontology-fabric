@@ -1,1 +1,2 @@
 playwright==1.56.0
+sqlglot==30.21.0

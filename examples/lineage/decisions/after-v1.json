@@ -1,0 +1,107 @@
+[
+ {
+  "key": "ui:TransactionLifecycle.transactionId>Authorization.id",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "ui:TransactionLifecycle.status>PaymentEvent",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "ui:TransactionLifecycle.authorizedAt>Authorization.authorized_at",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "ui:TransactionLifecycle.authAmount>Authorization.amount",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "ui:TransactionLifecycle.currency>Authorization.currency",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "ui:TransactionLifecycle.response>Authorization.has_response",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "ui:TransactionLifecycle.merchant>Organization.name",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "ui:TransactionLifecycle.category>Merchant.mcc",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "ui:TransactionLifecycle.capturedAmount>Capture.amount",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "sf:CORE.FCT_AUTHORIZATION.AUTH_ID>Authorization.id",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "sf:CORE.FCT_CAPTURE.CAPTURE_ID>Capture.id",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "sf:CORE.FCT_SETTLEMENT_ITEM.SETTLEMENT_ID>Settlement.id",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "sf:CORE.FCT_AUTHORIZATION.AUTH_TS>Authorization.authorized_at",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "sf:CORE.FCT_AUTHORIZATION.AMT_MINOR>Authorization.amount",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "sf:CORE.FCT_AUTHORIZATION.CURRENCY_NUM>Authorization.currency",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "sf:CORE.FCT_AUTHORIZATION.RESP_CD>Authorization.has_response",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "sf:CORE.DIM_MERCHANT.LEGAL_NAME>Organization.name",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "sf:CORE.DIM_MERCHANT.MCC>Merchant.mcc",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "sf:CORE.FCT_CAPTURE.AMT_MINOR>Capture.amount",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "ui:TransactionLifecycle.settledOn>Settlement.settled_at",
+  "state": "accepted",
+  "by": "person:ben"
+ },
+ {
+  "key": "sf:CORE.FCT_SETTLEMENT_ITEM.SETTLED_DT>Settlement.settled_at",
+  "state": "accepted",
+  "by": "person:ben"
+ }
+]

@@ -1,0 +1,37 @@
+[
+ {
+  "key": "ui:TransactionLifecycle.status>PaymentEvent",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "ui:TransactionLifecycle.merchant>Merchant.name",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "ui:TransactionLifecycle.chargebackReason>Chargeback.has_reason",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "sf:CORE.FCT_CHARGEBACK.CB_ID>Chargeback.id",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "sf:CORE.DIM_MERCHANT.DBA_NAME>Merchant.name",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "sf:CORE.FCT_CHARGEBACK.REASON_CD>Chargeback.has_reason",
+  "state": "accepted",
+  "by": "person:ana"
+ },
+ {
+  "key": "sf:CORE.FCT_REFUND.AMT_MINOR>Refund.amount",
+  "state": "accepted",
+  "by": "person:ana"
+ }
+]
