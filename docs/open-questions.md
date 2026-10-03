@@ -42,7 +42,11 @@ Follow the build order in chapter 7 of the overview (`site/index.html#ch7`), wit
     - Test cases stay on the shared draft. The pull request's session could commit them as fixtures beside the competency questions, so CI proves each answer with its own case.
     - Six competency questions find nothing in the background world, since they look for thresholds a few hundred instances don't reach (50 declines in a day, five merchants on one device). Their proof needs a test case.
     - The cloud-session version from the design (read the repositories, build a sample month from real shapes) can follow once connectors are back.
-  - Stage 5, the dial and memory: tutor, co-pilot and autopilot per person, and the studio learning from what was accepted, rejected and why.
+  - Stage 5, the dial and memory, is built (decision 25). Next:
+    - Claude reads the last six months of the team's decisions. When the team builds more than that holds well, summarise older months into a glossary of the names the team chose.
+    - Anyone can forget their own decisions; nobody can forget someone else's. Decide whether the core team should be able to, once teams rely on it.
+    - Autopilot makes two or three paid Claude calls per question (design, test case, and the tools each uses), on the asker's account. Watch the cost once people use it.
+    - A tutor's questions are Claude's own, checked only for shape (two to four choices, exactly one right). Have a payments expert review a sample.
   - Ask anything today: a proposal's place on the map is worked out when Claude proposes it. If the draft changes before it's accepted, it can land somewhere crowded and leave a tidy-up. Re-place on accept if that happens often.
   - A question asked in the studio gets the next free id, checked again when its answer is accepted. Two people accepting new questions at the same moment could still take one id; the pull request's session renumbers if the file has taken it.
 - The design studio, next:

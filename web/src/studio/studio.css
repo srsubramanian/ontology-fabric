@@ -334,3 +334,35 @@
 .pgraph .pn.miss rect{stroke-dasharray:4 3}
 .pgraph .pn.wrong rect{fill:color-mix(in srgb, var(--bad) 14%, var(--paper)); stroke:var(--bad); stroke-width:2}
 .ibody .prove,.isec .prove{margin-top:4px}
+
+/* The dial and memory: how much Claude does for each person, and what the team decided before */
+.stool .dial{flex:none}
+.stool .dial button{padding:5px 10px; font-size:.8rem}
+.quiz{display:grid; gap:6px; border-left:3px solid var(--query); padding:4px 0 4px 10px; margin:4px 0}
+.quiz .qq{margin:0; font-weight:700; font-size:.88rem}
+.quiz .choices{display:grid; gap:4px}
+.quiz .choice{font:inherit; font-size:.84rem; text-align:left; color:var(--ink); background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:5px 9px; cursor:pointer}
+.quiz .choice:hover,.quiz .choice:focus-visible{border-color:var(--query); outline:none}
+.quiz .said{font-size:.84rem}
+.teach{color:var(--muted)}
+.teach b{color:var(--onto)}
+.recalled{border-radius:6px; padding:3px 8px; margin:2px 0}
+.recalled.rejected{background:color-mix(in srgb, var(--search) 14%, var(--raised))}
+.recalled.accepted{background:color-mix(in srgb, var(--query) 10%, var(--raised))}
+.reason{display:grid; gap:6px; margin:4px 0}
+.reason p{margin:0}
+.reason .chips{display:flex; flex-wrap:wrap; gap:4px}
+.reason .chip{font:inherit; font-size:.78rem; color:var(--ink); background:var(--paper); border:1px dashed var(--search); border-radius:999px; padding:2px 9px; cursor:pointer}
+.reason .chip:hover,.reason .chip:focus-visible{border-style:solid; outline:none}
+.auto{display:grid; gap:4px}
+.auto ul{margin:0; padding-left:18px; color:var(--bad)}
+.auto.good .verdict{color:var(--query)}
+.auto.bad .verdict{color:var(--bad)}
+.mems{list-style:none; margin:0 0 8px; padding:0; display:grid; gap:5px}
+.mems li{display:grid; grid-template-columns:auto 1fr auto; gap:6px; align-items:start; font-size:.84rem; line-height:1.4}
+.mems .ms{font-weight:800}
+.mems .accepted .ms{color:var(--query)}
+.mems .rejected .ms{color:var(--search)}
+.memory .fld{margin-top:8px}
+.seg button[aria-checked="true"]{background:var(--ink); color:var(--paper)}
+.seg button:disabled{cursor:default; opacity:.55}

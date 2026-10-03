@@ -40,6 +40,13 @@ export type ProposalEdit = {
   decidedBy?: string | null; decidedAt?: number | null;
   /** What people said about it, keyed by a generated id so two comments never overwrite each other. */
   notes?: Record<string, { by?: string | null; at: number; text: string } | null> | null;
+  /** Why it was rejected or accepted, in the decider's words; it goes into the team's memory too. */
+  reason?: string | null;
+  /** For someone learning (the tutor setting): the modelling rule behind it, and a question that checks they see why. */
+  teach?: string | null;
+  quiz?: { question: string; choices: { label: string; right: boolean; why: string }[] } | null;
+  /** What the team decided the last time something by this name was proposed. */
+  recalled?: { state: 'accepted' | 'rejected'; reason?: string | null; by?: string | null; at: number; question?: string | null } | null;
 };
 /** A question someone asked in their own words, what Claude made of it, and the design it proposed. */
 export type InquiryEdit = {
@@ -56,6 +63,10 @@ export type InquiryEdit = {
   proposals?: Record<string, ProposalEdit> | null;
   /** Proposal ids in the order they apply. */
   order?: string[] | null;
+  /** How much Claude did, as the person asking set it: tutor, co-pilot or autopilot. */
+  level?: 'tutor' | 'copilot' | 'autopilot' | null;
+  /** On autopilot, the work Claude did after proposing: a test case planted and the answer proved, ready to accept. */
+  auto?: { status: 'testing' | 'ready' | 'failed'; passes?: boolean | null; checks?: string[] | null; error?: string | null; at?: number | null } | null;
 };
 
 export type DraftDoc = {

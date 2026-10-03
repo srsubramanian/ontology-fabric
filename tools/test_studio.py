@@ -44,6 +44,12 @@ APP = "[data-app=studio]"
 # What the stand-in Claude answers: a design for the question someone asks (tools/fixtures/studio_ask.json), and a
 # test case that proves it, each after using the page's tools the way Claude would, and a query for CQ-116.
 ASK = json.loads((ROOT / "tools" / "fixtures" / "studio_ask.json").read_text())
+# On the tutor setting, Claude adds the rule behind each proposal and a question that checks the person sees why.
+QUIZ = {"question": "Why is a payout account its own class, not a field on the merchant?", "choices": [
+    {"label": "Fields load faster", "right": False, "why": "Speed isn't the reason: it's about what links to it."},
+    {"label": "Several merchants can be paid into one account, and each change points at it", "right": True,
+     "why": "Things other things link to become nodes (decision 7)."}]}
+TUTOR = {**ASK["reply"], "ops": [{**op, "teach": "Make it a node when things link to it.", "quiz": QUIZ} for op in ASK["reply"]["ops"]]}
 CLAUDE = {
     "inquiry": ASK["reply"],
     "inquiryCalls": [
@@ -51,6 +57,7 @@ CLAUDE = {
         {"name": "describe_class", "input": {"name": "Merchant"}},
         {"name": "check_design", "input": {"ops": ASK["reply"]["ops"], "answer": ASK["reply"]["answer"]}},
     ],
+    "tutorInquiry": TUTOR,
     "test": ASK["test"],
     "testCalls": [{"name": "try_test", "input": ASK["test"]}],
     "query": {"query": "MATCH (sub:Merchant)-[:SUB_MERCHANT_OF]->(pf:PaymentFacilitator)\n"
@@ -62,7 +69,8 @@ def main():
     errors = []
     for script, what in (("check-missions.ts", "every mission's solution passes"), ("check-ask.ts", "the asked question's design passes"),
                          ("check-story.ts", "the story lens reads every relationship"),
-                         ("check-proof.ts", "every competency query runs on the sample world, and the asked question's test case passes")):
+                         ("check-proof.ts", "every competency query runs on the sample world, and the asked question's test case passes"),
+                         ("check-memory.ts", "the team's decisions and the person's notes reach Claude and the proposals")):
         run = subprocess.run(["node", "--experimental-strip-types", "--no-warnings", str(ROOT / "web" / "scripts" / script)],
                              capture_output=True, text=True)
         print(run.stdout.rstrip())
@@ -192,6 +200,7 @@ def main():
         def decide():
             card = lambda text: page.locator(f"{APP} .plist2 li", has_text=text)  # noqa: E731
             card("Give PayoutAccountChange a field changed_at").get_by_role("button", name="Reject").click()
+            card("Give PayoutAccountChange a field changed_at").get_by_role("button", name="Not needed for this question").click()
             page.wait_for_selector(f"{APP} .plist2 li.rejected:has-text('a field changed_at')")
             card("Add it as question CQ-121").get_by_role("button", name="Accept").click()
             page.wait_for_selector(f"{APP} .sstatus:has-text('114 of 121')", timeout=8000)
@@ -391,6 +400,66 @@ def main():
             page.wait_for_selector(f"{APP} .missions a.done[data-view='mission-CQ-116']")
             page.wait_for_selector(f"{APP} .missions a.done[data-view='mission-CQ-113']")
         step("the mission board shows both done, for everyone on the draft", board)
+
+        # Stage 5: each person's setting, and what the team remembers.
+        def mine():
+            return page.evaluate("async () => (await window.__stubDb.doc('data/users/u_me/studio').get()).data() || {}")
+
+        def tutor():
+            page.goto(SITE + "#studio")
+            page.get_by_role("radio", name="Tutor").click()
+            page.wait_for_function("async () => ((await window.__stubDb.doc('data/users/u_me/studio').get()).data() || {}).level === 'tutor'")
+            page.get_by_label("Ask a question or describe what to add").fill(ASK["question"])
+            page.get_by_role("button", name="Ask", exact=True).click()
+            page.wait_for_selector(f"{APP} .coach.inquiry[data-inquiry=proposed]", timeout=10000)
+            assert_true("tutor" in page.inner_text(f"{APP} .coach.inquiry .ctag").lower(), "the card doesn't say it was asked in tutor mode")
+            assert_true(page.locator(f"{APP} .plist2 > li").count() == 1, "a tutor shows more than one proposal at a time")
+            assert_true("6 more after this one" in page.inner_text(f"{APP} .proposals"), "the tutor doesn't say what comes next")
+            card = page.locator(f"{APP} .plist2 > li").first
+            assert_true("The rule:" in card.inner_text(), "the proposal doesn't name its rule")
+            assert_true(not card.get_by_role("button", name="Accept").count(), "Accept shows before the question is answered")
+            card.get_by_role("button", name="Fields load faster").click()
+            card.locator(".said.wrong").wait_for()
+            card.get_by_role("button", name=QUIZ["choices"][1]["label"]).click()
+            card.locator(".said.right").wait_for()
+            card.get_by_role("button", name="Reject").click()
+            card.get_by_label("Your reason").fill("We call it the settlement account")
+            card.get_by_role("button", name="Reject").click()
+            page.wait_for_selector(f"{APP} .plist2 > li.rejected:has-text('We call it the settlement account')")
+            assert_true(page.locator(f"{APP} .plist2 > li").count() == 2, "the next proposal didn't come after the decision")
+            month = page.evaluate("'m-' + new Date().toISOString().slice(0, 7)")
+            team = page.evaluate(f"async () => (await window.__stubDb.doc('memory/{month}').get()).data()")
+            got = [m for m in (team or {}).get("entries", {}).values() if m and m.get("reason") == "We call it the settlement account"]
+            assert_true(got and got[0]["state"] == "rejected" and got[0]["name"] == "PayoutAccount", f"the team's memory doesn't hold the rejection: {team}")
+            assert_true(any(m and m.get("name") == "PayoutAccount" for m in (mine().get("mine") or {}).values()), "the person's own history doesn't hold it")
+        step("on tutor, answer a proposal's question, then reject it with a reason the team remembers", tutor, "11-tutor")
+
+        def remembered():
+            page.goto(SITE + "#studio")
+            page.wait_for_selector(f"{APP} .memory .mems li.rejected:has-text('settlement account')")
+            about = page.get_by_label("About you, for Claude (only you see this)")
+            about.fill("I run chargeback operations. Explain modelling words.")
+            about.blur()
+            page.wait_for_function("async () => ((await window.__stubDb.doc('data/users/u_me/studio').get()).data() || {}).about?.startsWith('I run chargeback')")
+        step("see what the team decided, and tell Claude about yourself in private", remembered, "12-memory")
+
+        def autopilot():
+            page.get_by_role("radio", name="Autopilot").click()
+            page.get_by_label("Ask a question or describe what to add").fill(ASK["question"])
+            page.get_by_role("button", name="Ask", exact=True).click()
+            page.wait_for_selector(f"{APP} .coach.inquiry[data-inquiry=proposed]", timeout=10000)
+            page.wait_for_selector(f"{APP} .plist2 li .recalled.rejected:has-text('We call it the settlement account')")
+            asked = [c for c in page.evaluate("window.__sampleCalls") if "design partner" in c][-1]
+            assert_true("We call it the settlement account" in asked and "I run chargeback operations" in asked, "Claude wasn't told what the team decided or who's asking")
+            page.wait_for_selector(f"{APP} .auto.good .verdict:has-text('passes')", timeout=15000)
+            page.wait_for_selector(f"{APP} .coach.proof .pchecks li.ok:has-text('It finds merchant')")
+            page.locator(f"{APP} .coach.inquiry").get_by_role("button", name="Accept all 7").click()
+            page.wait_for_selector(f"{APP} .canvas .cn:not(.ghost)[data-class=PayoutAccountChange]")
+            assert_true(not page.locator(f"{APP} .plist2 li.proposed").count(), "a proposal is still waiting after Accept all")
+            mine_now = mine()
+            assert_true(mine_now.get("level") == "autopilot" and len([m for m in (mine_now.get("mine") or {}).values() if m]) >= 7,
+                        f"the person's private record is wrong: {mine_now.get('level')}, {len(mine_now.get('mine') or {})}")
+        step("on autopilot, Claude proves its design first, and one click accepts it", autopilot, "13-autopilot")
         browser.close()
 
     for e in errors:

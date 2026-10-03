@@ -22,7 +22,8 @@
     onSnapshot: (next) => {
       const f = () => {
         let ds = [...docs.keys()].filter((p) => p.startsWith(coll + '/') && p.split('/').length === coll.split('/').length + 1).map(snap);
-        if (order) ds.sort((a, b) => (a.data()[order.field] - b.data()[order.field]) * (order.dir === 'desc' ? -1 : 1));
+        const cmp = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
+        if (order) ds.sort((a, b) => cmp(a.data()[order.field], b.data()[order.field]) * (order.dir === 'desc' ? -1 : 1));
         next({ docs: ds, size: ds.length, empty: !ds.length });
       };
       listeners.add(f); f(); return () => listeners.delete(f);
@@ -49,7 +50,8 @@
         window.__toolResults = (window.__toolResults || []).concat([{ name: call.name, out }]);
       }
     }
-    const reply = JSON.stringify(asked ? answers.inquiry : testing ? answers.test : /Write the query/.test(input) ? answers.query : answers.build);
+    const tutoring = asked && input.includes('"quiz"') && answers.tutorInquiry;
+    const reply = JSON.stringify(tutoring ? answers.tutorInquiry : asked ? answers.inquiry : testing ? answers.test : /Write the query/.test(input) ? answers.query : answers.build);
     let text = '';
     for (const part of reply.match(/[\s\S]{1,200}/g)) {
       await new Promise((r) => setTimeout(r, 30));
