@@ -27,10 +27,14 @@ export type Row = Record<string, string>;
 export type Field = { id: string; label: string; layer: Layer };
 export type Hop = { from: string; to: string; transform: Transform; note: string; location: string;
   /** The code that does it, from the set's code extension, in the language of the layer it's in. */
-  code: string };
+  code: string;
+  /** The repository it's in (subject_source), such as repo:transaction-research-ui. */
+  source?: string };
 export type Means = {
   key: string; field: string; slot: string | null; predicate: string; confidence: number;
   author: string; reviewer: string; comment: string;
+  /** A mapping people rejected: predicate_modifier Not in the set. */
+  negated?: boolean;
 };
 export type State = 'confirmed' | 'proposed' | 'review' | 'recheck' | 'gap' | 'shift' | 'rejected';
 /** One screen field's trace: every field it's built from, lane by lane, and what each end means. */
@@ -57,7 +61,9 @@ export type Lineage = {
  *  was when they decided (its fingerprint, the basis). */
 export type MappingDecision = { state: 'accepted' | 'rejected'; reason?: string | null; by?: string | null; at?: number; basis?: string | null;
   /** The version of the mapping set it was made on, for the pull request to skip it if a newer scan has landed. */
-  version?: string | null };
+  version?: string | null;
+  /** The mapping set it belongs to, one per screen (transaction-research when not named, as before there were two). */
+  set?: string | null };
 
 /** SSSOM's TSV: commented YAML metadata, then a header row and one mapping per row. */
 export function parseSssom(tsv: string): { meta: Record<string, unknown>; rows: Row[] } {
@@ -101,15 +107,18 @@ export function buildLineage(tsv: string, decisions: Record<string, MappingDecis
     field(r.subject_id, r.subject_label);
     if (r.predicate_id === 'prov:wasDerivedFrom') {
       field(r.object_id, r.object_label);
-      hops.push({ from: r.subject_id, to: r.object_id, transform: ((r.transform || 'pass') in TRANSFORMS ? r.transform || 'pass' : 'pass') as Transform, note: r.transform_note, location: r.location, code: r.code ?? '' });
+      hops.push({ from: r.subject_id, to: r.object_id, transform: ((r.transform || 'pass') in TRANSFORMS ? r.transform || 'pass' : 'pass') as Transform, note: r.transform_note, location: r.location, code: r.code ?? '',
+        source: r.subject_source || undefined });
     } else {
       const slot = r.object_id === 'sssom:NoTermFound' ? null : r.object_id.replace(/^fabric:/, '');
-      const m: Means = { key: '', field: r.subject_id, slot, predicate: r.predicate_id, confidence: Number(r.confidence || 0), author: r.author_id, reviewer: r.reviewer_id, comment: r.comment };
+      const m: Means = { key: '', field: r.subject_id, slot, predicate: r.predicate_id, confidence: Number(r.confidence || 0), author: r.author_id, reviewer: r.reviewer_id, comment: r.comment,
+        negated: r.predicate_modifier === 'Not' || undefined };
       m.key = mappingKey(m);
       means.push(m);
     }
   }
-  const meaningOf = (id: string) => means.find((m) => m.field === id) ?? null;
+  // A rejected mapping isn't a meaning; it shows only when nothing else says what the field means.
+  const meaningOf = (id: string) => means.find((m) => m.field === id && !m.negated) ?? means.find((m) => m.field === id) ?? null;
   const upstream = (id: string) => hops.filter((h) => h.from === id);
   const holds = (m: Means, fp: string) => { const d = decisions[m.key]; return d && (!d.basis || d.basis === fp) ? d : null; };
   const confirmer = (m: Means, fp: string) => m.reviewer || (m.author.startsWith('person:') ? m.author : null)
@@ -130,9 +139,9 @@ export function buildLineage(tsv: string, decisions: Record<string, MappingDecis
     walk(f.id, new Set([f.id]));
     const fp = fingerprint(used);
     const m = meaningOf(f.id);
-    const sources = lanes.sf.map((x) => meaningOf(x.id)).filter((x): x is Means => !!x);
-    const by = m ? confirmer(m, fp) : null;
-    let state: State = !m || !m.slot ? 'gap' : holds(m, fp)?.state === 'rejected' ? 'rejected' : by ? 'confirmed' : m.confidence < THRESHOLD ? 'review' : 'proposed';
+    const sources = lanes.sf.map((x) => meaningOf(x.id)).filter((x): x is Means => !!x && !x.negated);
+    const by = m && !m.negated ? confirmer(m, fp) : null;
+    let state: State = !m || !m.slot ? 'gap' : m.negated || holds(m, fp)?.state === 'rejected' ? 'rejected' : by ? 'confirmed' : m.confidence < THRESHOLD ? 'review' : 'proposed';
     // Confirmed before, by a person in the version before or on the draft, and built differently now: look again.
     const was = prior?.traces.find((x) => x.field.id === f.id);
     const stale = m && decisions[m.key] && !holds(m, fp) ? decisions[m.key] : null;
@@ -143,7 +152,7 @@ export function buildLineage(tsv: string, decisions: Record<string, MappingDecis
     let shift: Trace['shift'];
     // A field that means something exactly or nearly, built from a source that means a different class: the meaning
     // shifts on the way. A field derived on purpose (relatedMatch, such as a status) is exempt.
-    if (m?.slot && m.predicate !== 'skos:relatedMatch') {
+    if (m?.slot && !m.negated && m.predicate !== 'skos:relatedMatch') {
       const other = sources.find((s) => s.slot && classOf(s.slot) !== classOf(m.slot));
       if (other) {
         const src = fields.get(other.field)!;
@@ -160,7 +169,9 @@ export function buildLineage(tsv: string, decisions: Record<string, MappingDecis
 
 /** One scan of a mapping set: its version, when it was published, the version it came from, and what each layer was
  *  read from (subject_source at subject_source_version: a repository at a commit, or Snowflake's schema on a day). */
-export type Version = { version: string | null; date: string | null; source: string | null; read: Partial<Record<Layer, { source: string; at: string }>>; tsv: string };
+export type Version = { version: string | null; date: string | null; source: string | null; read: Partial<Record<Layer, { source: string; at: string }>>; tsv: string;
+  /** What wrote it, from its hops' mapping_tool: the deep scan, say, or a quick refresh in the studio. */
+  tool: string | null };
 const dateOf = (d: unknown) => (d instanceof Date ? d.toISOString().slice(0, 10) : d == null ? null : String(d));
 function versionOf(meta: Record<string, unknown>, rows: Row[], tsv = ''): Version {
   const read: Version['read'] = {};
@@ -169,7 +180,8 @@ function versionOf(meta: Record<string, unknown>, rows: Row[], tsv = ''): Versio
     if (layer && r.subject_source && !read[layer]) read[layer] = { source: r.subject_source, at: r.subject_source_version ?? '' };
   }
   const src = meta.mapping_set_source;
-  return { version: meta.mapping_set_version == null ? null : String(meta.mapping_set_version), date: dateOf(meta.publication_date),
+  const tool = rows.find((r) => r.predicate_id === 'prov:wasDerivedFrom' && r.mapping_tool)?.mapping_tool ?? null;
+  return { tool, version: meta.mapping_set_version == null ? null : String(meta.mapping_set_version), date: dateOf(meta.publication_date),
     source: Array.isArray(src) ? String(src[0] ?? '') || null : typeof src === 'string' ? src : null, read, tsv };
 }
 export const versionOfSet = (tsv: string) => { const { meta, rows } = parseSssom(tsv); return versionOf(meta, rows, tsv); };

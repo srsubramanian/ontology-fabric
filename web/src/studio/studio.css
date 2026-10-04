@@ -463,3 +463,53 @@
 .ldiff .ins{display:block; color:var(--code-ins); background:color-mix(in srgb, var(--code-ins) 12%, transparent)}
 .lversions{margin:0 0 6px; padding-left:18px; display:grid; gap:4px; font-size:.84rem}
 .lversions .small{display:block}
+
+/* Lineage by meaning: every screen's fields gathered under what they mean in the ontology (illustrative) */
+.lhome .msearch{width:100%; box-sizing:border-box; font:inherit; font-size:.88rem; color:var(--ink); background:var(--raised); border:1px solid var(--line); border-radius:8px; padding:6px 10px}
+.mlist{list-style:none; margin:0; padding:0; display:grid; gap:4px; max-height:300px; overflow:auto}
+.mrow{display:grid; grid-template-columns:minmax(0,1.1fr) auto minmax(0,1.4fr); align-items:center; gap:4px 12px; width:100%; text-align:left; font:inherit; color:var(--ink); background:none; border:1px solid var(--line); border-left:3px solid var(--onto); border-radius:8px; padding:5px 10px; cursor:pointer}
+.mrow:hover,.mrow:focus-visible{border-color:var(--onto); outline:none}
+.mrow code{font-size:.8rem; color:var(--onto); font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.mflags{display:flex; flex-wrap:wrap; gap:4px; justify-content:flex-end}
+.mflag{font-size:.7rem; font-weight:700; border:1px solid var(--line); border-radius:999px; padding:0 7px; color:var(--muted)}
+.mflag.bad{color:var(--bad); border-color:color-mix(in srgb, var(--bad) 50%, var(--line))}
+.mgaps{margin:0}
+.lscreens{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:8px}
+button.lcard{font:inherit; text-align:left; background:none; cursor:pointer}
+.lset{display:grid; gap:4px; margin-bottom:8px}
+.lset p{margin:0}
+.tgraph .ml.exact{stroke-dasharray:none}
+.tgraph .ml.related{stroke-dasharray:1.5 3; stroke-linecap:round}
+.mkey{display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; margin:0}
+.mkey .k{display:inline-block; width:22px; height:0; border-top:2px solid var(--onto); vertical-align:middle; margin-right:-6px}
+.mkey .k.close{border-top-style:dashed}
+.mkey .k.related{border-top-style:dotted}
+.mkey .k.off{border-top-color:var(--bad)}
+.mfinds{list-style:none; margin:0; padding:0; display:grid; gap:6px; font-size:.86rem; line-height:1.45}
+.mfinds li{border-left:3px solid var(--line); padding:2px 0 2px 10px}
+.mfinds li.bad{border-left-color:var(--bad)}
+.mfinds li.bad b{color:var(--bad)}
+.mfinds li.good{border-left-color:var(--query)}
+.mfinds li.good b{color:var(--query)}
+.mfinds .vbtn{margin-left:4px}
+.muses{border-collapse:collapse; width:100%; min-width:560px; font-size:.84rem}
+.muses th{font-size:.7rem; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; text-align:left; padding:4px 8px 4px 0; border-bottom:1px solid var(--line)}
+.muses td{padding:5px 8px 5px 0; border-bottom:1px solid var(--line); vertical-align:top}
+.muses td code{display:block; font-size:.74rem; color:var(--wh)}
+.muses .st{font-weight:700}
+.screenuses .legend li{line-height:1.45}
+.elsewhere{margin-top:6px}
+@media (max-width: 700px){ .mrow{grid-template-columns:minmax(0,1fr)} .mflags{justify-content:flex-start} }
+/* Start from a column: every screen field built from it, and what a change to it reaches (illustrative) */
+.linkish.col{font-weight:400; text-decoration-color:color-mix(in srgb, var(--wh) 50%, transparent)}
+.linkish.col code{color:var(--wh)}
+.muses td .linkish.col{display:block; text-align:left}
+.tgraph .hp.off{stroke:var(--bad)}
+.tgraph .tb text.sub{font-family:"Schibsted Grotesk",system-ui,sans-serif; font-size:10.5px; font-weight:400; fill:var(--muted)}
+.tgraph .tb.off text.sub{fill:var(--bad)}
+.cimpact li.reach{border-left-color:var(--wh)}
+.cfeeds td .linkish code{color:var(--onto)}
+.muses td:nth-child(2){white-space:nowrap}
+.mrow.crow{border-left-color:var(--wh)}
+.mrow.crow code{color:var(--wh)}
+.mrow.crow:hover,.mrow.crow:focus-visible{border-color:var(--wh)}

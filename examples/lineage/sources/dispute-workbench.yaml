@@ -1,0 +1,19 @@
+# What the deep scan reads for one mapping set: here, the made-up repositories in examples/lineage/. On your own
+# machine, copy it and point each path at your clones (.claude/skills/lineage-scan/SKILL.md). Paths are relative to this file.
+set: dispute-workbench
+repos:
+  ui:
+    name: transaction-research-ui
+    path: ../repos/transaction-research-ui
+  be:
+    name: transaction-research-service
+    path: ../repos/transaction-research-service
+  api:
+    name: transaction-data-api
+    path: ../repos/transaction-data-api
+    graphql_schema: src/main/resources/graphql
+snowflake:
+  database: PAYMENTS
+  # An export of INFORMATION_SCHEMA.COLUMNS: TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, DATA_TYPE, COMMENT.
+  columns: ../snowflake/PAYMENTS.columns.csv
+  exported: 2026-09-22

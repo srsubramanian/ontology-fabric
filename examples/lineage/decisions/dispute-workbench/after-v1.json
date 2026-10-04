@@ -1,0 +1,82 @@
+[
+ {
+  "key": "ui:DisputeWorkbench.case>Chargeback.id",
+  "state": "accepted",
+  "by": "person:cara"
+ },
+ {
+  "key": "ui:DisputeWorkbench.originalTransaction>Authorization.id",
+  "state": "accepted",
+  "by": "person:cara"
+ },
+ {
+  "key": "ui:DisputeWorkbench.reason>Chargeback.has_reason",
+  "state": "accepted",
+  "by": "person:cara"
+ },
+ {
+  "key": "ui:DisputeWorkbench.disputedAmount>Chargeback.amount",
+  "state": "accepted",
+  "by": "person:cara"
+ },
+ {
+  "key": "ui:DisputeWorkbench.opened>Chargeback.opened_at",
+  "state": "accepted",
+  "by": "person:cara"
+ },
+ {
+  "key": "ui:DisputeWorkbench.respondBy>Chargeback.respond_by",
+  "state": "accepted",
+  "by": "person:cara"
+ },
+ {
+  "key": "ui:DisputeWorkbench.merchant>Organization.name",
+  "state": "accepted",
+  "by": "person:cara"
+ },
+ {
+  "key": "ui:DisputeWorkbench.settledOn>Settlement.settled_at",
+  "state": "accepted",
+  "by": "person:cara"
+ },
+ {
+  "key": "sf:CORE.FCT_CHARGEBACK.CB_ID>Chargeback.id",
+  "state": "accepted",
+  "by": "person:cara"
+ },
+ {
+  "key": "sf:CORE.FCT_CAPTURE.AUTH_ID>Authorization.id",
+  "state": "accepted",
+  "by": "person:cara"
+ },
+ {
+  "key": "sf:CORE.FCT_CHARGEBACK.REASON_CD>Chargeback.has_reason",
+  "state": "accepted",
+  "by": "person:cara"
+ },
+ {
+  "key": "sf:CORE.FCT_CHARGEBACK.AMT_MINOR>Chargeback.amount",
+  "state": "accepted",
+  "by": "person:cara"
+ },
+ {
+  "key": "sf:CORE.FCT_CHARGEBACK.OPENED_TS>Chargeback.opened_at",
+  "state": "accepted",
+  "by": "person:cara"
+ },
+ {
+  "key": "sf:CORE.FCT_CHARGEBACK.RESPONSE_DUE_DT>Chargeback.respond_by",
+  "state": "accepted",
+  "by": "person:cara"
+ },
+ {
+  "key": "sf:CORE.DIM_MERCHANT.LEGAL_NAME>Organization.name",
+  "state": "accepted",
+  "by": "person:cara"
+ },
+ {
+  "key": "sf:CORE.FCT_SETTLEMENT_ITEM.SETTLED_DT>Settlement.settled_at",
+  "state": "accepted",
+  "by": "person:cara"
+ }
+]

@@ -1,0 +1,9 @@
+{
+  "name": "transaction-research-ui",
+  "private": true,
+  "description": "Made up for Ontology Fabric's lineage example: the transaction research screen.",
+  "dependencies": {
+    "react": "19.2.0",
+    "react-router-dom": "7.9.4"
+  }
+}

@@ -1,0 +1,55 @@
+# The transaction data API (made up for Ontology Fabric's lineage example).
+type Query {
+  transaction(id: ID!): Transaction
+}
+
+type Transaction {
+  transactionId: ID!
+  authorizedAt: DateTime!
+  amountAuthorized: Float!
+  currencyCode: String!
+  responseCode: String!
+  card: Card!
+  merchant: Merchant!
+  deviceFingerprint: String
+  settlementDate: Date
+  lifecycle: [LifecycleEvent!]!
+  captures: [Capture!]!
+  refunds: [Refund!]!
+  chargebacks: [Chargeback!]!
+}
+
+type Card {
+  last4: String!
+}
+
+type Merchant {
+  name: String!
+  categoryCode: String!
+  riskTier: String
+}
+
+type LifecycleEvent {
+  kind: String!
+  id: ID!
+  at: DateTime!
+}
+
+type Capture {
+  id: ID!
+  amount: Float!
+}
+
+type Refund {
+  id: ID!
+  amount: Float!
+}
+
+type Chargeback {
+  id: ID!
+  reasonCode: String!
+  respondBy: Date!
+}
+
+scalar Date
+scalar DateTime

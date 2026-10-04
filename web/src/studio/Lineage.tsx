@@ -11,6 +11,7 @@ import { between, CHANGES, classOf, LAYERS, meansWords, tally, THRESHOLD, TRANSF
   type LineageDiff, type Means, type State, type Trace, type Version } from './lineage';
 import { CodeBlock } from '../kit/CodeBlock';
 import { RejectReason } from './Memory';
+import { setTitle, type Meaning } from './meaning';
 
 export const STATE_WORDS: Record<State, string> = {
   confirmed: 'confirmed', proposed: 'proposed by Claude', review: 'waits for a person', recheck: 'needs a re-check', shift: 'meaning shifts', gap: 'nothing holds it', rejected: 'rejected',
@@ -35,8 +36,10 @@ const short = (f: Field) => (f.layer === 'ui' ? f.label : f.label.replace(/\[\]$
 const where = (f: Field) => f.id.replace(/^[a-z]+:/, '');
 
 /** The panel above the map: the screen's fields, lane by lane, and the trace of the one picked. */
-export function LineagePanel({ l, pick, onPick, onClose, question, onProve, versions = [], at = 0, since = null, diff = null, onVersion, onSince }: {
+export function LineagePanel({ l, pick, onPick, onClose, onHome, question, onProve, versions = [], at = 0, since = null, diff = null, onVersion, onSince }: {
   l: Lineage; pick: string | null; onPick(slug: string | null): void; onClose(): void;
+  /** Back to lineage's front page: every meaning, and every screen. */
+  onHome?(): void;
   /** The competency question the screen answers, and a way to prove it on sample data. */
   question?: { id: string; text: string } | null; onProve?: () => void;
   /** Every scan of the set, oldest first; the one shown; the one it's compared with, and what changed since it. */
@@ -63,6 +66,7 @@ export function LineagePanel({ l, pick, onPick, onClose, question, onProve, vers
             <button type="button" aria-pressed={by === 'field'} onClick={() => setBy('field')}>By screen field</button>
             <button type="button" aria-pressed={by === 'class'} onClick={() => setBy('class')}>By ontology class</button>
           </span>
+          {onHome && <button type="button" className="vbtn tiny" onClick={onHome}>All screens and meanings</button>}
           <button type="button" className="vbtn tiny" onClick={onClose}>Close</button>
         </span>
       </header>
@@ -284,8 +288,10 @@ function Changes({ d, since, who }: { d: FieldDiff; since: string | null; who(id
 }
 
 /** Beside the map: what the picked field means, how it's built, and the decision on its mapping. */
-export function LineageDetail({ l, t, editable, who, decided, onDecide, onAsk, change = null, since = null, versions = [], latest = true }: {
+export function LineageDetail({ l, t, set = 'transaction-research', editable, who, decided, onDecide, onAsk, change = null, since = null, versions = [], latest = true, meaningOf, onMeaning, onColumn }: {
   l: Lineage; t: Trace | null; editable: boolean; who(id?: string | null): string;
+  /** The screen's mapping set, named as its file is in ontology/mappings/. */
+  set?: string;
   decided?: { state: string; reason?: string | null; by?: string | null } | null;
   onDecide(m: Means, state: 'accepted' | 'rejected', reason: string | null): void;
   onAsk(text: string): void;
@@ -293,14 +299,19 @@ export function LineageDetail({ l, t, editable, who, decided, onDecide, onAsk, c
   change?: FieldDiff | null; since?: string | null;
   /** Every scan of the set, and whether the one shown is the latest, the only one decisions go on. */
   versions?: Version[]; latest?: boolean;
+  /** Every screen's fields gathered under what they mean, to show the others that mean what this field does. */
+  meaningOf?(key: string): Meaning | null; onMeaning?(key: string): void;
+  /** Open a Snowflake column: everything built from it, on every screen. */
+  onColumn?(key: string): void;
 }) {
   const [rejecting, setRejecting] = useState(false);
+  const title = setTitle(l);
   if (!t) {
     const touched = [...new Set(l.means.map((m) => classOf(m.slot)).filter(Boolean))];
     return (
       <>
         <div className="ihead"><h2>Where the screen's data comes from</h2>
-          <p className="small muted">Illustrative: every system, file, table and column here is made up, for a transaction research screen backed by an application, a data API and Snowflake.</p></div>
+          <p className="small muted">Illustrative: every system, file, table and column here is made up, for a {title.toLowerCase()} screen backed by an application, a data API and Snowflake.</p></div>
         <section className="isec">
           <h3>How to read it</h3>
           <ul className="legend">
@@ -313,20 +324,20 @@ export function LineageDetail({ l, t, editable, who, decided, onDecide, onAsk, c
           </ul>
         </section>
         <section className="isec"><h3>It touches · {touched.length} classes</h3><p className="small">{touched.join(', ')}. They stay bright on the map.</p></section>
-        <section className="isec"><h3>Where it's kept</h3><p className="small">In the repository as a mapping set in SSSOM's format, <code>ontology/mappings/transaction-research.sssom.tsv</code>. Decisions made here go on the working draft, and the pull request writes them into the file.</p></section>
+        <section className="isec"><h3>Where it's kept</h3><p className="small">In the repository as a mapping set in SSSOM's format, <code>ontology/mappings/{set}.sssom.tsv</code>. Decisions made here go on the working draft, and the pull request writes them into the file.</p></section>
         {versions.length > 1 && (
           <section className="isec">
             <h3>Versions · {versions.length} scans</h3>
             <ol className="lversions">
               {[...versions].reverse().map((v) => (
                 <li key={v.version}>
-                  <b>{v.version}</b> · {day(v.date, true)}{v === versions[versions.length - 1] ? ' · latest' : ''}
+                  <b>{v.version}</b> · {day(v.date, true)}{v === versions[versions.length - 1] ? ' · latest' : ''}{v.tool ? ` · ${v.tool}` : ''}
                   <span className="small muted"> Read {LAYERS.filter((x) => x.id !== 'sf' && v.read[x.id]).map((x) => `${v.read[x.id]!.source.replace(/^repo:/, '')} at ${v.read[x.id]!.at}`).join(', ')}
                     {v.read.sf ? `, and Snowflake's ${v.read.sf.source.replace(/^snowflake:/, '')} schema of ${day(v.read.sf.at)}` : ''}.</span>
                 </li>
               ))}
             </ol>
-            <p className="small">Each scan reads the code and the schema, and Claude maps only what's new or changed. Merged, it's the next version, and the earlier ones stay in <code>ontology/mappings/history/</code>. A person's decision holds until the code under it changes; then it comes back as a re-check.</p>
+            <p className="small">Each scan reads the code and the schema, and Claude maps only what's new or changed. Merged, it's the next version, and the earlier ones stay in <code>ontology/mappings/history/</code>. A person's decision holds until the code under it changes; then it comes back as a re-check. These three were written by the deep scan from made-up repositories, in <code>examples/lineage/</code>.</p>
           </section>
         )}
       </>
@@ -352,18 +363,26 @@ export function LineageDetail({ l, t, editable, who, decided, onDecide, onAsk, c
           <p className="story">On the screen, <b>{t.field.label}</b> {meansWords(m.predicate)} <code>{m.slot}</code>{m.author.startsWith('agent:') && !t.confirmedBy ? `, Claude says, ${m.confidence.toFixed(2)} sure` : ''}.</p>
         ) : <p className="story">Nothing in the ontology holds <b>{t.field.label}</b> yet.</p>}
         {m?.comment && <p className="small">{m.comment}</p>}
+        {m?.slot && !m.negated && meaningOf && onMeaning && (() => {
+          const mm = meaningOf(m.slot);
+          if (!mm) return null;
+          const others = mm.uses.filter((u) => u.set.title !== title || u.trace.slug !== t.slug);
+          return (
+            <p className="small elsewhere">{others.length ? `${others.length === 1 ? 'One other screen field means' : `${others.length} other screen fields mean`} it too.` : 'No other screen field means it yet.'}{mm.problems ? ` Screens disagree about it in ${mm.problems === 1 ? 'one way' : `${mm.problems} ways`}.` : ''} <button type="button" className="linkish" data-meaning={mm.key} onClick={() => onMeaning(mm.key)}>Start from {mm.key}</button></p>
+          );
+        })()}
         {t.sources.map((s) => {
           const f = l.fields.get(s.field)!;
-          return <p key={s.key} className={'small' + (t.shift && s.field === t.shift.field.id ? ' warn' : '')}>In Snowflake, <code>{where(f)}</code> {s.slot ? <>{meansWords(s.predicate)} <code>{s.slot}</code></> : 'means nothing in the ontology yet'}.</p>;
+          return <p key={s.key} className={'small' + (t.shift && s.field === t.shift.field.id ? ' warn' : '')}>In Snowflake, {onColumn ? <button type="button" className="linkish col" data-column={f.id} onClick={() => onColumn(f.id)}><code>{where(f)}</code></button> : <code>{where(f)}</code>} {s.slot ? <>{meansWords(s.predicate)} <code>{s.slot}</code></> : 'means nothing in the ontology yet'}.</p>;
         })}
         {t.shift && (
           <div className="said wrong">
             The screen calls it {t.field.label.toLowerCase()} (<code>{t.shift.screen}</code>), but it's built from <code>{where(t.shift.field)}</code>, which means <code>{t.shift.source}</code>{t.shift.hop ? `: ${t.shift.hop.note.toLowerCase()}` : ''}. One field, two meanings.
-            {editable && latest && <p className="row"><button type="button" className="vbtn tiny" onClick={() => onAsk(`On the transaction research screen, "${t.field.label}" means ${t.shift!.screen}, but it's built from ${where(t.shift!.field)}, which means ${t.shift!.source}${t.shift!.hop ? ` (${t.shift!.hop.note.toLowerCase()})` : ''}. What should the ontology do so a question about it can tell the two apart?`)}>Ask Claude what to do</button></p>}
+            {editable && latest && <p className="row"><button type="button" className="vbtn tiny" onClick={() => onAsk(`On the ${title.toLowerCase()} screen, "${t.field.label}" means ${t.shift!.screen}, but it's built from ${where(t.shift!.field)}, which means ${t.shift!.source}${t.shift!.hop ? ` (${t.shift!.hop.note.toLowerCase()})` : ''}. What should the ontology do so a question about it can tell the two apart?`)}>Ask Claude what to do</button></p>}
           </div>
         )}
         {t.state === 'gap' && editable && latest && (
-          <p className="row"><button type="button" className="vbtn tiny go" onClick={() => onAsk(`The transaction research screen shows "${t.field.label}", built from ${where(t.lanes.sf[0] ?? t.field)}. Nothing in the ontology holds it. What should the ontology add?`)}>Ask Claude what to add</button></p>
+          <p className="row"><button type="button" className="vbtn tiny go" onClick={() => onAsk(`The ${title.toLowerCase()} screen shows "${t.field.label}", built from ${where(t.lanes.sf[0] ?? t.field)}. Nothing in the ontology holds it. What should the ontology add?`)}>Ask Claude what to add</button></p>
         )}
         {decided && <p className="small muted">{decided.state === 'accepted' ? 'Accepted' : 'Rejected'} by {who(decided.by)}{decided.reason ? `: “${decided.reason}”` : ''}.</p>}
         {t.confirmedBy && !decided && <p className="small muted">Confirmed by {personName(t.confirmedBy, who)}{m?.author.startsWith('agent:') ? `, as Claude proposed it, ${m.confidence.toFixed(2)} sure` : ''}.</p>}
@@ -384,7 +403,7 @@ export function LineageDetail({ l, t, editable, who, decided, onDecide, onAsk, c
               <li key={i}>
                 <span className={'hk t-' + h.transform}>{TRANSFORMS[h.transform]}</span> {stl(from)} <code>{short(from)}</code> → {stl(to)} <code>{short(to)}</code>
                 {h.note && <span className="small"> · {h.note}</span>}
-                {h.location && <span className="loc">{h.location}</span>}
+                {h.location && <span className="loc">{h.source ? `${h.source.replace(/^repo:/, '')} · ` : ''}{h.location}</span>}
                 {h.code && <CodeBlock code={h.code} lang={to.layer === 'ui' ? 'tsx' : to.layer === 'be' ? 'java' : 'sql'} />}
               </li>
             );

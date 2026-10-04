@@ -21,7 +21,8 @@ import { Dial, MemoryPanel } from './Memory';
 import { useMemory } from './useMemory';
 import { buildVersions, classOf, compareLineage, tally, versionsOf, type Means } from './lineage';
 import { changeWords, day, LineageDetail, LineagePanel, STATE_WORDS } from './Lineage';
-import TXN_RESEARCH from '../../../ontology/mappings/transaction-research.sssom.tsv?raw';
+import { columnIndex, columnRoute, columnsInOrder, gapsOf, meaningIndex, meaningRoute, meaningsInOrder, setTitle, type ScreenSet } from './meaning';
+import { ColumnDetail, ColumnPanel, LineageAbout, LineageHome, MeaningDetail, MeaningPanel, ScreenUses, type HomeTab } from './Meaning';
 import { AskedList, InquiryCard, ProposalsPanel } from './Ask';
 import { usePresence, type Here, type Lens } from './presence';
 import { LensToggle, StoryClass, StoryRel } from './Story';
@@ -34,10 +35,16 @@ import { cleanScenario, writeTest } from './testcase';
 import { SessionCard, StartPull } from './Pull';
 import { sampleAdvice, useProfiles, useRuntime, type SampleError } from './runtime';
 
-// The Transaction Research mapping set's scans (illustrative): the earlier ones kept in history, then the current one.
-const TXN_HISTORY = import.meta.glob('../../../ontology/mappings/history/transaction-research.*.sssom.tsv', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
-const TXN_VERSIONS = versionsOf(TXN_RESEARCH, Object.values(TXN_HISTORY));
-const LATEST = TXN_VERSIONS.length - 1;
+// Every screen's mapping set (illustrative), each with its earlier scans kept in history. Transaction research's comes
+// first: routes that name no screen, from before there were two, mean it.
+const SET_FILES = import.meta.glob('../../../ontology/mappings/*.sssom.tsv', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const HISTORY_FILES = import.meta.glob('../../../ontology/mappings/history/*.sssom.tsv', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const fileName = (p: string) => p.split('/').pop()!.replace(/\.sssom\.tsv$/, '');
+const DEFAULT_SET = 'transaction-research';
+const SETS = Object.entries(SET_FILES).map(([p, tsv]) => {
+  const id = fileName(p);
+  return { id, versions: versionsOf(tsv, Object.entries(HISTORY_FILES).filter(([h]) => fileName(h).startsWith(id + '.')).map(([, t]) => t)) };
+}).sort((a, b) => Number(b.id === DEFAULT_SET) - Number(a.id === DEFAULT_SET) || a.id.localeCompare(b.id));
 import { useDraftStore } from './store';
 
 type Entry = { label: string; fwd: DraftUpdate; inv: DraftUpdate };
@@ -83,14 +90,44 @@ export function App() {
   const mission = view.startsWith('mission-') ? missionById(view.slice('mission-'.length)) ?? null : null;
   const inquiryId = view.startsWith('ask-') ? view.slice('ask-'.length) : null;
   const inquiry = inquiryId ? draft.inquiries?.[inquiryId] ?? null : null;
-  // Lineage: a screen's fields traced to the warehouse and to the ontology (illustrative). #studio-lineage-<field> picks one,
-  // and #studio-lineage-changes opens what the latest scan changed. Which scan shows, and what it's compared with, stay local.
+  // Lineage (illustrative). #studio-lineage is its front page: start from a meaning, or from a screen.
+  // #studio-lineage-<screen> opens a screen's fields traced to Snowflake and the ontology, -<screen>-<field> one field, and
+  // -<screen>-changes what its latest scan changed; naming no screen, they mean transaction research's, as before there
+  // were two. #studio-meaning-<Class>-<slot> gathers every screen field and column that means it. Which scan shows, and
+  // what it's compared with, stay local, per screen.
   const lineageView = view === 'lineage' || view.startsWith('lineage-');
-  const lineagePick = view.startsWith('lineage-') ? view.slice('lineage-'.length) : null;
-  const [lv, setLv] = useState<{ at: number; since: number | null }>({ at: LATEST, since: null });
-  useEffect(() => { if (view === 'lineage-changes') setLv({ at: LATEST, since: Math.max(0, LATEST - 1) }); }, [view]);
-  const lineages = useMemo(() => buildVersions(TXN_VERSIONS, draft.mappings ?? {}), [draft.mappings]);
-  const lineage = lineages[lv.at], current = lineages[LATEST];
+  const lineageHome = view === 'lineage';
+  const screenView = lineageView && !lineageHome;
+  const lineageRest = view.startsWith('lineage-') ? view.slice('lineage-'.length) : '';
+  const routeSet = SETS.find((x) => lineageRest === x.id || lineageRest.startsWith(x.id + '-'));
+  const setSpec = routeSet ?? SETS.find((x) => x.id === DEFAULT_SET) ?? SETS[0];
+  const setId = setSpec.id;
+  const latestV = setSpec.versions.length - 1;
+  const lineageAfter = routeSet ? lineageRest.slice(routeSet.id.length + 1) : lineageRest;
+  const lineagePick = screenView && lineageAfter && lineageAfter !== 'changes' ? lineageAfter : null;
+  const [lvs, setLvs] = useState<Record<string, { at: number; since: number | null }>>({});
+  const lv = lvs[setId] ?? { at: latestV, since: null };
+  const setLv = (f: (v: { at: number; since: number | null }) => { at: number; since: number | null }) =>
+    setLvs((all) => ({ ...all, [setId]: f(all[setId] ?? { at: latestV, since: null }) }));
+  useEffect(() => { if (screenView && lineageAfter === 'changes') setLvs((all) => ({ ...all, [setId]: { at: latestV, since: Math.max(0, latestV - 1) } })); }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
+  const allLineages = useMemo(() => Object.fromEntries(SETS.map((x) => [x.id, buildVersions(x.versions, draft.mappings ?? {})])), [draft.mappings]);
+  const lineages = allLineages[setId];
+  const lineage = lineages[lv.at];
+  // Lineage by meaning: every screen's latest fields and columns, gathered under what they mean in the ontology.
+  const screenSets: ScreenSet[] = useMemo(() => SETS.map((x) => { const l = allLineages[x.id][x.versions.length - 1]; return { id: x.id, title: setTitle(l), lineage: l }; }), [allLineages]);
+  const meaningIdx = useMemo(() => meaningIndex(screenSets), [screenSets]);
+  const meanings = useMemo(() => meaningsInOrder(meaningIdx), [meaningIdx]);
+  const meaningView = view.startsWith('meaning-');
+  const meaning = useMemo(() => (meaningView ? [...meaningIdx.values()].find((m) => meaningRoute(m.key) === view.slice('meaning-'.length)) ?? null : null), [meaningIdx, meaningView, view]);
+  // From the other end: every Snowflake column, and what a change to it reaches. #studio-column-<SCHEMA>-<TABLE>-<COLUMN>.
+  const columnIdx = useMemo(() => columnIndex(screenSets), [screenSets]);
+  const columns = useMemo(() => columnsInOrder(columnIdx), [columnIdx]);
+  const columnView = view.startsWith('column-');
+  const column = useMemo(() => (columnView ? columns.find((c) => columnRoute(c.key) === view.slice('column-'.length)) ?? null : null), [columns, columnView, view]);
+  const [homeTab, setHomeTab] = useState<HomeTab>('meaning');
+  const goMeaning = (key: string) => { location.hash = hashFor('studio', `meaning-${meaningRoute(key)}`); };
+  const goColumn = (key: string) => { location.hash = hashFor('studio', `column-${columnRoute(key)}`); };
+  const goField = (set: string, slug: string) => { location.hash = hashFor('studio', `lineage-${set}-${slug}`); };
   const lineageDiff = useMemo(() => (lv.since !== null && lv.since < lv.at ? compareLineage(lineages[lv.since], lineages[lv.at]) : null), [lineages, lv]);
   const priorDiff = useMemo(() => (lv.at > 0 ? compareLineage(lineages[lv.at - 1], lineages[lv.at]) : null), [lineages, lv.at]);
   // The picked field's changes: since the version it's compared with, or else since the scan before, when they bear on it.
@@ -103,7 +140,7 @@ export function App() {
   const question = /^CQ-\d+$/.test(view) && rawQuestions.questions.some((q) => q.id === view) ? view : null;
   const exists = (s: Selection) => !!s && (s.kind === 'rel' ? model.relationships.some((r) => r.id === s.id) : Object.hasOwn(model.classes, s.id));
   // In a mission or a question, what's picked on the map stays local, since the route holds the mission or question.
-  const local = !!mission || !!inquiryId || lineageView;
+  const local = !!mission || !!inquiryId || lineageView || meaningView || columnView;
   const selected: Selection = local ? (exists(picked) ? picked : null)
     : rel && model.relationships.some((r) => r.id === rel) ? { kind: 'rel', id: rel }
       : Object.hasOwn(model.classes, view) ? { kind: 'class', id: view } : null;
@@ -339,7 +376,7 @@ export function App() {
   const [proofRunning, setProofRunning] = useState(false);
   const [writingTest, setWritingTest] = useState<{ step: string; ctl: AbortController } | null>(null);
   // A proof stays open while someone picks fields of the same screen's lineage; any other view closes it.
-  const viewKind = lineageView ? 'lineage' : view;
+  const viewKind = lineageView || meaningView || columnView ? 'lineage' : view;
   useEffect(() => { setProving(null); setProof(null); }, [viewKind]);
   const writingRef = useRef(writingTest);
   writingRef.current = writingTest;
@@ -412,11 +449,14 @@ export function App() {
 
   // A decision on a lineage mapping goes on the draft, for the pull request to write into the mapping set, and into memory.
   const decideMapping = (m: Means, state: 'accepted' | 'rejected', reason: string | null) => {
-    const label = current.fields.get(m.field)?.label ?? m.field;
+    // The screen whose mapping set holds it, at its latest version: decisions go on the latest only.
+    const home = screenSets.find((x) => x.lineage.traces.some((t) => t.means?.key === m.key)) ?? screenSets.find((x) => x.id === setId)!;
+    const cur = home.lineage;
+    const label = cur.fields.get(m.field)?.label ?? m.field;
     // The decision rests on how the field is built now: a later scan that changes it brings it back for a re-check.
-    const basis = current.traces.find((t) => t.means?.key === m.key)?.fingerprint ?? null;
-    void edit({ mappings: { [m.key]: { state, reason, by: rt.me.id, at: Date.now(), basis, version: current.version } } }, `${state === 'accepted' ? 'accept' : 'reject'} the mapping of ${label} to ${m.slot}`);
-    void mem.remember([[memoryId(), { state, kind: 'mapping', name: m.key, title: `Map “${label}” to ${m.slot}`, reason, question: current.title, by: rt.me.id, at: Date.now() }]])
+    const basis = cur.traces.find((t) => t.means?.key === m.key)?.fingerprint ?? null;
+    void edit({ mappings: { [m.key]: { state, reason, by: rt.me.id, at: Date.now(), basis, version: cur.version, set: home.id } } }, `${state === 'accepted' ? 'accept' : 'reject'} the mapping of ${label} to ${m.slot}`);
+    void mem.remember([[memoryId(), { state, kind: 'mapping', name: m.key, title: `Map “${label}” to ${m.slot}`, reason, question: cur.title, by: rt.me.id, at: Date.now() }]])
       .then((err) => err && setNote({ text: err, bad: true }));
   };
   const askAbout = (text: string) => {
@@ -437,14 +477,26 @@ export function App() {
   const tidyUps = a.tidyUps;
   const added = useMemo(() => new Set(live(draft.classes).filter(([, e]) => e.added).map(([n]) => n)), [draft]);
   const addedRels = useMemo(() => new Set(a.changes.relationships), [a]);
-  const lightQ = question ?? mission?.id ?? (lineageView ? lineage.question : null) ?? (inquiry?.matches && inquiry.answered ? inquiry.matches : inquiry?.proposals?.answer?.name);
+  const lightQ = question ?? mission?.id ?? (screenView ? lineage.question : null) ?? (inquiry?.matches && inquiry.answered ? inquiry.matches : inquiry?.proposals?.answer?.name);
   const walkLit = useMemo(() => (lightQ ? mapA.report.model?.questions.find((q) => q.id === lightQ)?.steps.map((x) => x.relationship.id) ?? [] : []), [mapA, lightQ]);
   // A mission's hints on the map: what it works on, what to use next, where to drag from, and where to place.
   const hints = useMemo(() => {
-    if (lineageView) {
+    if (screenView) {
       // The classes the screen touches stay bright, or those of the field picked.
       const ms = pickedTrace ? [pickedTrace.means, ...pickedTrace.sources] : lineage.means;
       return { focus: new Set(ms.map((m) => classOf(m?.slot ?? null)).filter((c): c is string => !!c)) };
+    }
+    if (column) {
+      // A column's class stays bright, with the classes of every screen field built from it.
+      const focus = new Set(column.own.map((o) => classOf(o.means.slot)!));
+      for (const f of column.feeds) if (f.trace.means?.slot) focus.add(classOf(f.trace.means.slot)!);
+      return { focus, pulse: new Set(column.own.map((o) => classOf(o.means.slot)!)) };
+    }
+    if (meaning) {
+      // A meaning's class stays bright, with the classes its fields are also built from.
+      const focus = new Set([meaning.cls]);
+      for (const f of meaning.findings) if (f.kind === 'shift') focus.add(classOf(f.source)!);
+      return { focus, pulse: new Set([meaning.cls]) };
     }
     if (inquiry?.status === 'proposed') {
       // A question's hints: the classes it touches stay bright, and the proposal in hand pulses.
@@ -467,7 +519,7 @@ export function App() {
     }
     const mine = mission.steps.flatMap((x) => (x.kind === 'place' ? [x.cls.name] : []));
     return { focus: new Set([...mission.focus, ...mine]), pulse, handleOn };
-  }, [mission, s, ctx, draft, inquiry, ghostSet, walkLit, mapModel, focusP, lineageView, pickedTrace, lineage]);
+  }, [mission, s, ctx, draft, inquiry, ghostSet, walkLit, mapModel, focusP, screenView, pickedTrace, lineage, meaning, column]);
   const show = mission && s && (s.kind === 'place' || s.kind === 'link' || s.kind === 'walk') ? () => setDemo({
     key: Date.now(), ...(s.kind === 'place' ? { kind: 'place' as const, at: target! } : s.kind === 'link' ? { kind: 'drag' as const, from: s.from, to: s.to }
       : { kind: 'walk' as const, rels: s.walks }),
@@ -504,7 +556,8 @@ export function App() {
   const name = (x: Here) => (x.by ? people[x.by]?.name : '') || 'Someone';
   const where = (x: Here) => {
     const v = x.view;
-    const at = !v ? 'on the map' : v.startsWith('ask-') ? 'on a question' : v.startsWith('mission-') ? 'in a worked example' : `on ${v}`;
+    const at = !v ? 'on the map' : v.startsWith('ask-') ? 'on a question' : v.startsWith('mission-') ? 'in a worked example'
+      : v === 'lineage' ? 'in lineage' : v.startsWith('lineage-') ? "on a screen's lineage" : v.startsWith('meaning-') ? 'on a meaning' : v.startsWith('column-') ? 'on a column' : `on ${v}`;
     return x.sel && x.sel !== v ? `${at}, looking at ${x.sel}` : at;
   };
   // Following someone: go where they are, and pick what they picked when it's here.
@@ -540,6 +593,8 @@ export function App() {
           <button type="button" className="vbtn" disabled={!hist.undo.length || !editable} onClick={() => void undo()} title={hist.undo.at(-1)?.label}>Undo</button>
           <button type="button" className="vbtn" disabled={!hist.redo.length || !editable} onClick={() => void redo()}>Redo</button>
           <button type="button" className={'vbtn' + (showYaml ? ' on' : '')} aria-pressed={showYaml} onClick={() => setShowYaml(!showYaml)}>YAML</button>
+          <button type="button" className={'vbtn' + (lineageView || meaningView || columnView ? ' on' : '')} aria-pressed={lineageView || meaningView || columnView} title="Where a screen's data comes from, and what it means"
+            onClick={() => { location.hash = hashFor('studio', lineageView || meaningView || columnView ? '' : 'lineage'); }}>Lineage</button>
         </span>
       </div>
       {store.draft && draft.base !== BASE && (
@@ -569,7 +624,7 @@ export function App() {
               onAcceptAll={() => acceptProposals(pending(inquiry))} />
           ) : (
             <section className="coach" aria-label="Your question"><p className="say muted">{store.draft ? 'This question isn\'t on the working draft. It may belong to an earlier draft.' : 'Loading the working draft…'}</p></section>
-          )) : welcome && !question && !lineageView && (
+          )) : welcome && !question && !lineageView && !meaningView && !columnView && (
             <section className="coach welcome" aria-label="Welcome">
               <header><span className="ctag">New here?</span><b>Ask the ontology a question</b></header>
               <p className="say">Type a question in the box above, in your own words, the way you'd ask a colleague. Claude works out what the ontology is missing and proposes the design on the map. You keep what's right.</p>
@@ -584,15 +639,33 @@ export function App() {
               </div>
             </section>
           )}
-          {lineageView && (
+          {lineageHome && (
+            <LineageHome sets={screenSets} meanings={meanings} columns={columns} gaps={gapsOf(screenSets)} tab={homeTab} setTab={setHomeTab}
+              onMeaning={goMeaning} onColumn={goColumn} onSet={(id) => { location.hash = hashFor('studio', `lineage-${id}`); }} onField={goField}
+              onClose={() => { location.hash = hashFor('studio', ''); }} />
+          )}
+          {screenView && (
             <LineagePanel l={lineage} pick={lineagePick} onClose={() => { location.hash = hashFor('studio', ''); }}
+              onHome={() => { location.hash = hashFor('studio', 'lineage'); }}
               question={lineage.question ? { id: lineage.question, text: rawQuestions.questions.find((q) => q.id === lineage.question)?.question ?? '' } : null}
               onProve={lineage.question ? () => startProof(lineage.question!, 'draft') : undefined}
-              onPick={(sl) => { location.hash = hashFor('studio', sl ? `lineage-${sl}` : 'lineage'); }}
-              versions={TXN_VERSIONS} at={lv.at} since={lineageDiff ? lv.since : null} diff={lineageDiff}
+              onPick={(sl) => { location.hash = hashFor('studio', sl ? `lineage-${setId}-${sl}` : `lineage-${setId}`); }}
+              versions={setSpec.versions} at={lv.at} since={lineageDiff ? lv.since : null} diff={lineageDiff}
               onVersion={(i) => setLv(({ since }) => ({ at: i, since: since !== null && i > 0 ? Math.min(since, i - 1) : null }))}
               onSince={(i) => setLv(({ at }) => ({ at, since: i }))} />
           )}
+          {meaningView && (meaning ? (
+            <MeaningPanel key={meaning.key} m={meaning} model={model} editable={editable} onUse={goField} onMeaning={goMeaning} onColumn={goColumn} onAsk={askAbout}
+              onHome={() => { setHomeTab('meaning'); location.hash = hashFor('studio', 'lineage'); }} onClose={() => { location.hash = hashFor('studio', ''); }} />
+          ) : (
+            <section className="coach lineage" aria-label="Meaning"><p className="say muted">No screen field means that yet. <a href={hashFor('studio', 'lineage')}>See every meaning the screens carry</a>.</p></section>
+          ))}
+          {columnView && (column ? (
+            <ColumnPanel key={column.key} c={column} who={who} onUse={goField} onMeaning={goMeaning}
+              onHome={() => { setHomeTab('column'); location.hash = hashFor('studio', 'lineage'); }} onClose={() => { location.hash = hashFor('studio', ''); }} />
+          ) : (
+            <section className="coach lineage" aria-label="Column"><p className="say muted">No screen reads that column. <a href={hashFor('studio', 'lineage')}>See every column the screens read</a>.</p></section>
+          ))}
           {proving && (
             <ProofPanel key={proving.qid} editable={editable} canWrite={!!rt.sample} writing={writingTest?.step ?? null}
               v={{ qid: proving.qid, question: proofQ?.question ?? '', lane: proofQ?.language ?? 'cypher', proof, running: proofRunning, scenario, seed: proving.seed,
@@ -625,7 +698,7 @@ export function App() {
 
         <aside className="inspector" aria-live="polite">
           <LensToggle lens={lens} setLens={setLens} />
-          {local && selected && <button type="button" className="vbtn tiny back" onClick={() => select(null)}>← Back to the {mission ? 'mission' : lineageView ? 'lineage' : 'proposals'}</button>}
+          {selected && (local || !question) && <button type="button" className="vbtn tiny back" onClick={() => select(null)}>Back to the {mission ? 'mission' : meaningView ? 'meaning' : columnView ? 'column' : lineageView ? 'lineage' : inquiryId ? 'proposals' : 'overview'}</button>}
           {mission && !selected ? (
             <MissionPanel m={mission} at={step} ctx={ctx} a={a} thought={thought} />
           ) : inquiryId && !selected ? (
@@ -635,19 +708,29 @@ export function App() {
                 tutor={mem.level === 'tutor' && Object.values(inquiry.proposals ?? {}).some((p) => p?.quiz)} />}
               <section className="isec"><h3>Questions asked · {asked.length}</h3><AskedList items={asked} who={who} running={running?.id ?? null} /></section>
             </>
-          ) : lineageView && !selected ? (
+          ) : screenView && !selected ? (
             <LineageDetail l={lineage} t={pickedTrace} editable={editable} who={who} onDecide={decideMapping} onAsk={askAbout}
-              change={fieldChange} since={(lineageDiff ?? priorDiff)?.from ?? null} versions={TXN_VERSIONS} latest={lv.at === LATEST}
+              set={setId} meaningOf={(key) => meaningIdx.get(key) ?? null} onMeaning={goMeaning} onColumn={goColumn}
+              change={fieldChange} since={(lineageDiff ?? priorDiff)?.from ?? null} versions={setSpec.versions} latest={lv.at === latestV}
               decided={(() => {
-                const d = lv.at === LATEST && pickedTrace?.means ? draft.mappings?.[pickedTrace.means.key] : null;
+                const d = lv.at === latestV && pickedTrace?.means ? draft.mappings?.[pickedTrace.means.key] : null;
                 return d && (!d.basis || d.basis === pickedTrace!.fingerprint) ? d : null;
               })()} />
+          ) : meaningView && meaning && !selected ? (
+            <MeaningDetail m={meaning} model={model} sets={screenSets} />
+          ) : columnView && column && !selected ? (
+            <ColumnDetail c={column} model={model} />
+          ) : lineageHome && !selected ? (
+            <LineageAbout sets={screenSets} meanings={meanings} columns={columns} tab={homeTab} />
           ) : question ? (
             <QuestionPanel ctx={ctx} a={a} editable={editable} edit={panel.edit} id={question} walking={walking} setWalking={setWalking}
               writeQuery={rt.sample ? () => void writeQuery() : undefined} busy={writingQuery}
               prove={() => startProof(question, 'draft')} proving={proving?.qid === question} hasTest={!!draft.tests?.[question]} />
           ) : selected?.kind === 'class' ? (
-            lens === 'story' ? <StoryClass key={selected.id} {...panel} name={selected.id} /> : <ClassPanel key={selected.id} {...panel} name={selected.id} fresh={fresh === selected.id} />
+            <>
+              {lens === 'story' ? <StoryClass key={selected.id} {...panel} name={selected.id} /> : <ClassPanel key={selected.id} {...panel} name={selected.id} fresh={fresh === selected.id} />}
+              <ScreenUses cls={selected.id} meanings={meanings} onMeaning={goMeaning} />
+            </>
           ) : selected?.kind === 'rel' ? (
             lens === 'story' ? <StoryRel key={selected.id} {...panel} id={selected.id} /> : <RelPanel key={selected.id} {...panel} id={selected.id} fresh={fresh === selected.id} />
           ) : (
@@ -661,23 +744,41 @@ export function App() {
                         : !pass ? <p className="small muted">The ontology's checks must pass first. Map tidy-ups don't block it.</p>
                           : <StartPull d={draft} a={a} mcp={rt.mcp} me={rt.me.id!} write={write} />}
               next={draft.status === 'pr' ? () => void store.startNext() : undefined}
-              lineage={(() => { const t = tally(current.traces), d = LATEST > 0 ? compareLineage(lineages[LATEST - 1], current) : null; return (
+              lineage={(
                 <section className="isec">
                   <h3>Where the data comes from</h3>
-                  <a className="lcard" href={hashFor('studio', 'lineage')} data-view="lineage">
-                    <b>{current.title.replace(/ to the payments ontology \(illustrative\)$/, '')}</b>
-                    <span className="small muted">Illustrative · {current.traces.length} fields traced to Snowflake · {t.shift} {STATE_WORDS.shift} · {t.gap} with nothing to hold it · {t.review} {STATE_WORDS.review}</span>
-                  </a>
-                  {d && (
-                    <p className="small"><a href={hashFor('studio', 'lineage-changes')} data-view="lineage-changes">What the latest scan changed</a> ({current.version}, {day(current.date)}): {changeWords(d).join(', ') || 'nothing that bears on a meaning'}.</p>
-                  )}
-                  {current.traces.some((x) => x.state === 'shift' || x.state === 'gap' || x.state === 'recheck') && (
-                    <p className="small">Look at {current.traces.filter((x) => x.state === 'shift' || x.state === 'gap' || x.state === 'recheck').map((x, i) => (
-                      <span key={x.slug}>{i ? ', ' : ''}<a href={hashFor('studio', `lineage-${x.slug}`)} data-view={`lineage-${x.slug}`}>{x.field.label}</a> ({STATE_WORDS[x.state]})</span>
-                    ))}.</p>
-                  )}
+                  <p className="small"><a href={hashFor('studio', 'lineage')} data-view="lineage">Start from a meaning</a>: {meanings.length} meanings across {screenSets.length} screens{(() => {
+                    const bad = meanings.filter((m) => m.problems);
+                    return bad.length ? <>, {bad.length} where screens disagree, such as <a href={hashFor('studio', `meaning-${meaningRoute(bad[0].key)}`)} data-view={`meaning-${meaningRoute(bad[0].key)}`}><code>{bad[0].key}</code></a></> : null;
+                  })()}.</p>
+                  {(() => {
+                    const wide = columns.filter((c) => c.screens.length > 1);
+                    return wide.length > 0 && (
+                      <p className="small">Or <a href={hashFor('studio', 'lineage')} onClick={() => setHomeTab('column')}>start from a column</a>: {wide.length} are read by more than one screen, such as <a href={hashFor('studio', `column-${columnRoute(wide[0].key)}`)} data-view={`column-${columnRoute(wide[0].key)}`}><code>{wide[0].field.label}</code></a>.</p>
+                    );
+                  })()}
+                  {screenSets.map((x) => {
+                    const ls = allLineages[x.id], cur = x.lineage, t = tally(cur.traces), d = ls.length > 1 ? compareLineage(ls[ls.length - 2], cur) : null;
+                    const look = cur.traces.filter((y) => y.state === 'shift' || y.state === 'gap' || y.state === 'recheck');
+                    return (
+                      <div key={x.id} className="lset">
+                        <a className="lcard" href={hashFor('studio', `lineage-${x.id}`)} data-set={x.id} data-view={`lineage-${x.id}`}>
+                          <b>{x.title}</b>
+                          <span className="small muted">Illustrative · {cur.traces.length} fields traced to Snowflake{t.shift ? ` · ${t.shift} ${STATE_WORDS.shift}` : ''}{t.gap ? ` · ${t.gap} with nothing to hold it` : ''}{t.review ? ` · ${t.review} ${STATE_WORDS.review}` : ''}</span>
+                        </a>
+                        {d && (
+                          <p className="small"><a href={hashFor('studio', `lineage-${x.id}-changes`)} data-view={`lineage-${x.id}-changes`}>What the latest scan changed</a> ({cur.version}, {day(cur.date)}): {changeWords(d).join(', ') || 'nothing that bears on a meaning'}.</p>
+                        )}
+                        {look.length > 0 && (
+                          <p className="small">Look at {look.map((y, i) => (
+                            <span key={y.slug}>{i ? ', ' : ''}<a href={hashFor('studio', `lineage-${x.id}-${y.slug}`)} data-view={`lineage-${x.id}-${y.slug}`}>{y.field.label}</a> ({STATE_WORDS[y.state]})</span>
+                          ))}.</p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </section>
-              ); })()}
+              )}
               memory={<MemoryPanel team={mem.team} prefs={mem.prefs} shared={mem.shared} me={rt.me.id} who={who} editable={!!store.draft}
                 onForget={(id, at) => void mem.forget(id, at).then((err) => err && setNote({ text: err, bad: true }))}
                 onAbout={(t) => void mem.setPrefs({ about: t || null }).then((err) => err && setNote({ text: err, bad: true }))} />}
